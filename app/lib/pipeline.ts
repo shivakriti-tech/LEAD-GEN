@@ -168,8 +168,10 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     for (const group of byName.values()) {
       for (const l of group) {
         if (group.length >= 2) l.chain = { outlets: group.length, reason: `${group.length} outlets with this name in this search` };
-        else if (l.brand) l.chain = { outlets: 1, reason: `listed on the map as part of the "${l.brand}" brand` };
-        else if (KNOWN_CHAINS.test(l.name)) l.chain = { outlets: 1, reason: "a well-known chain" };
+        else {
+          const reason = chainReason(l);
+          if (reason) l.chain = { outlets: 1, reason };
+        }
       }
     }
     const chains = leads.filter((l) => l.chain).length;
@@ -304,6 +306,13 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 /** Big brands we shouldn't pitch a local website to. A starting list; grows with real runs. */
+/** A single business that is still a chain outlet: a brand tag on the map, or a well-known chain name. */
+export function chainReason(l: Pick<Lead, "name" | "brand">): string | undefined {
+  if (l.brand) return `listed on the map as part of the "${l.brand}" brand`;
+  if (KNOWN_CHAINS.test(l.name)) return "a well-known chain";
+  return undefined;
+}
+
 const KNOWN_CHAINS = new RegExp(
   "\\b(" +
     [

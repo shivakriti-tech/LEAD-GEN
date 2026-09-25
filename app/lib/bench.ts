@@ -1,6 +1,6 @@
 import { mergePlaces } from "./dedupe";
 import type { SearchHit } from "./enrich/discover";
-import { checkWebsites, findMissingWebsites, type Deps } from "./pipeline";
+import { chainReason, checkWebsites, findMissingWebsites, type Deps } from "./pipeline";
 import { scoreWebsiteDev } from "./score/websiteDev";
 import { domainOf, isMobile, isSocialHost, mapLimit } from "./util";
 import type { Lead } from "./types";
@@ -22,8 +22,16 @@ export interface BenchCase {
   email?: string;
   lat?: number;
   lng?: number;
-  /** Website OpenStreetMap lists. Hidden during the run: can we find it ourselves? */
+  /** Where this business came from. */
+  source?: "osm" | "google" | "gmaps";
+  /** Website the source lists. Hidden during the run: can we find it ourselves? */
+  knownWebsite?: string;
+  /** Older benchmark files call it this. */
   osmWebsite?: string;
+  brand?: string;
+  owner?: string;
+  rating?: number;
+  reviews?: number;
 }
 
 /** Your hand-checked answers (bench/vadodara.labels.csv). Blank = not checked. */
@@ -50,7 +58,7 @@ const digits = (p?: string) => (p ?? "").replace(/\D/g, "").slice(-10);
 export function truthWebsite(c: BenchCase, label?: BenchLabel): string | undefined {
   const l = label?.website?.trim().toLowerCase();
   if (l) return l === "none" ? "none" : bare(domainOf(l));
-  const d = bare(domainOf(c.osmWebsite));
+  const d = bare(domainOf(c.knownWebsite ?? c.osmWebsite));
   return d && !isSocialHost(d) ? d : undefined;
 }
 
@@ -66,7 +74,7 @@ export interface WebsiteRow {
 export function evaluate(cases: BenchCase[], outcomes: BenchOutcome[], labels: Record<string, BenchLabel> = {}) {
   const byId = new Map(outcomes.map((o) => [o.id, o]));
   const rows: WebsiteRow[] = [];
-  let mobile = 0, email = 0, personalEmail = 0, owner = 0, n = 0;
+  let mobile = 0, email = 0, personalEmail = 0, owner = 0, n = 0, chainsSkipped = 0;
   const lab = { email: [0, 0], mobile: [0, 0], owner: [0, 0], pitch: [0, 0] };
   const times: number[] = [];
 
@@ -78,8 +86,9 @@ export function evaluate(cases: BenchCase[], outcomes: BenchOutcome[], labels: R
     const l = o.lead;
     const label = labels[c.id];
 
-    // website
-    const truth = truthWebsite(c, label);
+    // website (chains are skipped, as in a real search: head office decides their website)
+    const truth = l.chain ? undefined : truthWebsite(c, label);
+    if (l.chain) chainsSkipped++;
     const foundUrl = l.websiteCheck?.via === "domain_guess" || l.websiteCheck?.via === "web_search" || l.websiteCheck?.via === "instagram_bio" ? l.website : undefined;
     const found = bare(domainOf(foundUrl));
     const foundReal = found && !isSocialHost(found) ? found : undefined;
@@ -116,6 +125,7 @@ export function evaluate(cases: BenchCase[], outcomes: BenchOutcome[], labels: R
       wrong,
       missed,
       correctNone,
+      chainsSkipped,
       /** Of the websites we accepted, how many were really theirs. Wrong sites are worse than none. */
       precision: pct(correct, correct + wrong),
       /** Of the businesses that do have a website, how many we found. */
@@ -150,6 +160,7 @@ export function headline(r: BenchReport): Record<string, number | null> {
     "website precision %": r.website.precision,
     "website recall %": r.website.recall,
     "wrong websites": r.website.wrong,
+    "businesses with a known answer": r.website.checked,
     "mobile/WhatsApp %": r.contacts.mobileOrWhatsapp,
     "email %": r.contacts.email,
     "personal email %": r.contacts.personalEmail,
@@ -167,7 +178,7 @@ export function headline(r: BenchReport): Record<string, number | null> {
 export const LOWER_IS_BETTER = new Set(["wrong websites", "sec per business (avg)", "sec per business (p90)"]);
 
 /** Labels CSV: one row per business, blanks for you to fill in. */
-export const LABEL_COLUMNS = ["id", "name", "category", "phone", "address", "osm_website", "website", "email", "mobile", "owner", "pitch", "notes"] as const;
+export const LABEL_COLUMNS = ["id", "name", "category", "phone", "address", "listed_website", "website", "email", "mobile", "owner", "pitch", "notes"] as const;
 
 export function labelsFromRows(rows: Record<string, string>[]): Record<string, BenchLabel> {
   const out: Record<string, BenchLabel> = {};
@@ -193,7 +204,9 @@ export async function runCases(
   let done = 0;
   const quiet = () => {};
   return mapLimit(cases, opts.concurrency ?? 4, async (c) => {
-    const [lead] = mergePlaces([{ source: "osm", sourceId: c.id, name: c.name, category: c.category, city: c.city, address: c.address, phone: c.phone, email: c.email, lat: c.lat, lng: c.lng }]);
+    const [lead] = mergePlaces([{ source: c.source ?? "osm", sourceId: c.id, name: c.name, category: c.category, city: c.city, address: c.address, phone: c.phone, email: c.email, lat: c.lat, lng: c.lng, brand: c.brand, owner: c.owner, rating: c.rating, reviews: c.reviews }]);
+    const chain = chainReason(lead);
+    if (chain) lead.chain = { outlets: 1, reason: chain };
     const t = Date.now();
     await findMissingWebsites([lead], { verify: true, search: opts.search }, deps, quiet);
     await checkWebsites([lead], deps, quiet);

@@ -104,7 +104,7 @@ Facebook: Page search through the official API needs Meta's "Page Public Metadat
 
 ## Benchmark (lead quality, Vadodara)
 
-`npm run bench:build` once, then `npm run bench` after every change to the lead engine. It reports website precision/recall, how many leads have a mobile, email, personal email and owner name, how well the tiers match your own judgement, and seconds per business, compared with the previous run. See `bench/README.md`.
+`npm run bench:build` (add `-- --source=gmaps` or `--source=google` for many more businesses with known websites), then `npm run bench` after every change to the lead engine. It reports website precision/recall, how many leads have a mobile, email, personal email and owner name, how well the tiers match your own judgement, and seconds per business, compared with the previous run. See `bench/README.md`.
 
 ## Scoring (website development)
 
@@ -164,7 +164,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 124 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 125 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

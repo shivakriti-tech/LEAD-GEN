@@ -1,0 +1,30 @@
+[
+ {
+  "id": "node/1",
+  "name": "Hampton by Hilton Vadodara-Alkapuri",
+  "category": "Hotel & homestay",
+  "city": "Vadodara",
+  "osmWebsite": "https://hilton.com"
+ },
+ {
+  "id": "node/2",
+  "name": "Kiran Salon",
+  "category": "Salon & spa",
+  "city": "Vadodara",
+  "phone": "+91 98250 22222"
+ },
+ {
+  "id": "gmaps/Sayaji Dental",
+  "source": "gmaps",
+  "name": "Sayaji Dental",
+  "category": "Dentist",
+  "city": "Vadodara",
+  "phone": "+91 98250 11111",
+  "lat": 0,
+  "lng": 0,
+  "knownWebsite": "https://sayajidental.in",
+  "owner": "Dr. Mehul Shah",
+  "rating": 4.7,
+  "reviews": 120
+ }
+]

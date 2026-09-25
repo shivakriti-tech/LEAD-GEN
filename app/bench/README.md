@@ -2,16 +2,23 @@
 
 It measures how good and how fast the leads are, so every change to the lead engine can be checked with numbers instead of guesswork.
 
-## 1. Build the business list (once)
+## 1. Build the business list
+
+OpenStreetMap has very few Vadodara businesses with a website listed, which is exactly what the website numbers need. Google Maps has far more, so use the Google Maps scraper (or your Google key) as well:
 
 ```
-npm run bench:build
+npm run bench:build                                   # OpenStreetMap (free, thin in Vadodara)
+npm run bench:build -- --source=gmaps --types=dentist,salon,cafe,restaurant,furniture,interior
+npm run bench:build -- --source=google                # Google Places key: ~1 request per business type
 ```
 
-This pulls about 150 real Vadodara businesses from OpenStreetMap across 15 business types (`--per=20` for more per type). It writes:
+- `--source=gmaps` needs the scraper running (`docker compose up -d` in `app/gmaps-scraper`, `GMAPS_SCRAPER_URL=http://localhost:8090`). Each business type takes 2–4 minutes, so start with 5–6 types. It also brings owner names.
+- Each run **adds** to the list. The same business from another source (same phone or name) isn't added twice, and permanently closed ones are skipped. `--reset` starts the list again. `--per=20` sets how many per type.
 
-- `vadodara.cases.json`: the businesses. Some have a website listed on OpenStreetMap. During the benchmark that website is **hidden**, so it measures whether we find it ourselves, and whether we ever accept the wrong site.
-- `vadodara.labels.csv`: your answer sheet. It's only created if it doesn't exist, so your work is never overwritten.
+It writes:
+
+- `vadodara.cases.json`: the businesses. Many have a website listed by their source. During the benchmark that website is **hidden**, so it measures whether we find it ourselves, and whether we ever accept the wrong site. Chains (Hilton, Domino's, brand-tagged outlets) are left out of the website numbers, as in a real search, where head office decides their website.
+- `vadodara.labels.csv`: your answer sheet. New businesses are added as new rows; rows you've filled in are never changed.
 
 Needs `CRAWLER_CONTACT` in `.env.local`, the same as normal OpenStreetMap searches.
 
@@ -47,6 +54,7 @@ It uses the same web search you set up for the app (SearXNG / Tavily / Brave / D
 | website precision % | Of the websites we accepted, how many really belong to the business. A wrong site ruins the pitch. | as close to 100 as possible |
 | website recall % | Of the businesses that do have a website, how many we found | higher |
 | wrong websites | Count of wrong sites accepted; listed underneath so you can see why | 0 |
+| businesses with a known answer | How many businesses the website numbers are based on. Under ~40 the percentages jump around a lot | 60+ |
 | mobile/WhatsApp %, email %, personal email %, owner name % | How many leads you can actually contact, and how personally | higher |
 | hand-checked … found % | Against your answers: did we find the right email / mobile / owner | higher |
 | tier agrees with you % | Hot/Warm when you said `yes`, Cold when you said `no` | higher |

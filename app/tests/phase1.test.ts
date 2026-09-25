@@ -155,3 +155,22 @@ describe("benchmark", () => {
     expect(r.handChecked.labelled).toBe(1);
   });
 });
+
+describe("benchmark: chains and sources", () => {
+  it("leaves chains out of the website numbers, like a real search", async () => {
+    const cases: BenchCase[] = [
+      { id: "gmaps/1", source: "gmaps", name: "Hampton by Hilton Vadodara-Alkapuri", category: "Hotel & homestay", city: "Vadodara", knownWebsite: "https://www.hilton.com/en/hotels/x" },
+      { id: "gmaps/2", source: "gmaps", name: "Sayaji Dental", category: "Dentist", city: "Vadodara", knownWebsite: "https://sayajidental.in", owner: "Dr. Mehul Shah" },
+    ];
+    const discovered: string[] = [];
+    const outcomes = await runCases(cases, {
+      discover: async (l) => { discovered.push(l.name); return { website: "https://sayajidental.in/", via: "domain_guess", evidence: "name + phone", tried: [] }; },
+      audit: async (w) => (w ? emptyAudit("ok") : emptyAudit("none")),
+    });
+    expect(discovered).toEqual(["Sayaji Dental"]);
+    const r = evaluate(cases, outcomes);
+    expect(r.website).toMatchObject({ checked: 1, correct: 1, chainsSkipped: 1, recall: 100 });
+    expect(r.contacts.owner).toBe(50);
+    expect(outcomes[1].lead.sources).toEqual(["gmaps"]);
+  });
+});
