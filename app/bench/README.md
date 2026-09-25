@@ -4,7 +4,7 @@ It measures how good and how fast the leads are, so every change to the lead eng
 
 ## 1. Build the business list
 
-OpenStreetMap has very few Vadodara businesses with a website listed, which is exactly what the website numbers need. Google Maps has far more, so use the Google Maps scraper (or your Google key) as well:
+The website numbers need businesses whose real website is known, and OpenStreetMap lists very few of those in Vadodara. Google Maps lists far more, so add businesses from the Google Maps scraper (or your Google key):
 
 ```
 npm run bench:build                                   # OpenStreetMap (free, thin in Vadodara)
