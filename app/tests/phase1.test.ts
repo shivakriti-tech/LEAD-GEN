@@ -261,3 +261,39 @@ describe("website matching fixes from the second Vadodara run", () => {
     expect(truthWebsite({ id: "x", name: "X", category: "Salon & spa", city: "Vadodara", knownWebsite: "https://vyom-dental-care.grexa.site" })).toBe("vyom-dental-care.grexa.site");
   });
 });
+
+describe("website matching fixes from the third Vadodara run (wrong sites)", () => {
+  const home = (title: string, body: string) => `<html><head><title>${title}</title></head><body>${body}</body></html>`;
+
+  it("generic address words (near, road, centre) are not proof of location", async () => {
+    const { verifyPageForLead } = await import("@/lib/enrich/discover");
+    const spaarsh = { name: "Spaarsh Beauty Salon", phones: ["+919909016843"], city: "Vadodara", address: "Shop 4, Near Crystal Plaza, Akota Road, Akota, Vadodara, Gujarat 390020" };
+    expect(verifyPageForLead(home("Spaarsh", "Our store on MG Road, near the station. Shop online."), spaarsh).ok).toBe(false);
+    // a real place from the address still counts
+    expect(verifyPageForLead(home("Spaarsh Beauty Salon", "Visit us in Akota"), spaarsh)).toMatchObject({ ok: true, proof: "place" });
+    expect(verifyPageForLead(home("Spaarsh Beauty Salon", "Opposite Crystal Plaza"), spaarsh)).toMatchObject({ ok: true });
+    // "akota" inside another word doesn't count
+    expect(verifyPageForLead(home("Spaarsh Beauty Salon", "Dakotas finest"), spaarsh).ok).toBe(false);
+  });
+
+  it("a single short name word isn't enough for the web address to match", async () => {
+    const { domainMatchesName } = await import("@/lib/enrich/discover");
+    expect(domainMatchesName("smilefoundationindia.org", "Smile Dental Clinic And Implant Center")).toBe(false);
+    expect(domainMatchesName("smiledentalclinic.in", "Smile Dental Clinic And Implant Center")).toBe(false);
+    expect(domainMatchesName("teapost.in", "Tea Post")).toBe(true);
+    expect(domainMatchesName("drhadadental.com", "Dr. Hada dental and orthodontic clinic")).toBe(true);
+  });
+
+  it("prefers the guessed site that shows their phone over one that only mentions their area", async () => {
+    const { discoverWebsite } = await import("@/lib/enrich/discover");
+    const pages: Record<string, string> = {
+      "https://aakruti.com": home("Aakruti Furnishers", "Showroom in Alkapuri"),
+      "https://aakrutifurnishers.com": home("Aakruti Furnishers", "Call 98986 10016"),
+    };
+    const r = await discoverWebsite(lead({ name: "Aakruti Furnishers", phone: "+919898610016", phones: ["+919898610016"], address: "Alkapuri, Vadodara" }), undefined, {
+      resolves: async (d) => d === "aakruti.com" || d === "aakrutifurnishers.com",
+      fetchHtml: async (url) => (pages[url] ? { html: pages[url], finalUrl: url } : null),
+    });
+    expect(r.website).toBe("https://aakrutifurnishers.com");
+  });
+});

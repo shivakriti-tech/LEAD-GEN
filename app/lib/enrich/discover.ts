@@ -14,7 +14,7 @@ import { domainOf, fetchWithTimeout, isSocialHost } from "../util";
 const GENERIC = new Set(
   (
     "the and of for pvt private ltd limited llp co company india indian " +
-    "clinic clinics dental dentist dentistry doctor doctors dr hospital care centre center health healthcare multispeciality speciality " +
+    "clinic clinics dental dentist dentistry doctor doctors dr hospital smile smiles tooth teeth care centre center health healthcare multispeciality speciality " +
     "skin hair derma dermatology physio physiotherapy rehab " +
     "salon salons spa beauty parlour parlor unisex studio makeover " +
     "gym fitness yoga zumba family unisex lounge bridal makeup artist professional premium best multi implant implants face " +
@@ -104,7 +104,12 @@ export function domainMatchesName(domain: string, name: string): boolean {
   const initials = words.filter((w) => w !== "the" && w !== "and").map((w) => w[0]).join("");
   if (full.length >= 4 && label.includes(full)) return true;
   if (noThe.length >= 4 && label.includes(noThe)) return true;
-  if (core.length >= 4 && label.includes(core)) return true;
+  if (core.length >= 6 && label.includes(core)) return true; // "smile" alone matched smilefoundationindia.org
+  // "drhadadental.com" for "Dr. Hada dental and orthodontic clinic": starts with the first words,
+  // as long as they include a real name word (not just "smile dental")
+  const firstWords = words.filter((w) => w !== "the" && w !== "and").slice(0, 2);
+  const prefix = firstWords.join("");
+  if (prefix.length >= 6 && significantTokens(firstWords.join(" ")).length && label.startsWith(prefix)) return true;
   // "Sharma Dental Care" → sdc…: only when the label is essentially just the initials plus a place/word
   if (initials.length >= 3 && label.startsWith(initials) && label.length <= initials.length + 12) return true;
   return false;
@@ -130,6 +135,14 @@ const isRootPath = (url: string) => {
     return false;
   }
 };
+
+/** Words found in almost every Indian address. On their own they don't place a business anywhere. */
+const ADDRESS_WORDS = new Set(
+  ("near nr opp opposite behind beside road rd street st lane marg main cross circle chowk char rasta highway " +
+    "center centre complex society plaza mall tower towers floor ground first second third shop shops office building bldg " +
+    "block sector phase plot nagar colony park market bazaar gali galli apartment apartments residency heights arcade " +
+    "gujarat maharashtra india east west north south new old").split(/\s+/),
+);
 
 /** Does this page belong to this lead? Needs the name AND (phone OR area/city). */
 export function verifyPageForLead(html: string, lead: Pick<Lead, "name" | "phones" | "phone" | "city" | "address">, area?: string): Verdict {
@@ -169,10 +182,15 @@ export function verifyPageForLead(html: string, lead: Pick<Lead, "name" | "phone
   const squash = (s: string) => s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]/g, "");
   const nameSq = squash(lead.name);
   const places = [area, lead.city, ...(lead.address?.split(",").map((x) => x.trim()) ?? [])]
+    .map((x) => x?.toLowerCase().replace(/^(near|nr\.?|opp\.?|opposite|behind|beside|next to)\s+/, "").trim())
     .filter((x): x is string => !!x && x.length >= 4 && !/^\d+$/.test(x))
-    .filter((x) => { const s = squash(x); return !(s.includes(nameSq) || nameSq.includes(s) || tokens.some((t) => s.includes(t))); })
-    .map((x) => x.toLowerCase());
-  const placeHit = places.find((p) => all.includes(p) || raw.includes(p));
+    // "near", "road", "centre", "gujarat 390007": in any address, so they prove nothing
+    .filter((x) => x.split(/\s+/).some((w) => w.length >= 3 && !ADDRESS_WORDS.has(w) && !/^\d+$/.test(w)))
+    .filter((x) => { const s = squash(x); return !(s.includes(nameSq) || nameSq.includes(s) || tokens.some((t) => s.includes(t))); });
+  // where a site states its address: visible text, meta tags and structured data (not every script)
+  const $meta = $('meta[content], script[type="application/ld+json"]').map((_, el) => $(el).attr("content") ?? $(el).html() ?? "").get().join(" ").toLowerCase();
+  const inWords = (text: string, p: string) => new RegExp(`(^|[^a-z0-9])${p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^a-z0-9])`).test(text);
+  const placeHit = places.find((p) => inWords(all, p) || inWords($meta, p));
   if (placeHit && nameInTitle) return { ok: true, evidence: `business name (in the page title) and "${placeHit}" are on the page`, proof: "place" };
   return { ok: false, evidence: placeHit ? "name only in the text, not the title" : "name found but no matching phone or location" };
 }
@@ -380,7 +398,8 @@ export async function discoverWebsite(lead: Lead, area: string | undefined, deps
         return (await check(`https://${d}`)) ?? (await check(`http://${d}`));
       }),
     );
-    const r = results.find((x) => x?.v.ok);
+    // the business's own phone number is stronger proof than its area, so prefer that site
+    const r = results.find((x) => x?.v.ok && x.v.proof === "phone") ?? results.find((x) => x?.v.ok);
     if (r) return { website: r.finalUrl, via: "domain_guess", evidence: r.v.evidence, tried, chainHint: chainHint(r.html) };
     const loaded = results.filter((x): x is NonNullable<typeof x> => !!x);
     if (loaded.length) tried.push(`guessed sites that loaded but aren't theirs: ${loaded.slice(0, 4).map((x) => `${domainOf(x.finalUrl)} (${x.v.evidence})`).join(", ")}`);
