@@ -39,14 +39,15 @@ Restart `npm run dev` after changing `.env.local`.
 1. Searches Google Maps, OpenStreetMap, search engines (local businesses with their own website, through SearXNG/Tavily), and Instagram business profiles and Facebook Pages for each business type in the city/area. Search-engine results are only kept if the site is a local business: directories, national online stores, news sites and chains are skipped, and the homepage must mention the city or area.
 2. Merges duplicates (same phone, same website, same Instagram/Facebook profile, same name within 150 m, or the exact same name in the same city for social results) and drops permanently closed businesses.
 3. Marks chains: the same name at 2+ places in the search, a brand tag on the map, or a website that talks about outlets/franchising. Chains stay in the list but score low.
-4. **Doesn't trust "no website" from the map.** For every business without a website it tries likely web addresses (teapost.com, teapost.in…) and a web search, and only accepts a page that shows the business name plus its phone number or its area. Each lead shows what was checked.
-5. Opens each website (plus up to 2 contact/about pages): emails, phones, WhatsApp, Instagram/Facebook, owner name, year founded, the agency that built it, HTTPS, mobile-ready, copyright year, site builder, parked/broken pages.
+4. **Shows every business right away,** marked "checking…", then checks them 8 at a time and updates each one on screen as soon as it's done. The search keeps running and saves as it goes if you close the tab; open it again from *Recent searches* to watch it finish.
+5. **Doesn't trust "no website" from the map.** For every business without a website it tries likely web addresses (teapost.com, teapost.in…), a web search for the name, then a web search for its phone number, and only accepts a page that shows the business name plus its phone number or its area. Each lead shows what was checked.
+6. Opens each website (plus up to 2 contact/about pages): emails, phones, WhatsApp, Instagram/Facebook, owner name, year founded, the agency that built it, HTTPS, mobile-ready, copyright year, site builder, parked/broken pages.
    Emails are ranked (an owner's own address before info@) and checked for a mail server, so a dead address is never the one shown first.
-6. Instagram: with a Meta token, reads each business profile (followers, last post, bio website). A website in the bio is verified like any other; an active account with no website becomes a stronger lead.
-7. Optional: Google PageSpeed mobile score.
-8. Optional: Apollo company data (your key).
-9. Scores each lead for **website development** and writes the "why now" line.
-10. Saves the search. Export to CSV from the results.
+7. Instagram: with a Meta token, reads each business profile (followers, last post, bio website). A website in the bio is verified like any other; an active account with no website becomes a stronger lead.
+8. Optional: Google PageSpeed mobile score.
+9. Optional: Apollo company data (your key).
+10. Scores each lead for **website development** and writes the "why now" line.
+11. Saves the search. Export to CSV from the results.
 
 ## Free web search
 
@@ -99,6 +100,7 @@ Facebook: Page search through the official API needs Meta's "Page Public Metadat
 
 ## Speed
 
+- All sources are searched at the same time, and results appear on screen before the website checks finish.
 - Guessed web addresses are checked with a DNS lookup first. Most don't exist, and DNS says so in milliseconds instead of waiting for a page timeout.
 - Web searches, website checks and websites found are saved in `.data/cache` and reused for up to 7 days (failed checks: 1 day). Searching the same city again is much faster. `LEAD_CACHE=off` in `.env.local` turns this off.
 
@@ -164,7 +166,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 139 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 144 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

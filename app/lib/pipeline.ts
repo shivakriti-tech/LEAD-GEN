@@ -61,7 +61,9 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
 
   try {
     const place = params.area ? `${params.area}, ${params.city}` : params.city;
-    const webSearch = deps.makeWebSearch ? deps.makeWebSearch((m) => log(m, "warn")) : deps.webSearch;
+    const rawSearch = deps.makeWebSearch ? deps.makeWebSearch((m) => log(m, "warn")) : deps.webSearch;
+    // Businesses are checked many at a time; web searches still go out at most 3 at once.
+    const webSearch = rawSearch ? limited(rawSearch, 3) : undefined;
     const cats = params.categories.map(categoryByKey).filter((c): c is NonNullable<typeof c> => !!c);
     if (!cats.length) throw new Error("Pick at least one business type.");
 
@@ -98,26 +100,10 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     ]);
     if (!useGoogle && !useOsm && !useIg && !useFb && !useWeb && !useGmaps) throw new Error("No lead source is available.");
     let done = 0, googleRequests = 0;
+    const total = jobs.length + (useGmaps ? 1 : 0);
+    emit({ type: "stage", stage: "search", done, total });
 
-    // Google Maps scraper (local testing only): one business type at a time.
-    if (useGmaps) {
-      log(`Google Maps scraper (testing only): searching ${cats.length} business type${cats.length > 1 ? "s" : ""}. About 2–4 minutes each.`);
-      emit({ type: "stage", stage: "search", done: 0, total: jobs.length + 1 });
-      const results = await deps.gmaps({
-        baseUrl: deps.keys.gmapsScraper!,
-        city: params.city,
-        max: params.perCategory,
-        requests: cats.map((c) => ({ category: c.label, keyword: `${c.google} in ${place}` })),
-        onProgress: (m) => log(m),
-      });
-      for (const r of results) {
-        raw.push(...r.places);
-        if (r.error) log(`Google Maps scraper failed for ${r.category}: ${r.error}`, "warn");
-        else log(`Google Maps scraper: ${r.places.length} × ${r.category} in ${place}`);
-      }
-    }
-    emit({ type: "stage", stage: "search", done, total: jobs.length });
-    for (const j of jobs) {
+    const runJob = async (j: (typeof jobs)[number]) => {
       try {
         if (j.src === "google") {
           const r = await deps.google({ apiKey: deps.keys.google!, query: `${j.c.google} in ${place}`, category: j.c.label, city: params.city, max: params.perCategory });
@@ -146,8 +132,35 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
       } catch (e) {
         log(`${SOURCE_LABEL[j.src]} failed for ${j.c.label}: ${msg(e)}`, "warn");
       }
-      emit({ type: "stage", stage: "search", done: ++done, total: jobs.length });
-    }
+      emit({ type: "stage", stage: "search", done: ++done, total });
+    };
+
+    // All sources at once, each at a pace its server accepts (public OpenStreetMap servers allow ~2 at a time).
+    const group = (srcs: string[]) => jobs.filter((j) => srcs.includes(j.src));
+    await Promise.all([
+      mapLimit(group(["google"]), 3, runJob),
+      mapLimit(group(["osm"]), 2, runJob),
+      mapLimit(group(["web", "instagram", "facebook"]), 3, runJob),
+      // Google Maps scraper (local testing only): one business type at a time, minutes each.
+      useGmaps
+        ? (async () => {
+            log(`Google Maps scraper (testing only): searching ${cats.length} business type${cats.length > 1 ? "s" : ""}. About 2–4 minutes each.`);
+            const results = await deps.gmaps({
+              baseUrl: deps.keys.gmapsScraper!,
+              city: params.city,
+              max: params.perCategory,
+              requests: cats.map((c) => ({ category: c.label, keyword: `${c.google} in ${place}` })),
+              onProgress: (m) => log(m),
+            });
+            for (const r of results) {
+              raw.push(...r.places);
+              if (r.error) log(`Google Maps scraper failed for ${r.category}: ${r.error}`, "warn");
+              else log(`Google Maps scraper: ${r.places.length} × ${r.category} in ${place}`);
+            }
+            emit({ type: "stage", stage: "search", done: ++done, total });
+          })()
+        : Promise.resolve(),
+    ]);
     if (googleRequests) log(`Used ${googleRequests} Google Places request${googleRequests > 1 ? "s" : ""} (1,000 free per month).`);
     search.counts.found = raw.length;
 
@@ -177,12 +190,39 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     const chains = leads.filter((l) => l.chain).length;
     if (chains) log(`${chains} look like chain or franchise outlets. They're kept but scored low: head office decides their website.`);
 
-    // 3a. verify "no website" before believing it
-    await findMissingWebsites(leads, { area: params.area, verify: params.verifyWebsites, search: params.webSearch ? webSearch : undefined }, deps, emit);
+    // 3. Show every business now, then check each one and update it as soon as it's done.
+    for (const l of leads) {
+      l.websiteCheck = { via: l.website && !isSocialHost(domainOf(l.website)) ? "source" : "none_found", tried: [l.sources.map((x) => SOURCE_LABEL[x]).join(" + ")] };
+      Object.assign(l, scoreWebsiteDev(l, deps.now?.()));
+      l.pending = true;
+    }
+    emit({ type: "leads", leads });
+    const progress = saver(() => deps.store.saveLeads(search.id, leads));
+    progress.now();
 
-    // 3b. audit every website, collect contacts, check emails
-    await checkWebsites(leads, deps, emit);
-    for (const l of leads) for (const u of Object.values(l.audit?.socials ?? {})) rememberSocial(l, u);
+    const needSite = params.verifyWebsites ? leads.filter((l) => !l.chain && (!l.website || isSocialHost(domainOf(l.website)))).length : 0;
+    const siteSearch = params.verifyWebsites && params.webSearch ? webSearch : undefined;
+    if (needSite) log(`Checking ${leads.length} businesses. ${needSite} have no website listed: looking for one (likely web addresses${siteSearch ? ", web search and their phone number" : ""}).`);
+    const state = { searchBroken: false };
+    let checked = 0;
+    emit({ type: "stage", stage: "enrich", done: 0, total: leads.length });
+    // businesses with a phone first: they're the ones you can call
+    const order = [...leads].sort((a, b) => Number(!!b.phone) - Number(!!a.phone));
+    await mapLimit(order, 8, async (l) => {
+      try {
+        await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: siteSearch, state }, deps);
+      } catch (e) {
+        l.websiteCheck?.tried.push(`check failed: ${msg(e)}`);
+      }
+      Object.assign(l, scoreWebsiteDev(l, deps.now?.()));
+      l.pending = false;
+      emit({ type: "lead", lead: l });
+      emit({ type: "stage", stage: "enrich", done: ++checked, total: leads.length });
+      progress.soon();
+    });
+    await progress.flush();
+    const found = leads.filter((l) => l.websiteCheck?.via === "domain_guess" || l.websiteCheck?.via === "web_search").length;
+    if (needSite) log(`Found and verified ${found} website${found === 1 ? "" : "s"} the map data didn't list.${state.searchBroken ? " Web search stopped partway (every search option failed). Set up SearXNG (free, see README) or a free Tavily key." : ""}`);
     const before = leads.length;
     leads = mergeBySocial(leads);
     if (leads.length < before) log(`${before - leads.length} Instagram/Facebook results were the same businesses as map results. Merged.`);
@@ -335,61 +375,74 @@ type Emit = (e: ProgressEvent) => void;
 const logTo = (emit: Emit) => (message: string, level: "info" | "warn" | "error" = "info") => emit({ type: "log", level, message });
 
 /**
- * Before believing "no website", look for one: likely web addresses, then web search.
- * Chains are skipped (head office decides their website). Used by the search and the benchmark.
+ * Everything we learn about one business: before believing "no website", look for one (likely web
+ * addresses, web search, its phone number); then load the site for emails, phones, owner; check emails.
+ * Chains are skipped for the search (head office decides their website). Used by the search and the benchmark.
  */
-export async function findMissingWebsites(
-  leads: Lead[],
-  opts: { area?: string; verify: boolean; search?: (q: string) => Promise<SearchHit[]> },
-  deps: Pick<Deps, "discover">,
-  emit: Emit,
+export async function qualifyLead(
+  l: Lead,
+  opts: { area?: string; verify: boolean; search?: (q: string) => Promise<SearchHit[]>; state?: { searchBroken: boolean } },
+  deps: Pick<Deps, "discover" | "audit" | "mx">,
 ): Promise<void> {
-  const log = logTo(emit);
-  for (const l of leads) {
-    l.websiteCheck ??= { via: l.website && !isSocialHost(domainOf(l.website)) ? "source" : "none_found", tried: [l.sources.map((x) => SOURCE_LABEL[x]).join(" + ")] };
-  }
-  const needSite = leads.filter((l) => !l.chain && (!l.website || isSocialHost(domainOf(l.website))));
-  if (!opts.verify || !needSite.length) return;
-  const search = opts.search;
-  log(`Looking for websites the map data missed: ${needSite.length} businesses (likely web addresses${search ? " + web search" : ""}).`);
-  let vd = 0, found = 0, searchBroken = false;
-  emit({ type: "stage", stage: "verify", done: 0, total: needSite.length });
-  // web search is rate-limited, so go 2 at a time; domain guesses alone can go faster
-  await mapLimit(needSite, search ? 2 : 6, async (l) => {
-    const r = await deps.discover(l, opts.area, { search: searchBroken ? undefined : search });
-    l.websiteCheck!.tried.push(...r.tried);
-    if (r.tried.some((t) => /No web search available|captcha/i.test(t))) searchBroken = true;
+  const state = opts.state ?? { searchBroken: false };
+  l.websiteCheck ??= { via: l.website && !isSocialHost(domainOf(l.website)) ? "source" : "none_found", tried: [l.sources.map((x) => SOURCE_LABEL[x]).join(" + ")] };
+  if (opts.verify && !l.chain && (!l.website || isSocialHost(domainOf(l.website)))) {
+    const r = await deps.discover(l, opts.area, { search: state.searchBroken ? undefined : opts.search });
+    l.websiteCheck.tried.push(...r.tried);
+    if (r.tried.some((t) => /No web search available|captcha/i.test(t))) state.searchBroken = true;
     if (r.website) {
       l.website = r.website;
-      l.websiteCheck!.via = r.via!;
-      l.websiteCheck!.evidence = r.evidence;
+      l.websiteCheck.via = r.via!;
+      l.websiteCheck.evidence = r.evidence;
       if (r.chainHint) l.chain = { outlets: 1, reason: r.chainHint };
-      found++;
     } else if (r.social && !l.website) {
       rememberSocial(l, r.social);
       l.website = r.social;
-      l.websiteCheck!.via = "web_search";
-      l.websiteCheck!.evidence = "social page found by web search (its title carries the business name)";
+      l.websiteCheck.via = "web_search";
+      l.websiteCheck.evidence = "social page found by web search (its title carries the business name)";
     }
-    emit({ type: "stage", stage: "verify", done: ++vd, total: needSite.length });
-  });
-  log(`Found and verified ${found} website${found === 1 ? "" : "s"} the map data didn't list.${searchBroken ? " Web search stopped partway (every search option failed). Set up SearXNG (free, see README) or a free Tavily key." : ""}`);
+  }
+  l.audit = await deps.audit(l.website);
+  for (const e of l.audit.emails) if (!l.emails.includes(e)) l.emails.push(e);
+  for (const p of l.audit.phones) if (!l.phones.includes(p)) l.phones.push(p);
+  if (l.audit.whatsapp && !l.phones.includes(l.audit.whatsapp)) l.phones.push(l.audit.whatsapp);
+  if (l.audit.ownerName && !l.owner) l.owner = { name: l.audit.ownerName, via: "website" };
+  l.phone ??= l.phones[0];
+  for (const u of Object.values(l.audit.socials ?? {})) rememberSocial(l, u);
+  await checkEmails([l], deps.mx);
 }
 
-/** Load every website, collect emails/phones/owner, then rank emails and check they can receive mail. */
-export async function checkWebsites(leads: Lead[], deps: Pick<Deps, "audit" | "mx">, emit: Emit): Promise<void> {
-  let enriched = 0;
-  emit({ type: "stage", stage: "enrich", done: 0, total: leads.length });
-  await mapLimit(leads, 8, async (l) => {
-    l.audit = await deps.audit(l.website);
-    for (const e of l.audit.emails) if (!l.emails.includes(e)) l.emails.push(e);
-    for (const p of l.audit.phones) if (!l.phones.includes(p)) l.phones.push(p);
-    if (l.audit.whatsapp && !l.phones.includes(l.audit.whatsapp)) l.phones.push(l.audit.whatsapp);
-    if (l.audit.ownerName && !l.owner) l.owner = { name: l.audit.ownerName, via: "website" };
-    l.phone ??= l.phones[0];
-    emit({ type: "stage", stage: "enrich", done: ++enriched, total: leads.length });
-  });
-  await checkEmails(leads, deps.mx);
+/** At most `n` calls in flight; the rest wait their turn. */
+export function limited<A extends unknown[], R>(fn: (...a: A) => Promise<R>, n: number): (...a: A) => Promise<R> {
+  let active = 0;
+  const queue: Array<() => void> = [];
+  return async (...a: A) => {
+    if (active >= n) await new Promise<void>((r) => queue.push(r));
+    active++;
+    try {
+      return await fn(...a);
+    } finally {
+      active--;
+      queue.shift()?.();
+    }
+  };
+}
+
+/** Saves partial results every few seconds (one save at a time), so a closed tab or a reload still finds them. */
+function saver(save: () => Promise<void>, everyMs = 4000) {
+  let inFlight: Promise<void> | null = null, last = 0, again = false;
+  const run = () => {
+    inFlight = save().catch(() => {}).finally(() => {
+      inFlight = null;
+      last = Date.now();
+      if (again) { again = false; run(); }
+    });
+  };
+  return {
+    now: () => (inFlight ? (again = true) : run()),
+    soon: () => { if (!inFlight && Date.now() - last >= everyMs) run(); },
+    flush: async () => { while (inFlight) await inFlight; },
+  };
 }
 
 /** Rank each lead's emails (owner's own first) and, when `mx` is given, drop domains that can't receive mail from first place. */

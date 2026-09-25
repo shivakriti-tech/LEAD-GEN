@@ -119,6 +119,8 @@ export interface Lead {
   score: number;
   tier: Tier;
   whyNow: string;
+  /** Still being checked (website, contacts); the score may change. */
+  pending?: boolean;
 }
 
 export interface SearchParams {
@@ -149,4 +151,6 @@ export type ProgressEvent =
   | { type: "start"; searchId: string }
   | { type: "log"; level: "info" | "warn" | "error"; message: string }
   | { type: "stage"; stage: "search" | "dedupe" | "verify" | "enrich" | "social" | "speed" | "score" | "save"; done: number; total: number }
+  | { type: "leads"; leads: Lead[] } // every business, before checking: show them right away
+  | { type: "lead"; lead: Lead } // one business finished checking: replace it in the list
   | { type: "done"; search: SearchRecord; leads: Lead[] };

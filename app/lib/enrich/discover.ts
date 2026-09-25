@@ -453,7 +453,60 @@ export async function discoverWebsite(lead: Lead, area: string | undefined, deps
       rejected.push(`${finalDomain} (${r.v.ok ? "mentions the business but isn't its own site" : r.v.evidence})`);
     }
     withRejects(tried, rejected);
+
+    // 3. search the phone number. A business's own site is usually one of the few pages with its exact
+    // number, and this finds sites whose address has nothing to do with the name (sdcclinic.in).
+    const byPhone = await phoneSearch(lead, area, deps.search, get);
+    tried.push(...byPhone.tried);
+    if (byPhone.website) return { website: byPhone.website, via: "web_search", evidence: byPhone.evidence, tried, chainHint: byPhone.html ? chainHint(byPhone.html) : undefined };
     if (social) return { social, tried };
   }
+  return { tried };
+}
+
+/** How a number is written on Indian sites: "98250 11111", "9825011111", "+91 98250 11111". */
+export function phoneQuery(phone?: string): string | undefined {
+  const d = (phone ?? "").replace(/\D/g, "").slice(-10);
+  if (d.length !== 10) return undefined;
+  return /^[6-9]/.test(d) ? `"${d.slice(0, 5)} ${d.slice(5)}" OR "${d}"` : `"${d}" OR "0${d}"`;
+}
+
+/**
+ * Search the business's phone number and check each site that comes back on its own homepage
+ * (and contact page): accepted only when it carries this business's name AND this exact number.
+ * A directory that lists the number doesn't pass, because its homepage doesn't show it.
+ */
+async function phoneSearch(
+  lead: Lead,
+  area: string | undefined,
+  search: (q: string) => Promise<SearchHit[]>,
+  get: typeof fetchHtml,
+): Promise<{ website?: string; evidence?: string; html?: string; tried: string[] }> {
+  const phone = [lead.phone, ...lead.phones].find((p) => phoneQuery(p));
+  const q = phoneQuery(phone);
+  if (!q) return { tried: [] };
+  const tried = [`phone search: ${q}`];
+  let hits: SearchHit[] = [];
+  try {
+    hits = await search(q);
+  } catch (e) {
+    tried.push(`phone search failed: ${e instanceof Error ? e.message : e}`);
+    return { tried };
+  }
+  const seen = new Set<string>();
+  const rejected: string[] = [];
+  for (const h of hits) {
+    const d = domainOf(h.url);
+    if (!d || seen.has(d) || isSocialHost(d) || isDirectory(d)) continue;
+    seen.add(d);
+    if (seen.size > 4) break;
+    const home = await checkPage(`https://${d}/`, lead, area, get);
+    if (home?.v.ok && home.v.proof === "phone") {
+      return { website: home.finalUrl, evidence: `found by searching its phone number: ${home.v.evidence}`, html: home.html, tried };
+    }
+    rejected.push(`${d} (${home ? home.v.evidence : "homepage didn't load"})`);
+  }
+  if (rejected.length) tried.push(`phone search: rejected ${rejected.slice(0, 4).join(", ")}`);
+  else if (!hits.length) tried.push("phone search: no results");
   return { tried };
 }

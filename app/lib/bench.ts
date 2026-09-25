@@ -1,7 +1,7 @@
 import { mergePlaces } from "./dedupe";
 import { isDirectory, type SearchHit } from "./enrich/discover";
 import { isNational } from "./sources/webSearch";
-import { chainReason, checkWebsites, findMissingWebsites, type Deps } from "./pipeline";
+import { chainReason, qualifyLead, type Deps } from "./pipeline";
 import { scoreWebsiteDev } from "./score/websiteDev";
 import { domainOf, isMobile, isSocialHost, mapLimit } from "./util";
 import type { Lead } from "./types";
@@ -221,14 +221,12 @@ export async function runCases(
   opts: { search?: (q: string) => Promise<SearchHit[]>; concurrency?: number; onDone?: (done: number, total: number) => void } = {},
 ): Promise<BenchOutcome[]> {
   let done = 0;
-  const quiet = () => {};
   return mapLimit(cases, opts.concurrency ?? 4, async (c) => {
     const [lead] = mergePlaces([{ source: c.source ?? "osm", sourceId: c.id, name: c.name, category: c.category, city: c.city, address: c.address, phone: c.phone, email: c.email, lat: c.lat, lng: c.lng, brand: c.brand, owner: c.owner, rating: c.rating, reviews: c.reviews }]);
     const chain = chainReason(lead);
     if (chain) lead.chain = { outlets: 1, reason: chain };
     const t = Date.now();
-    await findMissingWebsites([lead], { verify: true, search: opts.search }, deps, quiet);
-    await checkWebsites([lead], deps, quiet);
+    await qualifyLead(lead, { verify: true, search: opts.search }, deps);
     Object.assign(lead, scoreWebsiteDev(lead));
     const ms = Date.now() - t;
     opts.onDone?.(++done, cases.length);

@@ -131,6 +131,9 @@ export default function LeadFinder() {
             if (ev.level === "error") lastError = ev.message;
           }
           else if (ev.type === "stage") setStage({ stage: ev.stage, done: ev.done, total: ev.total });
+          // every business as soon as the map search is done, then each one as it finishes checking
+          else if (ev.type === "leads") setLeads(ev.leads);
+          else if (ev.type === "lead") setLeads((ls) => ls.map((x) => (x.id === ev.lead.id ? ev.lead : x)));
           else if (ev.type === "done") {
             finished = true;
             setSearch(ev.search);
@@ -152,13 +155,28 @@ export default function LeadFinder() {
     const qq = q.trim().toLowerCase();
     return leads.filter(
       (l) =>
-        (tier === "all" || l.tier === tier) &&
+        (tier === "all" || (!l.pending && l.tier === tier)) &&
         (!onlyNoSite || l.audit?.status === "none" || l.audit?.status === "social_only" || l.audit?.status === "down") &&
         (!needPhone || l.phone || l.phones.length) &&
         (!needEmail || l.email || l.emails.length) &&
         (!qq || `${l.name} ${l.category} ${l.address ?? ""}`.toLowerCase().includes(qq)),
-    );
+    ).sort((a, b) => Number(!!a.pending) - Number(!!b.pending) || b.score - a.score); // checked first, best first
   }, [leads, tier, onlyNoSite, needPhone, needEmail, q]);
+  const checking = leads.filter((l) => l.pending).length;
+  const tierCount = (t: Tier) => leads.filter((l) => !l.pending && l.tier === t).length;
+
+  // A search opened from the list that's still running (e.g. the tab was closed): refresh it until it's done.
+  useEffect(() => {
+    if (running || !search || search.status !== "running") return;
+    const t = setInterval(async () => {
+      const r = await fetch(`/api/searches/${search.id}`).catch(() => null);
+      if (!r?.ok) return;
+      const d = await r.json();
+      setLeads(d.leads);
+      if (d.search.status !== "running") setSearch(d.search);
+    }, 5000);
+    return () => clearInterval(t);
+  }, [running, search]);
 
   const toggleCat = (k: string) => setCats((c) => (c.includes(k) ? c.filter((x) => x !== k) : c.length >= 8 ? c : [...c, k]));
   const googleReady = !!config?.google;
@@ -326,13 +344,13 @@ export default function LeadFinder() {
           </section>
         )}
 
-        {search && search.status === "done" && (
+        {leads.length > 0 && (
           <>
             <div className="tiles">
-              <div className="tile hot"><b>{search.counts.hot}</b><span>Hot · pitch first</span></div>
-              <div className="tile"><b>{search.counts.warm}</b><span>Warm</span></div>
-              <div className="tile"><b>{search.counts.cold}</b><span>Cold · site looks fine</span></div>
-              <div className="tile"><b>{search.counts.afterDedupe}</b><span>Unique businesses from {search.counts.found} results</span></div>
+              <div className="tile hot"><b>{tierCount("hot")}</b><span>Hot · pitch first</span></div>
+              <div className="tile"><b>{tierCount("warm")}</b><span>Warm</span></div>
+              <div className="tile"><b>{tierCount("cold")}</b><span>Cold · site looks fine</span></div>
+              <div className="tile"><b>{leads.length}</b><span>{checking ? `Businesses · ${checking} still being checked` : search?.counts.found ? `Unique businesses from ${search.counts.found} results` : "Businesses"}</span></div>
             </div>
 
             <section className="panel stack">
@@ -349,10 +367,10 @@ export default function LeadFinder() {
                 </div>
                 <div className="row">
                   <input id="filter-q" type="search" placeholder="Filter by name or area" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
-                  <a className="btn" href={`/api/searches/${search.id}/csv`}>Export CSV</a>
+                  {search?.status === "done" && <a className="btn" href={`/api/searches/${search.id}/csv`}>Export CSV</a>}
                 </div>
               </div>
-              <div className="sub">{shown.length} of {leads.length} shown · sorted by opportunity score</div>
+              <div className="sub">{shown.length} of {leads.length} shown · sorted by opportunity score{checking ? ` · ${checking} still being checked (they move up as they finish)` : ""}</div>
 
               <div className="leads">
                 {shown.map((l) => (
@@ -365,7 +383,7 @@ export default function LeadFinder() {
           </>
         )}
 
-        {!running && !search && (
+        {!running && !search && !leads.length && (
           <section className="panel empty">
             Pick business types and a city, then press <b>Find leads</b>. Without a Google key, results come from OpenStreetMap only.
           </section>
@@ -395,11 +413,11 @@ function LeadRow({ lead: l, open, onToggle }: { lead: Lead; open: boolean; onTog
   return (
     <>
       <button className="lead" aria-expanded={open} onClick={onToggle}>
-        <span className={`score ${l.tier}`} title={`Opportunity score ${l.score}/100`}>{l.score}</span>
+        {l.pending ? <span className="score" title="Still checking this business">…</span> : <span className={`score ${l.tier}`} title={`Opportunity score ${l.score}/100`}>{l.score}</span>}
         <span>
           <h3>{l.name}</h3>
           <span className="sub">{l.category}{l.address ? ` · ${l.address}` : ""}</span>
-          <span className="signals">{siteTag(l)}{l.chain && <span className="tag" title={l.chain.reason}>Chain</span>}{l.social?.instagram?.followers != null && <span className="tag">IG {compact(l.social.instagram.followers)}</span>}{l.social?.instagram && l.social.instagram.followers == null && <span className="tag">Instagram</span>}{l.social?.facebook && <span className="tag">Facebook</span>}{l.rating != null && <span className="tag">{l.rating.toFixed(1)}★ · {l.reviews ?? 0}</span>}</span>
+          <span className="signals">{l.pending ? <span className="tag">Checking website…</span> : siteTag(l)}{l.chain && <span className="tag" title={l.chain.reason}>Chain</span>}{l.social?.instagram?.followers != null && <span className="tag">IG {compact(l.social.instagram.followers)}</span>}{l.social?.instagram && l.social.instagram.followers == null && <span className="tag">Instagram</span>}{l.social?.facebook && <span className="tag">Facebook</span>}{l.rating != null && <span className="tag">{l.rating.toFixed(1)}★ · {l.reviews ?? 0}</span>}</span>
         </span>
         <span className="contact">
           {l.phone ? <span className="mono">{fmtPhone(l.phone)}</span> : <span className="sub">No phone</span>}
@@ -407,7 +425,7 @@ function LeadRow({ lead: l, open, onToggle }: { lead: Lead; open: boolean; onTog
           {l.email ? <span>{l.email}</span> : <span className="sub">No email</span>}
         </span>
         <span className="why">
-          {l.whyNow}
+          {l.pending ? <span className="sub">Checking its website and contacts…</span> : l.whyNow}
           <span className="signals">{l.signals.filter((s) => !["has_phone", "has_email", "no_website", "social_only", "site_down", "chain", "ig_quiet", "owner_known", "established", "agency"].includes(s.key)).map((s) => <span key={s.key} className="tag warn">{s.label}</span>)}</span>
         </span>
       </button>
