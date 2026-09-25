@@ -13,7 +13,7 @@ import path from "node:path";
  * Bump CACHE_VERSION when the website check or website matching logic changes, so old answers
  * made by the old logic aren't reused.
  */
-export const CACHE_VERSION = 4;
+export const CACHE_VERSION = 5;
 
 export const DAY = 86_400_000;
 

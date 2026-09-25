@@ -53,7 +53,9 @@ export function cleanBusinessName(name: string, city?: string, area?: string): s
     if (significantTokens(cut).length) n = cut;
   }
   n = n.replace(/\s+/g, " ").replace(/[\s,.-]+$/, "").trim();
-  return n.replace(/[^a-z0-9]/gi, "").length >= 3 && significantTokens(n).length ? n : name.trim();
+  // Keep the cleaned name even when it's all generic words ("Family Dental Care & Implant Center"):
+  // the stuffed original ("… – Best Dentist in Vadodara") is worse for searching and matching.
+  return n.replace(/[^a-z0-9]/gi, "").length >= 3 ? n : name.trim();
 }
 
 const withCleanName = <T extends { name: string; city?: string }>(lead: T, area?: string): T => {
@@ -303,6 +305,12 @@ export function dnsResolves(domain: string): Promise<boolean> {
 
 export interface DiscoverDeps {
   fetchHtml?: typeof fetchHtml;
+  /**
+   * Also search the business's phone number. Off by default: in the Vadodara benchmark the free engines
+   * behind SearXNG returned unrelated pages for every number. Turn on (PHONE_SEARCH=on) with a search
+   * provider that matches exact numbers.
+   */
+  phoneSearch?: boolean;
   /** Does this domain exist? Default: a DNS lookup, only when fetchHtml isn't replaced (tests). */
   resolves?: (domain: string) => Promise<boolean>;
   search?: (q: string) => Promise<SearchHit[]>; // undefined = web search off
@@ -456,7 +464,7 @@ export async function discoverWebsite(lead: Lead, area: string | undefined, deps
 
     // 3. search the phone number. A business's own site is usually one of the few pages with its exact
     // number, and this finds sites whose address has nothing to do with the name (sdcclinic.in).
-    const byPhone = await phoneSearch(lead, area, deps.search, get);
+    const byPhone = (deps.phoneSearch ?? /^(on|true|1|yes)$/i.test(process.env.PHONE_SEARCH || "")) ? await phoneSearch(lead, area, deps.search, get) : { tried: [] as string[] };
     tried.push(...byPhone.tried);
     if (byPhone.website) return { website: byPhone.website, via: "web_search", evidence: byPhone.evidence, tried, chainHint: byPhone.html ? chainHint(byPhone.html) : undefined };
     if (social) return { social, tried };
@@ -495,9 +503,17 @@ async function phoneSearch(
   }
   const seen = new Set<string>();
   const rejected: string[] = [];
+  const digits = (phone ?? "").replace(/\D/g, "").slice(-10);
+  const tokens = significantTokens(lead.name);
   for (const h of hits) {
     const d = domainOf(h.url);
     if (!d || seen.has(d) || isSocialHost(d) || isDirectory(d)) continue;
+    // Only load results that show the number or the name: engines that don't match numbers exactly
+    // return unrelated pages (zhihu.com, microsoft.com…), and loading them is wasted time.
+    const text = `${h.title} ${h.snippet ?? ""} ${h.url}`.toLowerCase();
+    const showsNumber = text.replace(/\D/g, "").includes(digits.slice(-7));
+    const showsName = tokens.length ? tokens.some((t) => text.includes(t)) : text.replace(/[^a-z0-9]/g, "").includes(lead.name.toLowerCase().replace(/[^a-z0-9]/g, ""));
+    if (!showsNumber && !showsName) continue;
     seen.add(d);
     if (seen.size > 4) break;
     const home = await checkPage(`https://${d}/`, lead, area, get);

@@ -25,12 +25,13 @@ describe("phone number search", () => {
       "https://someguide.in/": home("Some Guide: best clinics", "Find doctors near you"), // lists the number on an inner page only
     };
     const r = await discoverWebsite(baseLead(), undefined, {
+      phoneSearch: true,
       resolves: async () => false,
       fetchHtml: async (url) => (pages[url] ? { html: pages[url], finalUrl: url } : null),
       search: async (q) => {
         queries.push(q);
         return q.includes("2652333394")
-          ? [{ url: "https://someguide.in/vadodara/dentists/shahs-dental-care", title: "Shah's Dental Care - Some Guide" }, { url: "https://sdcclinic.in/contact", title: "Contact | SDC" }]
+          ? [{ url: "https://someguide.in/vadodara/dentists/shahs-dental-care", title: "Shah's Dental Care - Some Guide" }, { url: "https://sdcclinic.in/contact", title: "Contact | SDC", snippet: "Call 0265 2333394" }]
           : [];
       },
     });
@@ -42,11 +43,35 @@ describe("phone number search", () => {
   it("doesn't search the phone when the name search already found the site", async () => {
     const queries: string[] = [];
     await discoverWebsite(baseLead(), undefined, {
+      phoneSearch: true,
       resolves: async () => false,
       fetchHtml: async (url) => (url === "https://shahsdentalcare.com/" ? { html: home("Shah's Dental Care", "0265 2333394"), finalUrl: url } : null),
       search: async (q) => { queries.push(q); return [{ url: "https://shahsdentalcare.com/", title: "Shah's Dental Care" }]; },
     });
     expect(queries).toHaveLength(1);
+  });
+});
+
+describe("phone search is opt-in and skips unrelated results", () => {
+  it("is off unless asked for", async () => {
+    const queries: string[] = [];
+    await discoverWebsite(baseLead(), undefined, { resolves: async () => false, fetchHtml: async () => null, search: async (q) => { queries.push(q); return []; } });
+    expect(queries).toHaveLength(1);
+  });
+  it("doesn't load results that show neither the number nor the name", async () => {
+    const loaded: string[] = [];
+    await discoverWebsite(baseLead(), undefined, {
+      phoneSearch: true,
+      resolves: async () => false,
+      fetchHtml: async (url) => { loaded.push(url); return null; },
+      search: async (q) => (q.startsWith('"Shah') ? [] : [{ url: "https://www.zhihu.com/question/1", title: "如何评价" }, { url: "https://support.microsoft.com/x", title: "Office help" }]),
+    });
+    expect(loaded).toEqual([]);
+  });
+  it("searches with the cleaned name even when it's all generic words", async () => {
+    const queries: string[] = [];
+    await discoverWebsite(baseLead({ name: "Family Dental Care & Implant Center – Best Dentist in Vadodara" }), undefined, { resolves: async () => false, fetchHtml: async () => null, search: async (q) => { queries.push(q); return []; } });
+    expect(queries[0]).toBe('"Family Dental Care & Implant Center" Vadodara');
   });
 });
 
