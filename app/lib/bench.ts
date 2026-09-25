@@ -1,5 +1,6 @@
 import { mergePlaces } from "./dedupe";
-import type { SearchHit } from "./enrich/discover";
+import { isDirectory, type SearchHit } from "./enrich/discover";
+import { isNational } from "./sources/webSearch";
 import { chainReason, checkWebsites, findMissingWebsites, type Deps } from "./pipeline";
 import { scoreWebsiteDev } from "./score/websiteDev";
 import { domainOf, isMobile, isSocialHost, mapLimit } from "./util";
@@ -54,12 +55,22 @@ const bare = (d?: string) => d?.toLowerCase().replace(/^www\./, "");
 const sameSite = (a?: string, b?: string) => !!a && !!b && (a === b || a.endsWith("." + b) || b.endsWith("." + a));
 const digits = (p?: string) => (p ?? "").replace(/\D/g, "").slice(-10);
 
+/**
+ * Listed "websites" that aren't a business's own site: brand store pages (stores.nilkamalhomes.com),
+ * hotel group sites, directories, link-in-bio pages. Finding "no own website" is right for these,
+ * so they aren't used as answers.
+ */
+const LINK_PAGES = ["sites.google.com", "superyou.bio", "bio.link", "beacons.ai", "taplink.cc", "linkin.bio", "wa.link"];
+export function isOwnSiteDomain(d: string): boolean {
+  return !isSocialHost(d) && !isDirectory(d) && !isNational(d) && !d.startsWith("stores.") && !LINK_PAGES.some((h) => d === h || d.endsWith("." + h));
+}
+
 /** The right answer for "what is this business's website": a domain, "none", or undefined (unknown). */
 export function truthWebsite(c: BenchCase, label?: BenchLabel): string | undefined {
   const l = label?.website?.trim().toLowerCase();
   if (l) return l === "none" ? "none" : bare(domainOf(l));
   const d = bare(domainOf(c.knownWebsite ?? c.osmWebsite));
-  return d && !isSocialHost(d) ? d : undefined;
+  return d && isOwnSiteDomain(d) ? d : undefined;
 }
 
 export interface WebsiteRow {

@@ -216,3 +216,48 @@ describe("website matching fixes from the first Vadodara run", () => {
     expect(r.website).toMatchObject({ alternate: 1, wrong: 0, precision: 100, recall: 100 });
   });
 });
+
+describe("website matching fixes from the second Vadodara run", () => {
+  const home = (title: string, body: string, extra = "") => `<html><head><title>${title}</title>${extra}</head><body>${body}</body></html>`;
+
+  it("finds the phone in tel: links and structured data, not only in visible text", async () => {
+    const { verifyPageForLead } = await import("@/lib/enrich/discover");
+    const l = { name: "Cafe Brewito", phones: ["+919586968006"], city: "Vadodara" };
+    expect(verifyPageForLead(home("Brewito Cafe", `<a href="tel:+919586968006">Call us</a>`), l)).toMatchObject({ ok: true, proof: "phone" });
+    expect(verifyPageForLead(home("Brewito Cafe", "Specialty coffee", `<script type="application/ld+json">{"telephone":"+91 95869 68006"}</script>`), l)).toMatchObject({ ok: true });
+    // a JavaScript-built site with the city only in its structured data
+    expect(verifyPageForLead(home("Brewito", "", `<script type="application/ld+json">{"address":{"addressLocality":"Vadodara"}}</script>`), { ...l, phones: [] })).toMatchObject({ ok: true, proof: "place" });
+  });
+
+  it("looks at the contact page when the homepage has the name but no phone", async () => {
+    const { discoverWebsite } = await import("@/lib/enrich/discover");
+    const pages: Record<string, string> = {
+      "https://agrofurniture.in": home("Agro Furniture | Premium furniture", `<a href="/contact-us">Contact</a>`),
+      "https://agrofurniture.in/contact-us": home("Contact", "Call 88662 66555, Makarpura GIDC"),
+    };
+    const r = await discoverWebsite(lead({ name: "Agro Furniture - Premium Furniture Manufacturer and Dealer In Vadodara", phone: "+918866266555", phones: ["+918866266555"] }), undefined, {
+      resolves: async (d) => d === "agrofurniture.in",
+      fetchHtml: async (url) => (pages[url] ? { html: pages[url], finalUrl: url } : null),
+    });
+    expect(r).toMatchObject({ website: "https://agrofurniture.in", via: "domain_guess", evidence: "business name and phone number are on the site (contact page)" });
+  });
+
+  it("reads names written in Unicode bold letters, and doesn't require generic words like 'family'", async () => {
+    const { cleanBusinessName, verifyPageForLead } = await import("@/lib/enrich/discover");
+    expect(cleanBusinessName("𝗦𝘁𝘆𝗹𝗼𝗿𝗶𝗮 𝗨𝗻𝗶𝘀𝗲𝘅 𝗛𝗮𝗶𝗿 𝗦𝘁𝘂𝗱𝗶𝗼 & 𝗟𝗼𝘂𝗻𝗴𝗲 - Biggest Salon/Best Unisex Hair Salon in Vadodara", "Vadodara")).toBe("Styloria Unisex Hair Studio & Lounge");
+    expect(verifyPageForLead(home("Sanskruti Salon", "Alkapuri, Vadodara"), { name: "Sanskruti Family Salon", phones: [], city: "Vadodara" })).toMatchObject({ ok: true });
+  });
+
+  it("guesses 'the' + name and name + trade", async () => {
+    const { candidateDomains } = await import("@/lib/enrich/discover");
+    expect(candidateDomains("The Morsel Restaurant", "Vadodara", "Restaurant")).toContain("themorsel.in");
+    expect(candidateDomains("Anjoy", "Vadodara", "Restaurant")).toContain("anjoyrestaurant.com");
+    expect(candidateDomains("Cafe Brewito", "Vadodara", "Café & bakery")).toContain("cafebrewito.com");
+  });
+
+  it("benchmark doesn't use brand store pages, hotel groups, directories or link pages as answers", () => {
+    for (const w of ["https://stores.nilkamalhomes.com/x", "https://www.marriott.com/x", "https://sites.google.com/view/x", "https://superyou.bio/x", "https://gharpedia.com/x", "https://www.pepperfry.com/x"])
+      expect(truthWebsite({ id: "x", name: "X", category: "Furniture shop", city: "Vadodara", knownWebsite: w }), w).toBeUndefined();
+    expect(truthWebsite({ id: "x", name: "X", category: "Salon & spa", city: "Vadodara", knownWebsite: "https://vyom-dental-care.grexa.site" })).toBe("vyom-dental-care.grexa.site");
+  });
+});

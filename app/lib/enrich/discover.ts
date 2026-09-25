@@ -17,11 +17,11 @@ const GENERIC = new Set(
     "clinic clinics dental dentist dentistry doctor doctors dr hospital care centre center health healthcare multispeciality speciality " +
     "skin hair derma dermatology physio physiotherapy rehab " +
     "salon salons spa beauty parlour parlor unisex studio makeover " +
-    "gym fitness yoga zumba " +
+    "gym fitness yoga zumba family unisex lounge bridal makeup artist professional premium best multi implant implants face " +
     "cafe cafes coffee tea bakery bakers restaurant restaurants hotel hotels kitchen dhaba food foods foodcourt biryani pizza " +
     "classes class coaching academy institute tuition tutorials school education " +
     "realty realtors real estate properties property estates homes builders developers " +
-    "interior interiors designer designers design decor " +
+    "interior interiors designer designers design decor furnishers furnishing decorators architects architect manufacturer manufacturers dealer dealers mattress bistro " +
     "associates consultants consultancy services solutions enterprises traders store stores shop shops mart " +
     "and co"
   ).split(/\s+/),
@@ -43,6 +43,7 @@ export function significantTokens(name: string): string[] {
  * anything after " | " or " - ", and a trailing "in <city>". Falls back to the full name if too little is left.
  */
 export function cleanBusinessName(name: string, city?: string, area?: string): string {
+  name = name.normalize("NFKC"); // "𝗦𝘁𝘆𝗹𝗼𝗿𝗶𝗮" (Unicode bold, common on Google Maps) → "Styloria"
   let n = name.replace(/\([^)]*\)?|\[[^\]]*\]?|\{[^}]*\}?/g, " ");
   n = n.split(/\s+[|–—-]\s+|\s*\|\s*|\s+:\s+/)[0];
   for (const place of [area, city].filter(Boolean) as string[]) {
@@ -70,6 +71,7 @@ const DIRECTORY_HOSTS = [
   "agoda.com", "oyorooms.com", "cult.fit", "fitternity.com", "zaubacorp.com", "tofler.in", "indiafilings.com", "glassdoor.co.in",
   "naukri.com", "ambitionbox.com", "shiksha.com", "collegedunia.com", "linkedin.com", "twitter.com", "x.com", "pinterest.com",
   "duckduckgo.com", "bing.com", "apple.com", "waze.com", "restaurantguru.com", "restaurant-guru.in", "restaurant-guru.com", "promallu.com", "cybo.com", "stanzaliving.com", "nestaway.com", "zolostays.com", "yourstory.com", "ubuy.co.in", "infoisinfo.co.in", "nearbuy.com",
+  "gharpedia.com", "houzz.in", "houzz.com", "district.in", "wanderlog.com", "tracxn.com", "trawell.in", "holidify.com", "imdb.com", "netflix.com", "scribd.com",
 ];
 export const isDirectory = (domain?: string) =>
   !!domain && DIRECTORY_HOSTS.some((h) => domain === h || domain.endsWith("." + h));
@@ -137,18 +139,29 @@ export function verifyPageForLead(html: string, lead: Pick<Lead, "name" | "phone
   const all = title + " " + body;
   const squashed = all.replace(/[^a-z0-9]/g, "");
 
+  // Phones and addresses often sit in tel:/wa.me links, structured data or meta tags rather than
+  // visible text (and JavaScript-built sites have almost no visible text), so look at the raw page too.
+  const raw = html.slice(0, 1_000_000).toLowerCase();
+  const rawDigits = raw.replace(/\D/g, "");
+  const phones = [...new Set([lead.phone, ...lead.phones].filter(Boolean) as string[])];
+  const phoneHit = phones.find((p) => { const d = p.replace(/\D/g, "").slice(-10); return d.length === 10 && rawDigits.includes(d); });
+
   const tokens = significantTokens(lead.name);
-  if (!tokens.length) return { ok: false, evidence: "name is too generic to verify" };
-  const fullName = lead.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const fullName = lead.name.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!tokens.length) {
+    // Only generic words ("Makeover Design Studio", "Z R Interior Design"): the whole name must be
+    // there, and only the business's own phone number can prove it's theirs.
+    if (fullName.length < 6 || !squashed.includes(fullName)) return { ok: false, evidence: "business name not on the page" };
+    return phoneHit
+      ? { ok: true, evidence: "full business name and phone number are on the page", proof: "phone" }
+      : { ok: false, evidence: "name is generic: needs the phone number on the page" };
+  }
   // Short leftovers like "post" (from "Tea Post") are too weak alone; then insist on the full name.
   const tokensStrong = tokens.join("").length >= 5;
   const nameInTitle = title.replace(/[^a-z0-9]/g, "").includes(fullName) || (tokensStrong && tokens.every((t) => title.includes(t)));
   const nameOnPage = nameInTitle || squashed.includes(fullName) || (tokensStrong && tokens.every((t) => all.includes(t)));
   if (!nameOnPage) return { ok: false, evidence: "business name not on the page" };
 
-  const digits = all.replace(/\D/g, "");
-  const phones = [...new Set([lead.phone, ...lead.phones].filter(Boolean) as string[])];
-  const phoneHit = phones.find((p) => digits.includes(p.replace(/\D/g, "").slice(-10)));
   if (phoneHit) return { ok: true, evidence: "business name and phone number are on the page", proof: "phone" };
 
   // Google Maps addresses often start with the business name ("Anjoy Restaurant, Alkapuri, …"):
@@ -159,13 +172,20 @@ export function verifyPageForLead(html: string, lead: Pick<Lead, "name" | "phone
     .filter((x): x is string => !!x && x.length >= 4 && !/^\d+$/.test(x))
     .filter((x) => { const s = squash(x); return !(s.includes(nameSq) || nameSq.includes(s) || tokens.some((t) => s.includes(t))); })
     .map((x) => x.toLowerCase());
-  const placeHit = places.find((p) => all.includes(p));
+  const placeHit = places.find((p) => all.includes(p) || raw.includes(p));
   if (placeHit && nameInTitle) return { ok: true, evidence: `business name (in the page title) and "${placeHit}" are on the page`, proof: "place" };
   return { ok: false, evidence: placeHit ? "name only in the text, not the title" : "name found but no matching phone or location" };
 }
 
 /** Likely domains for a business name, most likely first. */
-export function candidateDomains(name: string, city?: string): string[] {
+/** "Restaurant" → "restaurant": businesses often add their trade to the address (anjoyrestaurant.com). */
+function tradeWord(category?: string): string | undefined {
+  const c = (category ?? "").toLowerCase();
+  return [[/dent/, "dental"], [/salon|beauty/, "salon"], [/caf/, "cafe"], [/restaurant/, "restaurant"], [/furniture/, "furniture"], [/interior/, "interiors"], [/gym|fitness/, "gym"], [/hotel/, "hotel"], [/clinic/, "clinic"]]
+    .find(([re]) => (re as RegExp).test(c))?.[1] as string | undefined;
+}
+
+export function candidateDomains(name: string, city?: string, category?: string): string[] {
   const words = name
     .toLowerCase()
     .replace(/&/g, " and ")
@@ -181,13 +201,16 @@ export function candidateDomains(name: string, city?: string): string[] {
   const lead2 = named.slice(0, 2).join(""); // "drhada", "2thsaver"
   const lead3 = named.slice(0, 3).join(""); // "drhadadental"
   const cityStem = city ? noThe + city.toLowerCase().replace(/[^a-z]/g, "") : "";
-  const stems = [...new Set([full, noThe, words.join("-"), core && core !== noThe ? core : "", lead3, lead2, cityStem])].filter(
+  const withThe = words[0] === "the" ? words.slice(0, 2).join("") : ""; // "themorsel"
+  const trade = tradeWord(category);
+  const tradeStem = trade && !noThe.includes(trade) ? noThe + trade : ""; // "anjoyrestaurant"
+  const stems = [...new Set([full, noThe, words.join("-"), core && core !== noThe ? core : "", lead3, lead2, withThe, tradeStem, cityStem])].filter(
     (s) => s.length >= 4 && s.length <= 40,
   );
   // DNS is checked before any page loads, so a few more guesses cost almost nothing
   const out: string[] = [];
   for (const s of stems) for (const tld of ["com", "in", "co.in"]) out.push(`${s}.${tld}`);
-  return [...new Set(out)].slice(0, 18);
+  return [...new Set(out)].slice(0, 27);
 }
 
 async function fetchHtml(url: string, ms = 7000): Promise<{ html: string; finalUrl: string } | null> {
@@ -269,6 +292,49 @@ export interface DiscoverDeps {
 
 export const CHAIN_WORDS = /\b(franchise|franchisee|store locator|our outlets|find (a|an) (store|outlet)|all outlets|outlets across|branches across|\d{2,}\+? (outlets|stores|branches))\b/i;
 
+/** Contact / about pages on the same site, where the phone and address usually are. */
+function contactLinks(html: string, pageUrl: string): string[] {
+  const $ = cheerio.load(html);
+  const out: string[] = [];
+  let host = "";
+  try {
+    host = new URL(pageUrl).hostname;
+  } catch {
+    return out;
+  }
+  $("a[href]").each((_, a) => {
+    const href = $(a).attr("href") || "";
+    if (!/contact|about|reach|location|find-us/i.test(href + " " + $(a).text())) return;
+    try {
+      const u = new URL(href, pageUrl);
+      if (u.hostname === host && /^https?:$/.test(u.protocol) && !out.includes(u.toString()) && u.toString() !== pageUrl) out.push(u.toString());
+    } catch {}
+  });
+  return out.slice(0, 2);
+}
+
+/**
+ * Load a page and check it belongs to this lead. When the name is there but the phone/address
+ * isn't, also look at the site's contact/about page: that's where most sites put them.
+ */
+export async function checkPage(url: string, lead: Pick<Lead, "name" | "phones" | "phone" | "city" | "address">, area: string | undefined, get: typeof fetchHtml = fetchHtml): Promise<{ v: Verdict; finalUrl: string; html: string } | null> {
+  const page = await get(url);
+  if (!page) return null;
+  let v = verifyPageForLead(page.html, lead, area);
+  if (!v.ok && /name found|name only in the text|needs the phone/.test(v.evidence)) {
+    for (const link of contactLinks(page.html, page.finalUrl)) {
+      const more = await get(link);
+      if (!more) continue;
+      const v2 = verifyPageForLead(page.html + more.html, lead, area);
+      if (v2.ok) {
+        v = { ...v2, evidence: v2.evidence.replace(/on the page$/, "on the site (contact page)") };
+        break;
+      }
+    }
+  }
+  return { v, finalUrl: page.finalUrl, html: page.html };
+}
+
 /**
  * Is this URL (e.g. the website in an Instagram bio) really this business's own site?
  * Same ownership rules as discovery: address matches the name, or homepage with their phone.
@@ -277,9 +343,9 @@ export async function verifyCandidate(url: string, lead: Lead, area: string | un
   lead = withCleanName(lead, area);
   const d = domainOf(url);
   if (!d || isSocialHost(d) || isDirectory(d)) return { ok: false, evidence: "not a business website" };
-  const page = await get(url);
+  const page = await checkPage(url, lead, area, get);
   if (!page) return { ok: false, evidence: "didn't load" };
-  const v = verifyPageForLead(page.html, lead, area);
+  const v = page.v;
   const fd = domainOf(page.finalUrl) ?? d;
   if (v.ok && (domainMatchesName(fd, lead.name) || domainMatchesName(d, lead.name))) return { ok: true, finalUrl: page.finalUrl, evidence: `${v.evidence}, and the web address matches the name` };
   if (v.ok && v.proof === "phone") return { ok: true, finalUrl: page.finalUrl, evidence: v.evidence };
@@ -300,15 +366,11 @@ export async function discoverWebsite(lead: Lead, area: string | undefined, deps
   const get = deps.fetchHtml ?? fetchHtml;
   const resolves = deps.resolves ?? (deps.fetchHtml ? undefined : dnsResolves);
   const tried: string[] = [];
-  const check = async (url: string): Promise<{ v: Verdict; finalUrl: string; html: string } | null> => {
-    const page = await get(url);
-    if (!page) return null;
-    return { v: verifyPageForLead(page.html, lead, area), finalUrl: page.finalUrl, html: page.html };
-  };
+  const check = (url: string) => checkPage(url, lead, area, get);
   const chainHint = (html: string) => (CHAIN_WORDS.test(html.slice(0, 400_000)) ? "its website mentions outlets or franchising" : undefined);
 
   // 1. likely domains
-  const guesses = candidateDomains(lead.name, lead.city);
+  const guesses = candidateDomains(lead.name, lead.city, lead.category);
   if (guesses.length) {
     tried.push(`${guesses.length} likely web addresses (${guesses.slice(0, 3).join(", ")}…)`);
     // all at once: most guesses fail fast (no such domain); keep the most likely one that verifies
@@ -320,12 +382,15 @@ export async function discoverWebsite(lead: Lead, area: string | undefined, deps
     );
     const r = results.find((x) => x?.v.ok);
     if (r) return { website: r.finalUrl, via: "domain_guess", evidence: r.v.evidence, tried, chainHint: chainHint(r.html) };
+    const loaded = results.filter((x): x is NonNullable<typeof x> => !!x);
+    if (loaded.length) tried.push(`guessed sites that loaded but aren't theirs: ${loaded.slice(0, 4).map((x) => `${domainOf(x.finalUrl)} (${x.v.evidence})`).join(", ")}`);
   }
 
   // 2. web search
   if (deps.search) {
-    const q = [lead.name, area, lead.city].filter(Boolean).join(" ");
-    tried.push(`web search for "${q}"`);
+    // the name in quotes keeps search engines from matching its words separately
+    const q = [`"${lead.name}"`, area, lead.city].filter(Boolean).join(" ");
+    tried.push(`web search: ${q}`);
     let hits: SearchHit[] = [];
     try {
       hits = await deps.search(q);

@@ -25,11 +25,11 @@ const NATIONAL = [
   "oyorooms.com", "treebo.com", "fabhotels.com", "makemytrip.com", "goibibo.com", "booking.com", "agoda.com", "airbnb.co.in", "airbnb.com",
   "urbancompany.com", "housing.com", "99acres.com", "magicbricks.com", "nobroker.in", "squareyards.com", "commonfloor.com",
   "byjus.com", "unacademy.com", "vedantu.com", "physicswallah.live", "allen.ac.in", "aakash.ac.in",
-  "livspace.com", "designcafe.com", "homelane.com", "bonito.in",
+  "livspace.com", "designcafe.com", "homelane.com", "bonito.in", "nilkamalhomes.com", "interio.com", "itchotels.in", "marriott.com", "hilton.com", "tajhotels.com",
   "quora.com", "reddit.com", "medium.com", "wikipedia.org", "timesofindia.indiatimes.com", "indiatimes.com", "hindustantimes.com",
   "ndtv.com", "news18.com", "thehindu.com", "indianexpress.com", "deccanherald.com", "dnaindia.com", "gov.in", "nic.in",
 ];
-const isNational = (d?: string) => !!d && NATIONAL.some((h) => d === h || d.endsWith("." + h));
+export const isNational = (d?: string) => !!d && NATIONAL.some((h) => d === h || d.endsWith("." + h));
 
 /** Queries to run per business type. Two is enough; more just burns search quota. */
 export function webQueries(term: string, place: string): string[] {

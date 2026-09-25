@@ -325,7 +325,7 @@ const KNOWN_CHAINS = new RegExp(
       "oyo", "treebo", "fabhotel", "hampton by hilton", "hilton", "marriott", "courtyard", "hyatt", "radisson", "novotel", "ibis", "lemon tree", "taj ", "vivanta", "fortune ",
       "aakash", "allen career", "fiitjee", "byju'?s", "physics ?wallah", "kumon",
       "tanishq", "reliance (trends|digital|smart)", "d-?mart", "big bazaar", "more supermarket", "lenskart", "titan", "bata",
-      "max fashion", "pantaloons", "westside", "zudio", "shoppers stop", "v-?mart", "fabindia", "manyavar", "raymond", "home ?centre",
+      "pind balluchi", "nilkamal", "durian", "interio", "pepperfry", "welcomhotel", "fortune park", "max fashion", "pantaloons", "westside", "zudio", "shoppers stop", "v-?mart", "fabindia", "manyavar", "raymond", "home ?centre",
     ].join("|") +
     ")\\b",
   "i",

@@ -46,7 +46,7 @@ export async function tavilySearch(query: string, apiKey: string): Promise<Searc
 }
 
 export async function searxngSearch(query: string, baseUrl: string): Promise<SearchHit[]> {
-  const url = `${baseUrl.replace(/\/+$/, "")}/search?${new URLSearchParams({ q: query, format: "json", language: "en-IN", safesearch: "0" })}`;
+  const url = `${baseUrl.replace(/\/+$/, "")}/search?${new URLSearchParams({ q: query, format: "json", language: "en-IN", safesearch: "1" })}`;
   let res: Response;
   try {
     res = await fetchWithTimeout(url, { headers: { Accept: "application/json" } }, 20_000);
