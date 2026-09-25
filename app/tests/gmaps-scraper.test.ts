@@ -80,19 +80,21 @@ describe("Google Maps scraper (testing only)", () => {
     expect(r.map((x) => x.places.length)).toEqual([2, 2]);
   });
 
-  it("gives up on a job the scraper never starts", async () => {
-    let t = 0;
+  it("gives up on a job the scraper never starts, and doesn't queue the rest", async () => {
+    let t = 0, posts = 0;
     const fake = (async (url: string, init?: RequestInit) => {
-      if (init?.method === "POST") return new Response(JSON.stringify({ id: "j" }), { status: 201 });
+      if (init?.method === "POST") { posts++; return new Response(JSON.stringify({ id: "j" }), { status: 201 }); }
       if (url.endsWith("/api/v1/jobs")) return new Response("[]", { status: 200 });
       return new Response(JSON.stringify({ Status: "pending" }), { status: 200 });
     }) as typeof fetch;
     const r = await gmapsScrapeBatch(
-      { baseUrl: "http://localhost:8090", city: "Vadodara", max: 20, requests: [{ category: "A", keyword: "a" }] },
+      { baseUrl: "http://localhost:8090", city: "Vadodara", max: 20, requests: [{ category: "A", keyword: "a" }, { category: "B", keyword: "b" }] },
       { fetch: fake, sleep: async () => { t += 5000; }, now: () => t },
     );
-    expect(r[0].error).toMatch(/never started/);
-    expect(t).toBeLessThan(200_000);
+    expect(r[0].error).toMatch(/never started this job in 5 minutes.*docker logs/);
+    expect(r[1].error).toMatch(/skipped/);
+    expect(posts).toBe(1);
+    expect(t).toBeLessThan(330_000);
   });
 
   it("explains when the scraper isn't running", async () => {

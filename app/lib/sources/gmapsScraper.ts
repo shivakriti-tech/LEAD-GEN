@@ -153,6 +153,9 @@ export interface GmapsDeps {
  * only made the later ones hit our time limit before they had even started.
  * `max` sets how far the scraper scrolls the results (about 15 per scroll).
  */
+/** How long a queued job may wait before we decide the scraper isn't picking jobs up. */
+const PENDING_LIMIT_MIN = 5;
+
 export async function gmapsScrapeBatch(
   opts: { baseUrl: string; city: string; requests: ScrapeRequest[]; max: number; onProgress?: (msg: string) => void },
   deps: GmapsDeps = {},
@@ -180,11 +183,14 @@ export async function gmapsScrapeBatch(
   } catch {}
 
   const out: ScrapeResult[] = [];
-  let down = false;
+  let down = false, stuck = false;
+  const neverStarted = `the scraper never started this job in ${PENDING_LIMIT_MIN} minutes. Open ${opts.baseUrl} to see if it's busy with another job, and run "docker logs lead-autopilot-gmaps --tail 40" to see what it's doing (restart it with "docker compose restart" in app/gmaps-scraper)`;
   for (let i = 0; i < opts.requests.length; i++) {
     const req = opts.requests[i];
     const tag = `Google Maps scraper ${i + 1}/${opts.requests.length} (${req.category})`;
     if (down) { out.push({ category: req.category, places: [], error: notRunning }); continue; }
+    // one job that never starts means the rest won't either: don't queue them just to wait again
+    if (stuck) { out.push({ category: req.category, places: [], error: "skipped: the scraper didn't start the previous job" }); continue; }
 
     // 1. queue the job
     let id: string;
@@ -217,7 +223,8 @@ export async function gmapsScrapeBatch(
         const body = (await r.json()) as Record<string, unknown>;
         st = String(body.Status ?? body.status ?? "").toLowerCase() || st;
       } catch {}
-      if (st === "pending" && now() - started > 120_000) break; // scraper is stuck on something else
+      // a job can wait a minute or two for the scraper to pick it up; much longer means it's stuck
+      if (st === "pending" && now() - started > PENDING_LIMIT_MIN * 60_000) break;
       if (now() - lastReport >= 60_000) {
         lastReport = now();
         opts.onProgress?.(`${tag}: still ${st || "waiting"} (${Math.round((now() - started) / 1000)} s)…`);
@@ -227,7 +234,8 @@ export async function gmapsScrapeBatch(
     // 3. download
     if (st === "failed") { out.push({ category: req.category, places: [], error: "the scraper reported the job failed (Google may be blocking it)" }); del(id); continue; }
     if (st !== "ok") {
-      out.push({ category: req.category, places: [], error: st === "pending" ? "the scraper never started this job (open http://localhost:8090 to see what it's busy with)" : `timed out after ${Math.round((now() - started) / 60000)} min` });
+      if (st === "pending") stuck = true;
+      out.push({ category: req.category, places: [], error: st === "pending" ? neverStarted : `timed out after ${Math.round((now() - started) / 60000)} min` });
       del(id);
       continue;
     }
