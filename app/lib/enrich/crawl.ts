@@ -38,6 +38,14 @@ export function emptyAudit(status: WebsiteAudit["status"], extra: Partial<Websit
   return { status, emails: [], phones: [], socials: {}, ...extra };
 }
 
+/** schema.org founder/owner: "Dr. Mehta", {"name": "Dr. Mehta"} or a list of them. */
+function personName(v: unknown): string | undefined {
+  const x = Array.isArray(v) ? v[0] : v;
+  const n = typeof x === "string" ? x : x && typeof x === "object" && typeof (x as { name?: unknown }).name === "string" ? (x as { name: string }).name : undefined;
+  const t = n?.replace(/\s+/g, " ").trim();
+  return t && t.length >= 3 && t.length <= 60 ? t : undefined;
+}
+
 /** Pure HTML parser: everything we can learn from one page. Exported for tests. */
 export function parsePage(html: string, pageUrl: string) {
   const $ = cheerio.load(html);
@@ -47,6 +55,7 @@ export function parsePage(html: string, pageUrl: string) {
   const socials: Record<string, string> = {};
   let whatsapp: string | undefined;
   let extractedFoundingYear: number | undefined;
+  let ownerName: string | undefined;
 
   // --- Emails ---
   // 1. mailto: links
@@ -60,8 +69,11 @@ export function parsePage(html: string, pageUrl: string) {
   $('script[type="application/ld+json"]').each((_, el) => {
     try {
       const ld = JSON.parse($(el).html() || "");
-      const items = Array.isArray(ld) ? ld : [ld];
+      const top = Array.isArray(ld) ? ld : [ld];
+      const items = top.flatMap((x) => (Array.isArray(x?.["@graph"]) ? [x, ...x["@graph"]] : [x]));
       for (const item of items) {
+        if (!item || typeof item !== "object") continue;
+        ownerName ??= personName(item.founder) ?? personName(item.owner);
         if (item.email && !BAD_EMAIL.test(String(item.email))) emails.add(String(item.email).toLowerCase());
         if (item.telephone) { const p = normalizePhone(String(item.telephone)); if (p) phones.add(p); }
         if (item.foundingDate) extractedFoundingYear = extractedFoundingYear ?? parseYearFromString(String(item.foundingDate));
@@ -205,7 +217,7 @@ export function parsePage(html: string, pageUrl: string) {
   // --- Sort phones: mobiles first (better for WhatsApp outreach) ---
   const sortedPhones = [...phones].sort((a, b) => Number(isMobile(b)) - Number(isMobile(a)));
 
-  return { emails: [...emails], phones: sortedPhones, socials, whatsapp, mobileViewport, copyrightYear, builder, contactLinks: contactLinks.slice(0, 2), foundedYear: extractedFoundingYear, designedBy };
+  return { emails: [...emails], phones: sortedPhones, socials, whatsapp, mobileViewport, copyrightYear, builder, contactLinks: contactLinks.slice(0, 2), foundedYear: extractedFoundingYear, designedBy, ownerName };
 }
 
 /** Load a business website and audit it. Never throws. */
@@ -241,6 +253,7 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
   let whatsapp = first.whatsapp;
   let foundedYear = first.foundedYear;
   let designedBy = first.designedBy;
+  let ownerName = first.ownerName;
 
   // look at up to 2 contact/about pages for more contacts
   for (const link of first.contactLinks) {
@@ -254,6 +267,7 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
       whatsapp ??= p.whatsapp;
       foundedYear ??= p.foundedYear;
       designedBy ??= p.designedBy;
+      ownerName ??= p.ownerName;
     } catch {}
   }
 
@@ -292,5 +306,6 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
     error: parked ? "Parked or placeholder page" : undefined,
     foundedYear,
     designedBy,
+    ownerName,
   };
 }

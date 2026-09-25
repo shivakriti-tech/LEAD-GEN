@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORIES } from "@/lib/categories";
 import type { Lead, ProgressEvent, SearchRecord, Tier } from "@/lib/types";
+import { EMAIL_KIND_LABEL } from "@/lib/enrich/email";
 
 type Config = { google: boolean; pageSpeedKey: boolean; apollo: boolean; store: "local" | "supabase"; contact: boolean; brave: boolean; meta: boolean; fbPageSearch: boolean; searchProviders: string[]; gmapsScraper: boolean };
 type LogLine = { level: "info" | "warn" | "error"; message: string };
@@ -407,14 +408,26 @@ function LeadRow({ lead: l, open, onToggle }: { lead: Lead; open: boolean; onTog
         </span>
         <span className="why">
           {l.whyNow}
-          <span className="signals">{l.signals.filter((s) => !["has_phone", "has_email", "no_website", "social_only", "site_down", "chain", "ig_quiet"].includes(s.key)).map((s) => <span key={s.key} className="tag warn">{s.label}</span>)}</span>
+          <span className="signals">{l.signals.filter((s) => !["has_phone", "has_email", "no_website", "social_only", "site_down", "chain", "ig_quiet", "owner_known", "established", "agency"].includes(s.key)).map((s) => <span key={s.key} className="tag warn">{s.label}</span>)}</span>
         </span>
       </button>
       {open && (
         <div className="detail">
           <dl>
             <dt>Phones</dt><dd className="mono">{l.phones.map(fmtPhone).join(", ") || "—"}</dd>
-            <dt>Emails</dt><dd>{l.emails.join(", ") || "—"}</dd>
+            <dt>Emails</dt>
+            <dd>
+              {l.emailInfo?.length
+                ? l.emailInfo.map((e) => (
+                    <div key={e.email}>
+                      {e.email} <span className="sub">· {EMAIL_KIND_LABEL[e.kind]}{e.deliverable === false ? " · domain can't receive mail" : ""}</span>
+                    </div>
+                  ))
+                : l.emails.join(", ") || "—"}
+            </dd>
+            {l.owner && <><dt>Owner</dt><dd>{l.owner.name} <span className="sub">· from {l.owner.via === "google_maps" ? "Google Maps" : "their website"}</span></dd></>}
+            {l.orderLinks?.length ? <><dt>Orders / bookings</dt><dd>{l.orderLinks.map((o) => <a key={o.url} href={o.url} target="_blank" rel="noreferrer" style={{ marginRight: 8 }}>{o.source}</a>)}</dd></> : null}
+            {(l.priceRange || l.photos) && <><dt>On Google Maps</dt><dd>{[l.priceRange && `price ${l.priceRange}`, l.photos && `${l.photos} photos`].filter(Boolean).join(" · ")}</dd></>}
             <dt>Website</dt><dd>{l.website ? <a href={l.website} target="_blank" rel="noreferrer">{l.website}</a> : "—"}</dd>
             {l.social?.instagram && (
               <>
@@ -446,6 +459,8 @@ function LeadRow({ lead: l, open, onToggle }: { lead: Lead; open: boolean; onTog
             <dt>Mobile speed</dt><dd>{a?.pageSpeed ? `${a.pageSpeed.score}/100${a.pageSpeed.lcp ? ` · loads in ${a.pageSpeed.lcp}` : ""}` : "not checked"}</dd>
             <dt>Built with</dt><dd>{a?.builder ?? "—"}</dd>
             <dt>Last updated</dt><dd>{a?.copyrightYear ? `© ${a.copyrightYear}` : "—"}</dd>
+            {a?.designedBy && <><dt>Built by</dt><dd>{a.designedBy}</dd></>}
+            {a?.foundedYear && <><dt>Running since</dt><dd>{a.foundedYear}</dd></>}
             <dt>Website check</dt>
             <dd>
               {l.websiteCheck?.via === "source" && "Listed on the map"}

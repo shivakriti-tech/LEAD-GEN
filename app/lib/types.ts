@@ -1,3 +1,5 @@
+import type { EmailInfo } from "./enrich/email";
+
 export type SourceId = "google" | "osm" | "apollo" | "instagram" | "facebook" | "web" | "gmaps";
 
 /** One business as a source returns it, before merging. */
@@ -18,6 +20,19 @@ export interface RawPlace {
   businessStatus?: "OPERATIONAL" | "CLOSED_TEMPORARILY" | "CLOSED_PERMANENTLY";
   mapsUrl?: string;
   brand?: string; // OSM brand / operator tag: a sign of a chain
+  // Extra details some sources give (the Google Maps scraper has most of them)
+  owner?: string; // owner / listing manager name
+  priceRange?: string; // "₹200–400", "₹₹"
+  orderLinks?: OrderLink[]; // "Order online" / "Reserve a table" buttons on Google Maps
+  photos?: number;
+  openHours?: Record<string, string>;
+  about?: string; // short business description
+}
+
+/** A booking/ordering link, e.g. Zomato, Swiggy, Practo, the business's own site. */
+export interface OrderLink {
+  source: string; // domain, e.g. "zomato.com"
+  url: string;
 }
 
 export type WebsiteStatus =
@@ -44,6 +59,7 @@ export interface WebsiteAudit {
   error?: string;
   foundedYear?: number; // "since 2009", JSON-LD foundingDate
   designedBy?: string; // agency credit in the footer, e.g. "Designed by XYZ Web"
+  ownerName?: string; // schema.org founder/owner on the site
 }
 
 export interface Signal {
@@ -76,6 +92,15 @@ export interface Lead {
   businessStatus?: RawPlace["businessStatus"];
   audit?: WebsiteAudit;
   company?: { employees?: number; linkedin?: string; foundedYear?: number };
+  /** Owner or decision-maker, and where we learned it. */
+  owner?: { name: string; via: "google_maps" | "website" };
+  priceRange?: string;
+  orderLinks?: OrderLink[];
+  photos?: number;
+  openHours?: Record<string, string>;
+  about?: string;
+  /** Every email we have, most useful first, with whether its domain can receive mail. */
+  emailInfo?: EmailInfo[];
   /** Social profiles: from a source, the business's website, or web search. Details only via Meta's official API. */
   social?: {
     instagram?: { handle: string; url: string; name?: string; bio?: string; website?: string; followers?: number; posts?: number; lastPostAt?: string; checked: "api" | "link_only" | "not_business" };

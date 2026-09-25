@@ -13,6 +13,10 @@ import { socialSearch } from "./sources/social";
 import { webLeadSearch } from "./sources/webSearch";
 import { gmapsScrapeBatch, gmapsScraperUrl } from "./sources/gmapsScraper";
 import { mergeBySocial, rememberSocial } from "./dedupe";
+import { cached, cacheMode, DAY, type CacheStats } from "./cache";
+import { classifyEmail, rankEmails } from "./enrich/email";
+import { domainAcceptsMail } from "./enrich/mx";
+import type { WebsiteAudit } from "./types";
 import type { Store } from "./store";
 import type { Lead, ProgressEvent, RawPlace, SearchParams, SearchRecord } from "./types";
 import { domainOf, isSocialHost, mapLimit, normalizePhone, simplifyName, uid } from "./util";
@@ -34,6 +38,9 @@ export interface Deps {
   makeWebSearch?: (onSwitch: (msg: string) => void) => (q: string) => Promise<SearchHit[]>;
   pageSpeed: typeof pageSpeedMobile;
   apollo: typeof apolloEnrichDomain;
+  /** Does this email domain accept mail? Leave out to skip the check (tests). */
+  mx?: typeof domainAcceptsMail;
+  cacheStats?: CacheStats;
   keys: { gmapsScraper?: string; google?: string; pageSpeed?: string; apollo?: string; brave?: string; metaToken?: string; igUserId?: string; fbPageSearch?: boolean };
   store: Store;
   now?: () => Date;
@@ -169,49 +176,10 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     if (chains) log(`${chains} look like chain or franchise outlets. They're kept but scored low: head office decides their website.`);
 
     // 3a. verify "no website" before believing it
-    for (const l of leads) {
-      l.websiteCheck = { via: l.website && !isSocialHost(domainOf(l.website)) ? "source" : "none_found", tried: [l.sources.map((x) => SOURCE_LABEL[x]).join(" + ")] };
-    }
-    const needSite = leads.filter((l) => !l.chain && (!l.website || isSocialHost(domainOf(l.website))));
-    if (params.verifyWebsites && needSite.length) {
-      const search = params.webSearch ? webSearch : undefined;
-      log(`Looking for websites the map data missed: ${needSite.length} businesses (likely web addresses${search ? " + web search" : ""}).`);
-      let vd = 0, found = 0, searchBroken = false;
-      emit({ type: "stage", stage: "verify", done: 0, total: needSite.length });
-      // web search is rate-limited, so go 2 at a time
-      await mapLimit(needSite, search ? 2 : 4, async (l) => {
-        const r = await deps.discover(l, params.area, { search: searchBroken ? undefined : search });
-        l.websiteCheck!.tried.push(...r.tried);
-        if (r.tried.some((t) => /No web search available|captcha/i.test(t))) searchBroken = true;
-        if (r.website) {
-          l.website = r.website;
-          l.websiteCheck!.via = r.via!;
-          l.websiteCheck!.evidence = r.evidence;
-          if (r.chainHint) l.chain = { outlets: 1, reason: r.chainHint };
-          found++;
-        } else if (r.social && !l.website) {
-          rememberSocial(l, r.social);
-          l.website = r.social;
-          l.websiteCheck!.via = "web_search";
-          l.websiteCheck!.evidence = "social page found by web search (its title carries the business name)";
-        }
-        emit({ type: "stage", stage: "verify", done: ++vd, total: needSite.length });
-      });
-      log(`Found and verified ${found} website${found === 1 ? "" : "s"} the map data didn't list.${searchBroken ? " Web search stopped partway (every search option failed). Set up SearXNG (free, see README) or a free Tavily key." : ""}`);
-    }
+    await findMissingWebsites(leads, { area: params.area, verify: params.verifyWebsites, search: params.webSearch ? webSearch : undefined }, deps, emit);
 
-    // 3b. audit every website
-    let enriched = 0;
-    emit({ type: "stage", stage: "enrich", done: 0, total: leads.length });
-    await mapLimit(leads, 6, async (l) => {
-      l.audit = await deps.audit(l.website);
-      for (const e of l.audit.emails) if (!l.emails.includes(e)) l.emails.push(e);
-      for (const p of l.audit.phones) if (!l.phones.includes(p)) l.phones.push(p);
-      if (l.audit.whatsapp && !l.phones.includes(l.audit.whatsapp)) l.phones.push(l.audit.whatsapp);
-      l.email ??= l.emails[0];
-      l.phone ??= l.phones[0];
-      emit({ type: "stage", stage: "enrich", done: ++enriched, total: leads.length });
-    });
+    // 3b. audit every website, collect contacts, check emails
+    await checkWebsites(leads, deps, emit);
     for (const l of leads) for (const u of Object.values(l.audit?.socials ?? {})) rememberSocial(l, u);
     const before = leads.length;
     leads = mergeBySocial(leads);
@@ -307,6 +275,8 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     search.counts.cold = leads.filter((l) => l.tier === "cold").length;
     emit({ type: "stage", stage: "score", done: 1, total: 1 });
 
+    if (deps.cacheStats && deps.cacheStats.hits) log(`Reused ${deps.cacheStats.hits} saved check${deps.cacheStats.hits > 1 ? "s" : ""} from earlier searches (kept up to 7 days; LEAD_CACHE=off to turn off).`);
+
     // 5. save
     search.status = "done";
     await deps.store.saveSearch(search);
@@ -351,24 +321,125 @@ const KNOWN_CHAINS = new RegExp(
   "i",
 );
 
+type Emit = (e: ProgressEvent) => void;
+const logTo = (emit: Emit) => (message: string, level: "info" | "warn" | "error" = "info") => emit({ type: "log", level, message });
+
+/**
+ * Before believing "no website", look for one: likely web addresses, then web search.
+ * Chains are skipped (head office decides their website). Used by the search and the benchmark.
+ */
+export async function findMissingWebsites(
+  leads: Lead[],
+  opts: { area?: string; verify: boolean; search?: (q: string) => Promise<SearchHit[]> },
+  deps: Pick<Deps, "discover">,
+  emit: Emit,
+): Promise<void> {
+  const log = logTo(emit);
+  for (const l of leads) {
+    l.websiteCheck ??= { via: l.website && !isSocialHost(domainOf(l.website)) ? "source" : "none_found", tried: [l.sources.map((x) => SOURCE_LABEL[x]).join(" + ")] };
+  }
+  const needSite = leads.filter((l) => !l.chain && (!l.website || isSocialHost(domainOf(l.website))));
+  if (!opts.verify || !needSite.length) return;
+  const search = opts.search;
+  log(`Looking for websites the map data missed: ${needSite.length} businesses (likely web addresses${search ? " + web search" : ""}).`);
+  let vd = 0, found = 0, searchBroken = false;
+  emit({ type: "stage", stage: "verify", done: 0, total: needSite.length });
+  // web search is rate-limited, so go 2 at a time; domain guesses alone can go faster
+  await mapLimit(needSite, search ? 2 : 6, async (l) => {
+    const r = await deps.discover(l, opts.area, { search: searchBroken ? undefined : search });
+    l.websiteCheck!.tried.push(...r.tried);
+    if (r.tried.some((t) => /No web search available|captcha/i.test(t))) searchBroken = true;
+    if (r.website) {
+      l.website = r.website;
+      l.websiteCheck!.via = r.via!;
+      l.websiteCheck!.evidence = r.evidence;
+      if (r.chainHint) l.chain = { outlets: 1, reason: r.chainHint };
+      found++;
+    } else if (r.social && !l.website) {
+      rememberSocial(l, r.social);
+      l.website = r.social;
+      l.websiteCheck!.via = "web_search";
+      l.websiteCheck!.evidence = "social page found by web search (its title carries the business name)";
+    }
+    emit({ type: "stage", stage: "verify", done: ++vd, total: needSite.length });
+  });
+  log(`Found and verified ${found} website${found === 1 ? "" : "s"} the map data didn't list.${searchBroken ? " Web search stopped partway (every search option failed). Set up SearXNG (free, see README) or a free Tavily key." : ""}`);
+}
+
+/** Load every website, collect emails/phones/owner, then rank emails and check they can receive mail. */
+export async function checkWebsites(leads: Lead[], deps: Pick<Deps, "audit" | "mx">, emit: Emit): Promise<void> {
+  let enriched = 0;
+  emit({ type: "stage", stage: "enrich", done: 0, total: leads.length });
+  await mapLimit(leads, 8, async (l) => {
+    l.audit = await deps.audit(l.website);
+    for (const e of l.audit.emails) if (!l.emails.includes(e)) l.emails.push(e);
+    for (const p of l.audit.phones) if (!l.phones.includes(p)) l.phones.push(p);
+    if (l.audit.whatsapp && !l.phones.includes(l.audit.whatsapp)) l.phones.push(l.audit.whatsapp);
+    if (l.audit.ownerName && !l.owner) l.owner = { name: l.audit.ownerName, via: "website" };
+    l.phone ??= l.phones[0];
+    emit({ type: "stage", stage: "enrich", done: ++enriched, total: leads.length });
+  });
+  await checkEmails(leads, deps.mx);
+}
+
+/** Rank each lead's emails (owner's own first) and, when `mx` is given, drop domains that can't receive mail from first place. */
+export async function checkEmails(leads: Lead[], mx?: typeof domainAcceptsMail): Promise<void> {
+  const domains = [...new Set(leads.flatMap((l) => l.emails.map((e) => e.split("@")[1]?.toLowerCase()).filter(Boolean) as string[]))];
+  const ok = new Map<string, boolean | undefined>();
+  if (mx) await mapLimit(domains, 10, async (d) => void ok.set(d, await mx(d)));
+  for (const l of leads) {
+    if (!l.emails.length) continue;
+    const site = domainOf(l.audit?.finalUrl ?? l.website);
+    l.emailInfo = rankEmails(l.emails.map((email) => ({ email, kind: classifyEmail(email, site), deliverable: ok.get(email.split("@")[1]?.toLowerCase()) })));
+    const best = l.emailInfo[0];
+    l.email = best.deliverable === false ? undefined : best.email;
+  }
+}
+
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-export function defaultDeps(store: Store): Deps {
+/**
+ * Checks worth remembering between searches (see lib/cache.ts). Website checks that failed are kept
+ * only a day, since sites come back; web searches and verified finds a week.
+ */
+function withCache(stats: CacheStats) {
+  const mode = cacheMode();
+  if (mode === "off") return null;
+  const search = (fn: (q: string) => Promise<SearchHit[]>) => cached("websearch", fn, (q: string) => q.trim().toLowerCase(), (hits) => (hits.length ? 7 * DAY : 0), stats);
+  if (mode === "search") return { search, audit: undefined, discover: undefined };
+  const leadKey = (l: Lead, area?: string) => [simplifyName(l.name), l.phone ?? "", l.city ?? "", area ?? "", l.address ?? ""].join("|").toLowerCase();
   return {
-    makeWebSearch: (onSwitch) => searchChain(providersFromEnv(), onSwitch),
+    audit: cached("audit", auditWebsite, (w?: string) => (w ?? "").trim().toLowerCase(), (a: WebsiteAudit) => (a.status === "ok" || a.status === "social_only" ? 7 * DAY : a.status === "down" ? DAY : 0), stats),
+    // discovery depends on whether web search was allowed, so that's part of the key
+    discover: ((l, area, d) =>
+      cached("discover", (_l: Lead) => discoverWebsite(l, area, d), () => `${leadKey(l, area)}|${d?.search ? "search" : "guess"}`, (r) => (r.website ? 7 * DAY : r.tried.some((t) => /failed|captcha|No web search/i.test(t)) ? 0 : 3 * DAY), stats)(l)) as typeof discoverWebsite,
+    search,
+  };
+}
+
+export function defaultDeps(store: Store): Deps {
+  const cacheStats: CacheStats = { hits: 0, misses: 0 };
+  const c = withCache(cacheStats);
+  return {
+    makeWebSearch: (onSwitch) => {
+      const s = searchChain(providersFromEnv(), onSwitch);
+      return c ? c.search(s) : s;
+    },
     google: googleTextSearch,
     osm: osmSearch,
     geocode: geocodeBBox,
-    discover: discoverWebsite,
+    discover: c?.discover ?? discoverWebsite,
     social: socialSearch,
     web: webLeadSearch,
     gmaps: gmapsScrapeBatch,
     igLookup: instagramBusinessDiscovery,
     fbSearch: facebookPageSearch,
     checkCandidate: verifyCandidate,
-    audit: auditWebsite,
+    audit: c?.audit ?? auditWebsite,
     pageSpeed: pageSpeedMobile,
     apollo: apolloEnrichDomain,
+    mx: domainAcceptsMail,
+    cacheStats,
     keys: {
       google: process.env.GOOGLE_PLACES_API_KEY || undefined,
       pageSpeed: process.env.PAGESPEED_API_KEY || undefined,

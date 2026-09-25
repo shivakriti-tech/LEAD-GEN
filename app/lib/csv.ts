@@ -1,3 +1,4 @@
+import { EMAIL_KIND_LABEL } from "./enrich/email";
 import type { Lead } from "./types";
 
 const COLS: Array<[string, (l: Lead) => unknown]> = [
@@ -11,9 +12,15 @@ const COLS: Array<[string, (l: Lead) => unknown]> = [
   ["Other phones", (l) => l.phones.filter((p) => p !== l.phone).join(" ")],
   ["WhatsApp", (l) => l.audit?.whatsapp],
   ["Email", (l) => l.email],
+  ["Email type", (l) => (l.emailInfo?.[0] && l.email ? EMAIL_KIND_LABEL[l.emailInfo[0].kind] : undefined)],
+  ["Owner", (l) => l.owner?.name],
   ["Website", (l) => l.website],
   ["Website status", (l) => l.audit?.status],
   ["Mobile speed", (l) => l.audit?.pageSpeed?.score],
+  ["Running since", (l) => l.audit?.foundedYear],
+  ["Website built by", (l) => l.audit?.designedBy],
+  ["Price range", (l) => l.priceRange],
+  ["Orders/bookings via", (l) => l.orderLinks?.map((o) => o.source).join(" ")],
   ["Rating", (l) => l.rating],
   ["Reviews", (l) => l.reviews],
   ["Why now", (l) => l.whyNow],

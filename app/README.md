@@ -40,7 +40,8 @@ Restart `npm run dev` after changing `.env.local`.
 2. Merges duplicates (same phone, same website, same Instagram/Facebook profile, same name within 150 m, or the exact same name in the same city for social results) and drops permanently closed businesses.
 3. Marks chains: the same name at 2+ places in the search, a brand tag on the map, or a website that talks about outlets/franchising. Chains stay in the list but score low.
 4. **Doesn't trust "no website" from the map.** For every business without a website it tries likely web addresses (teapost.com, teapost.in…) and a web search, and only accepts a page that shows the business name plus its phone number or its area. Each lead shows what was checked.
-5. Opens each website (plus up to 2 contact/about pages): emails, phones, WhatsApp, Instagram/Facebook, HTTPS, mobile-ready, copyright year, site builder, parked/broken pages.
+5. Opens each website (plus up to 2 contact/about pages): emails, phones, WhatsApp, Instagram/Facebook, owner name, year founded, the agency that built it, HTTPS, mobile-ready, copyright year, site builder, parked/broken pages.
+   Emails are ranked (an owner's own address before info@) and checked for a mail server, so a dead address is never the one shown first.
 6. Instagram: with a Meta token, reads each business profile (followers, last post, bio website). A website in the bio is verified like any other; an active account with no website becomes a stronger lead.
 7. Optional: Google PageSpeed mobile score.
 8. Optional: Apollo company data (your key).
@@ -66,7 +67,7 @@ A typical search uses about 1 web search per business without a website, plus 2 
 
 ## Google Maps scraper (local testing only)
 
-For testing on your own computer you can pull businesses straight from Google Maps with the open-source [gosom/google-maps-scraper](https://github.com/gosom/google-maps-scraper) (MIT licence). It returns many more businesses than OpenStreetMap, with phone, website, rating, reviews and emails.
+For testing on your own computer you can pull businesses straight from Google Maps with the open-source [gosom/google-maps-scraper](https://github.com/gosom/google-maps-scraper) (MIT licence). It returns many more businesses than OpenStreetMap, with phone, website, rating, reviews and emails, plus the owner name, price range, Zomato/Swiggy/booking links, photo count and opening hours (shown on each lead and in the CSV).
 
 **Only for local testing.** It reads the Google Maps website directly, which is against Google's terms, and heavy use gets your internet connection blocked by Google for a while. The app switches it off automatically in any live/production build. For the live product use the official `GOOGLE_PLACES_API_KEY`.
 
@@ -96,6 +97,15 @@ Your app can stay in development mode while only you use it. When clients connec
 
 Facebook: Page search through the official API needs Meta's "Page Public Metadata Access" feature (App Review + business verification). Until then the app finds Facebook Pages through web search and keeps the link. It doesn't read Facebook pages.
 
+## Speed
+
+- Guessed web addresses are checked with a DNS lookup first. Most don't exist, and DNS says so in milliseconds instead of waiting for a page timeout.
+- Web searches, website checks and websites found are saved in `.data/cache` and reused for up to 7 days (failed checks: 1 day). Searching the same city again is much faster. `LEAD_CACHE=off` in `.env.local` turns this off.
+
+## Benchmark (lead quality, Vadodara)
+
+`npm run bench:build` once, then `npm run bench` after every change to the lead engine. It reports website precision/recall, how many leads have a mobile, email, personal email and owner name, how well the tiers match your own judgement, and seconds per business, compared with the previous run. See `bench/README.md`.
+
 ## Scoring (website development)
 
 | Signal | Points |
@@ -109,7 +119,10 @@ Facebook: Page search through the official API needs Meta's "Page Public Metadat
 | No HTTPS | 10 |
 | Not updated for 3+ years (copyright year) | 10 |
 | Busy business (50+ reviews, 4.0★+) | 10 |
-| Has phone / has email | 5 each |
+| Website built by an agency and not updated for 3+ years | 5 |
+| Established business (website says running 5+ years) | 5 |
+| Owner's name known (Google Maps listing or the website) | 5 |
+| Has phone / has an email that can receive mail | 5 each |
 | Active on Instagram (300+ followers, posted in the last 45 days) with no working website | 10 |
 | Chain or franchise | −45 |
 
@@ -126,6 +139,9 @@ lib/sources/                 googlePlaces.ts, osm.ts, apollo.ts, gmapsScraper.ts
 lib/enrich/                  crawl.ts (website check), discover.ts (find missing websites), searchProviders.ts (SearXNG / Tavily / Brave / DuckDuckGo), pagespeed.ts
 lib/score/websiteDev.ts      opportunity score for this niche
 lib/dedupe.ts                merging duplicates across sources
+lib/enrich/email.ts, mx.ts   email ranking (owner vs shared inbox) and mail-server check
+lib/cache.ts                 disk cache for repeat searches
+lib/bench.ts, bench/         Vadodara lead-quality benchmark (npm run bench)
 lib/safeFetch.ts             blocks private/internal addresses when checking websites in a live build
 proxy.ts                     password protection (APP_PASSWORD)
 lib/categories.ts            business types and their search terms
@@ -148,7 +164,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 113 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 124 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

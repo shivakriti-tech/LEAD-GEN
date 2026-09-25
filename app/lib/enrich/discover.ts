@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { lookup } from "node:dns/promises";
 import type { Lead } from "../types";
 import { fetchPublic } from "../safeFetch";
 import { domainOf, fetchWithTimeout, isSocialHost } from "../util";
@@ -209,8 +210,27 @@ export interface DiscoverResult {
   tried: string[];
 }
 
+/**
+ * Does this domain exist at all? Most guessed addresses don't, and DNS says so in milliseconds,
+ * where loading the page would wait for a timeout. Remembered for the life of the server.
+ */
+const dnsSeen = new Map<string, Promise<boolean>>();
+export function dnsResolves(domain: string): Promise<boolean> {
+  let p = dnsSeen.get(domain);
+  if (!p) {
+    p = Promise.race([
+      lookup(domain).then(() => true, (e: NodeJS.ErrnoException) => !(e.code === "ENOTFOUND" || e.code === "ENODATA")),
+      new Promise<boolean>((r) => setTimeout(() => r(true), 3000)), // slow DNS: let the page load decide
+    ]);
+    dnsSeen.set(domain, p);
+  }
+  return p;
+}
+
 export interface DiscoverDeps {
   fetchHtml?: typeof fetchHtml;
+  /** Does this domain exist? Default: a DNS lookup, only when fetchHtml isn't replaced (tests). */
+  resolves?: (domain: string) => Promise<boolean>;
   search?: (q: string) => Promise<SearchHit[]>; // undefined = web search off
 }
 
@@ -243,6 +263,7 @@ function withRejects(tried: string[], rejected: string[]): string[] {
 /** Look for a lead's real website. Never throws. */
 export async function discoverWebsite(lead: Lead, area: string | undefined, deps: DiscoverDeps = {}): Promise<DiscoverResult & { chainHint?: string }> {
   const get = deps.fetchHtml ?? fetchHtml;
+  const resolves = deps.resolves ?? (deps.fetchHtml ? undefined : dnsResolves);
   const tried: string[] = [];
   const check = async (url: string): Promise<{ v: Verdict; finalUrl: string; html: string } | null> => {
     const page = await get(url);
@@ -256,7 +277,12 @@ export async function discoverWebsite(lead: Lead, area: string | undefined, deps
   if (guesses.length) {
     tried.push(`${guesses.length} likely web addresses (${guesses.slice(0, 3).join(", ")}…)`);
     // all at once: most guesses fail fast (no such domain); keep the most likely one that verifies
-    const results = await Promise.all(guesses.map(async (d) => (await check(`https://${d}`)) ?? (await check(`http://${d}`))));
+    const results = await Promise.all(
+      guesses.map(async (d) => {
+        if (resolves && !(await resolves(d))) return null; // no such domain: skip the page load
+        return (await check(`https://${d}`)) ?? (await check(`http://${d}`));
+      }),
+    );
     const r = results.find((x) => x?.v.ok);
     if (r) return { website: r.finalUrl, via: "domain_guess", evidence: r.v.evidence, tried, chainHint: chainHint(r.html) };
   }

@@ -1,4 +1,4 @@
-import type { RawPlace } from "../types";
+import type { OrderLink, RawPlace } from "../types";
 
 /**
  * Google Maps via the open-source gosom/google-maps-scraper, running in Docker on your own computer.
@@ -53,6 +53,49 @@ const num = (v?: string) => {
   return Number.isFinite(n) && v !== "" ? n : undefined;
 };
 
+/** The scraper puts nested data in JSON cells. Returns undefined for empty or broken cells. */
+function json<T>(cell?: string): T | undefined {
+  if (!cell || !/^[[{"]/.test(cell.trim())) return undefined;
+  try {
+    return JSON.parse(cell) as T;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Owner cell: {"id":…,"name":"Dr Mehta","link":…} or a plain name. Skips "Owner" placeholders. */
+export function ownerName(cell?: string): string | undefined {
+  const o = json<{ name?: string }>(cell);
+  const n = (o ? o.name : cell)?.trim();
+  return n && n.length >= 3 && n.length <= 80 && !/^(owner|null|undefined)$/i.test(n) && !/^[[{]/.test(n) ? n : undefined;
+}
+
+/** order_online / reservations cells: [{"link": "...", "source": "zomato.com"}, …] */
+export function orderLinks(...cells: Array<string | undefined>): OrderLink[] {
+  const out: OrderLink[] = [];
+  for (const c of cells) {
+    for (const x of json<Array<{ link?: string; source?: string }>>(c) ?? []) {
+      if (!x?.link || !/^https?:\/\//.test(x.link)) continue;
+      let source = (x.source || "").toLowerCase();
+      try {
+        source ||= new URL(x.link).hostname.replace(/^www\./, "");
+      } catch {}
+      if (!out.some((o) => o.url === x.link)) out.push({ source, url: x.link });
+    }
+  }
+  return out.slice(0, 6);
+}
+
+const nonEmpty = <T,>(a: T[]) => (a.length ? a : undefined);
+
+function openHours(cell?: string): Record<string, string> | undefined {
+  const h = json<Record<string, string[] | string>>(cell);
+  if (!h || Array.isArray(h) || typeof h !== "object") return undefined;
+  const out: Record<string, string> = {};
+  for (const [day, v] of Object.entries(h)) out[day] = Array.isArray(v) ? v.join(", ") : String(v);
+  return Object.keys(out).length ? out : undefined;
+}
+
 export function rowToRaw(r: Record<string, string>, category: string, city: string): RawPlace | null {
   const name = r.title?.trim();
   if (!name) return null;
@@ -78,6 +121,12 @@ export function rowToRaw(r: Record<string, string>, category: string, city: stri
         ? "CLOSED_TEMPORARILY"
         : undefined,
     mapsUrl: r.link || undefined,
+    owner: ownerName(r.owner),
+    priceRange: r.price_range || undefined,
+    orderLinks: nonEmpty(orderLinks(r.order_online, r.reservations)),
+    photos: json<unknown[]>(r.images)?.length || undefined,
+    openHours: openHours(r.open_hours),
+    about: (r.descriptions || "").slice(0, 400) || undefined,
   };
 }
 
