@@ -164,7 +164,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 125 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 131 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

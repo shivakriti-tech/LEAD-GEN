@@ -54,10 +54,11 @@ It uses the same web search you set up for the app (SearXNG / Tavily / Brave / D
 | website precision % | Of the websites we accepted, how many really belong to the business. A wrong site ruins the pitch. | as close to 100 as possible |
 | website recall % | Of the businesses that do have a website, how many we found | higher |
 | wrong websites | Count of wrong sites accepted; listed underneath so you can see why | 0 |
+| other site showing their phone | We took a different site than the listed one, but it shows the business's own phone number: almost always theirs too (clinics often own two domains). Counted as right, and listed so you can glance at them | — |
 | businesses with a known answer | How many businesses the website numbers are based on. Under ~40 the percentages jump around a lot | 60+ |
 | mobile/WhatsApp %, email %, personal email %, owner name % | How many leads you can actually contact, and how personally | higher |
 | hand-checked … found % | Against your answers: did we find the right email / mobile / owner | higher |
 | tier agrees with you % | Hot/Warm when you said `yes`, Cold when you said `no` | higher |
 | sec per business | Speed (use `--fresh` for honest numbers) | lower |
 
-Each run is compared with the last run on the same list of businesses (▲ better / ▼ worse); after the list changes, the first run starts a new baseline, and saved in full to `bench/results/`. That includes every business's result, what was tried, and the evidence, so you can see exactly why a site was accepted or missed. The results folder isn't committed.
+Each run is compared with the last run on the same list of businesses (▲ better / ▼ worse); after the list changes, the first run starts a new baseline. Everything is saved in full to `bench/results/`. That includes every business's result, what was tried, and the evidence, so you can see exactly why a site was accepted or missed. The results folder isn't committed.

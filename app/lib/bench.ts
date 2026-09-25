@@ -67,7 +67,8 @@ export interface WebsiteRow {
   name: string;
   truth: string;
   found?: string;
-  verdict: "correct" | "wrong" | "missed" | "correct_none";
+  /** alternate = a different site than the listed one, but it shows the business's own phone number: almost always theirs too. */
+  verdict: "correct" | "alternate" | "wrong" | "missed" | "correct_none";
   evidence?: string;
 }
 
@@ -94,7 +95,12 @@ export function evaluate(cases: BenchCase[], outcomes: BenchOutcome[], labels: R
     const foundReal = found && !isSocialHost(found) ? found : undefined;
     if (truth) {
       const verdict: WebsiteRow["verdict"] =
-        truth === "none" ? (foundReal ? "wrong" : "correct_none") : !foundReal ? "missed" : sameSite(foundReal, truth) ? "correct" : "wrong";
+        truth === "none"
+          ? (foundReal ? "wrong" : "correct_none")
+          : !foundReal ? "missed"
+          : sameSite(foundReal, truth) ? "correct"
+          : /phone number/.test(l.websiteCheck?.evidence ?? "") ? "alternate"
+          : "wrong";
       rows.push({ id: c.id, name: c.name, truth, found: foundReal, verdict, evidence: l.websiteCheck?.evidence });
     }
 
@@ -113,8 +119,8 @@ export function evaluate(cases: BenchCase[], outcomes: BenchOutcome[], labels: R
   }
 
   const count = (v: WebsiteRow["verdict"]) => rows.filter((r) => r.verdict === v).length;
-  const correct = count("correct"), wrong = count("wrong"), missed = count("missed"), correctNone = count("correct_none");
-  const withSite = correct + missed + rows.filter((r) => r.verdict === "wrong" && r.truth !== "none").length;
+  const correct = count("correct"), alternate = count("alternate"), wrong = count("wrong"), missed = count("missed"), correctNone = count("correct_none");
+  const withSite = correct + alternate + missed + rows.filter((r) => r.verdict === "wrong" && r.truth !== "none").length;
   times.sort((a, b) => a - b);
 
   return {
@@ -122,14 +128,15 @@ export function evaluate(cases: BenchCase[], outcomes: BenchOutcome[], labels: R
     website: {
       checked: rows.length,
       correct,
+      alternate,
       wrong,
       missed,
       correctNone,
       chainsSkipped,
       /** Of the websites we accepted, how many were really theirs. Wrong sites are worse than none. */
-      precision: pct(correct, correct + wrong),
+      precision: pct(correct + alternate, correct + alternate + wrong),
       /** Of the businesses that do have a website, how many we found. */
-      recall: pct(correct, withSite),
+      recall: pct(correct + alternate, withSite),
     },
     contacts: {
       mobileOrWhatsapp: pct(mobile, n),
@@ -160,6 +167,7 @@ export function headline(r: BenchReport): Record<string, number | null> {
     "website precision %": r.website.precision,
     "website recall %": r.website.recall,
     "wrong websites": r.website.wrong,
+    "other site showing their phone": r.website.alternate,
     "businesses with a known answer": r.website.checked,
     "mobile/WhatsApp %": r.contacts.mobileOrWhatsapp,
     "email %": r.contacts.email,

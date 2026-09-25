@@ -174,3 +174,45 @@ describe("benchmark: chains and sources", () => {
     expect(outcomes[1].lead.sources).toEqual(["gmaps"]);
   });
 });
+
+describe("website matching fixes from the first Vadodara run", () => {
+  it("strips Google Maps keyword stuffing from names", async () => {
+    const { cleanBusinessName } = await import("@/lib/enrich/discover");
+    expect(cleanBusinessName("2th Saver Dental Clinic(advanced dental care at affordable rates)", "Vadodara")).toBe("2th Saver Dental Clinic");
+    expect(cleanBusinessName("Dr. Hada dental and orthodontic clinic - Vadodara", "Vadodara")).toBe("Dr. Hada dental and orthodontic clinic");
+    expect(cleanBusinessName("Vasudha Hospital and Dental Clinic in Vadodara", "Vadodara")).toBe("Vasudha Hospital and Dental Clinic");
+    expect(cleanBusinessName("THE BULL FITNESS HUB – Karodiya | Unisex Gym & Physical Fitness Centre", "Vadodara")).toBe("THE BULL FITNESS HUB");
+    // nothing left but generic words: keep the name as it is
+    expect(cleanBusinessName("Vadodara Dental Clinic", "Vadodara")).toBe("Vadodara Dental Clinic");
+  });
+
+  it("guesses the short web addresses clinics really use", async () => {
+    const { candidateDomains } = await import("@/lib/enrich/discover");
+    expect(candidateDomains("Dr. Hada dental and orthodontic clinic", "Vadodara")).toContain("drhadadental.com");
+    expect(candidateDomains("2th Saver Dental Clinic", "Vadodara")).toContain("2thsaver.com");
+    expect(candidateDomains("Smile Dental", "Vadodara")).toContain("smiledentalvadodara.co.in");
+    expect(candidateDomains("Vasudha Hospital and Dental Clinic").some((d) => d.includes("hospitaland."))).toBe(false);
+  });
+
+  it("an address that starts with the business name is not a second proof", async () => {
+    const { verifyPageForLead } = await import("@/lib/enrich/discover");
+    const lead = { name: "Anjoy", phones: [], city: "Vadodara", address: "Anjoy Restaurant, Alkapuri, Vadodara" };
+    expect(verifyPageForLead("<title>Anjoy Laddu</title><body>Anjoy laddus, order online</body>", lead).ok).toBe(false);
+    expect(verifyPageForLead("<title>Anjoy Restaurant</title><body>Alkapuri, Vadodara</body>", lead).ok).toBe(true);
+  });
+
+  it("finds the site when the Maps name is stuffed with keywords", async () => {
+    const r = await discoverWebsite(lead({ name: "2th Saver Dental Clinic(advanced dental care at affordable rates)", phone: "+919825011111", phones: ["+919825011111"] }), undefined, {
+      resolves: async (d) => d === "2thsaver.com",
+      fetchHtml: async (url) => (url === "https://2thsaver.com" ? { html: "<title>2th Saver Dental Clinic</title><body>Call 98250 11111</body>", finalUrl: "https://2thsaver.com/" } : null),
+    });
+    expect(r.website).toBe("https://2thsaver.com/");
+  });
+
+  it("benchmark: another site showing the business's own phone counts as theirs, listed separately", () => {
+    const c: BenchCase = { id: "g/1", name: "Vraj Group of Dental Clinics", category: "Dentist", city: "Vadodara", knownWebsite: "https://vrajdentalclinic.com" };
+    const l = lead({ name: c.name, website: "https://vrajgroupofdentalclinics.in/", websiteCheck: { via: "web_search", evidence: "business name and phone number are on the page", tried: [] } });
+    const r = evaluate([c], [{ id: c.id, lead: l, ms: 1 }]);
+    expect(r.website).toMatchObject({ alternate: 1, wrong: 0, precision: 100, recall: 100 });
+  });
+});

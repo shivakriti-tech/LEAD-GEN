@@ -36,6 +36,30 @@ export function significantTokens(name: string): string[] {
     .filter((t) => t.length >= 3 && !GENERIC.has(t));
 }
 
+/**
+ * Google Maps names are often stuffed with keywords: "2th Saver Dental Clinic(advanced dental care at
+ * affordable rates)", "Dr. Hada dental clinic - Vadodara", "BEAR BICEPS GYM (Best Gym in Waghodia Road | …)".
+ * The business's own website carries the real name, so match on that: drop anything in brackets,
+ * anything after " | " or " - ", and a trailing "in <city>". Falls back to the full name if too little is left.
+ */
+export function cleanBusinessName(name: string, city?: string, area?: string): string {
+  let n = name.replace(/\([^)]*\)?|\[[^\]]*\]?|\{[^}]*\}?/g, " ");
+  n = n.split(/\s+[|–—-]\s+|\s*\|\s*|\s+:\s+/)[0];
+  for (const place of [area, city].filter(Boolean) as string[]) {
+    const esc = place.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+    if (!esc) continue;
+    const cut = n.replace(new RegExp(`[\\s,]*(\\b(in|at|near)\\s+)?\\b${esc}\\s*$`, "i"), "");
+    if (significantTokens(cut).length) n = cut;
+  }
+  n = n.replace(/\s+/g, " ").replace(/[\s,.-]+$/, "").trim();
+  return n.replace(/[^a-z0-9]/gi, "").length >= 3 && significantTokens(n).length ? n : name.trim();
+}
+
+const withCleanName = <T extends { name: string; city?: string }>(lead: T, area?: string): T => {
+  const name = cleanBusinessName(lead.name, lead.city, area);
+  return name === lead.name ? lead : { ...lead, name };
+};
+
 /** Directory/listing sites that are never the business's own website. */
 const DIRECTORY_HOSTS = [
   "justdial.com", "sulekha.com", "practo.com", "lybrate.com", "zomato.com", "swiggy.com", "magicpin.in", "dineout.co.in",
@@ -127,8 +151,13 @@ export function verifyPageForLead(html: string, lead: Pick<Lead, "name" | "phone
   const phoneHit = phones.find((p) => digits.includes(p.replace(/\D/g, "").slice(-10)));
   if (phoneHit) return { ok: true, evidence: "business name and phone number are on the page", proof: "phone" };
 
+  // Google Maps addresses often start with the business name ("Anjoy Restaurant, Alkapuri, …"):
+  // that part is the name again, not a place, so it can't count as the second proof.
+  const squash = (s: string) => s.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]/g, "");
+  const nameSq = squash(lead.name);
   const places = [area, lead.city, ...(lead.address?.split(",").map((x) => x.trim()) ?? [])]
     .filter((x): x is string => !!x && x.length >= 4 && !/^\d+$/.test(x))
+    .filter((x) => { const s = squash(x); return !(s.includes(nameSq) || nameSq.includes(s) || tokens.some((t) => s.includes(t))); })
     .map((x) => x.toLowerCase());
   const placeHit = places.find((p) => all.includes(p));
   if (placeHit && nameInTitle) return { ok: true, evidence: `business name (in the page title) and "${placeHit}" are on the page`, proof: "place" };
@@ -148,13 +177,17 @@ export function candidateDomains(name: string, city?: string): string[] {
   const full = words.join("");
   const noThe = words.filter((w) => w !== "the").join("");
   const core = significantTokens(name).join("");
-  const stems = [...new Set([full, noThe, words.join("-"), core && core !== noThe ? core : "", city ? noThe + city.toLowerCase().replace(/[^a-z]/g, "") : ""])].filter(
+  const named = words.filter((w) => w !== "the" && w !== "and");
+  const lead2 = named.slice(0, 2).join(""); // "drhada", "2thsaver"
+  const lead3 = named.slice(0, 3).join(""); // "drhadadental"
+  const cityStem = city ? noThe + city.toLowerCase().replace(/[^a-z]/g, "") : "";
+  const stems = [...new Set([full, noThe, words.join("-"), core && core !== noThe ? core : "", lead3, lead2, cityStem])].filter(
     (s) => s.length >= 4 && s.length <= 40,
   );
+  // DNS is checked before any page loads, so a few more guesses cost almost nothing
   const out: string[] = [];
-  for (const s of stems.slice(0, 3)) for (const tld of ["com", "in", "co.in"]) out.push(`${s}.${tld}`);
-  if (stems[3]) out.push(`${stems[3]}.com`, `${stems[3]}.in`);
-  return [...new Set(out)].slice(0, 10);
+  for (const s of stems) for (const tld of ["com", "in", "co.in"]) out.push(`${s}.${tld}`);
+  return [...new Set(out)].slice(0, 18);
 }
 
 async function fetchHtml(url: string, ms = 7000): Promise<{ html: string; finalUrl: string } | null> {
@@ -241,6 +274,7 @@ export const CHAIN_WORDS = /\b(franchise|franchisee|store locator|our outlets|fi
  * Same ownership rules as discovery: address matches the name, or homepage with their phone.
  */
 export async function verifyCandidate(url: string, lead: Lead, area: string | undefined, get: typeof fetchHtml = fetchHtml): Promise<{ ok: boolean; finalUrl?: string; evidence: string }> {
+  lead = withCleanName(lead, area);
   const d = domainOf(url);
   if (!d || isSocialHost(d) || isDirectory(d)) return { ok: false, evidence: "not a business website" };
   const page = await get(url);
@@ -262,6 +296,7 @@ function withRejects(tried: string[], rejected: string[]): string[] {
 
 /** Look for a lead's real website. Never throws. */
 export async function discoverWebsite(lead: Lead, area: string | undefined, deps: DiscoverDeps = {}): Promise<DiscoverResult & { chainHint?: string }> {
+  lead = withCleanName(lead, area);
   const get = deps.fetchHtml ?? fetchHtml;
   const resolves = deps.resolves ?? (deps.fetchHtml ? undefined : dnsResolves);
   const tried: string[] = [];

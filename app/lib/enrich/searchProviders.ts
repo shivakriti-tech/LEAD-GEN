@@ -87,22 +87,30 @@ export function providersFromEnv(env: Record<string, string | undefined> = proce
 }
 
 /**
- * One search function over several providers. If a provider fails (quota, captcha,
- * not running), it's skipped for the rest of the run and the next one is used.
+ * One search function over several providers. If a provider fails (quota, captcha, not running),
+ * the next one is used. A failed provider is tried again after `retryMs` (SearXNG's engines are
+ * often blocked for a few minutes only), so a short block doesn't burn a paid quota for the whole run.
  */
-export function searchChain(providers: Provider[], onSwitch?: (msg: string) => void): (q: string) => Promise<SearchHit[]> {
-  const dead = new Set<ProviderId>();
+export function searchChain(providers: Provider[], onSwitch?: (msg: string) => void, retryMs = 5 * 60_000, now: () => number = Date.now): (q: string) => Promise<SearchHit[]> {
+  const deadUntil = new Map<ProviderId, number>();
+  const isDead = (id: ProviderId) => (deadUntil.get(id) ?? 0) > now();
   return async (q: string) => {
     let lastErr: unknown;
     for (const p of providers) {
-      if (dead.has(p.id)) continue;
+      if (isDead(p.id)) continue;
+      const wasDead = deadUntil.has(p.id);
       try {
-        return await p.search(q);
+        const hits = await p.search(q);
+        if (wasDead) {
+          deadUntil.delete(p.id);
+          onSwitch?.(`${p.label} search is working again.`);
+        }
+        return hits;
       } catch (e) {
         lastErr = e;
-        dead.add(p.id);
-        const next = providers.find((x) => !dead.has(x.id));
-        onSwitch?.(`${p.label} search stopped: ${e instanceof Error ? e.message : e}.${next ? ` Using ${next.label} instead.` : ""}`);
+        deadUntil.set(p.id, now() + retryMs);
+        const next = providers.find((x) => !isDead(x.id));
+        if (!wasDead) onSwitch?.(`${p.label} search stopped: ${e instanceof Error ? e.message : e}.${next ? ` Using ${next.label} instead, and trying ${p.label} again in ${Math.round(retryMs / 60_000)} minutes.` : ""}`);
       }
     }
     throw new Error(`No web search available${lastErr instanceof Error ? ` (${lastErr.message})` : ""}`);

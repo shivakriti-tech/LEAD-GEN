@@ -85,6 +85,11 @@ async function main() {
     console.log(`\nWrong websites accepted (check these first):`);
     for (const r of wrong.slice(0, 15)) console.log(`  ${r.name}: took ${r.found}, right answer ${r.truth} · ${r.evidence ?? ""}`);
   }
+  const alternate = report.rows.filter((r) => r.verdict === "alternate");
+  if (alternate.length) {
+    console.log(`\nA different site from the listed one, but showing the business's own phone (counted as right; worth a glance):`);
+    for (const r of alternate.slice(0, 10)) console.log(`  ${r.name}: took ${r.found}, listed ${r.truth}`);
+  }
   const missed = report.rows.filter((r) => r.verdict === "missed");
   if (missed.length) console.log(`\nMissed ${missed.length} known websites, e.g. ${missed.slice(0, 5).map((r) => `${r.name} (${r.truth})`).join(", ")}`);
 
