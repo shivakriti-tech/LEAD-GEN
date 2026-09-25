@@ -30,6 +30,7 @@ With no keys at all it already works: leads come from OpenStreetMap (free) and e
 | `APOLLO_API_KEY` | Company size and LinkedIn page. Only the client's own key | Apollo → Settings → API. You can also paste it in the app for one search. |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Save searches in a real database instead of the `.data` folder | supabase.com → new project → SQL Editor → run `supabase/schema.sql` → Project Settings → API |
 | `CRAWLER_CONTACT` | Your email in the crawler's User-Agent (OpenStreetMap asks for one) | Any address you check |
+| `APP_PASSWORD` | Password-protects the whole app (the browser asks; any user name). **Set it before putting the app online**: saved searches hold phone numbers and emails, and every search spends your API quota | Any long password |
 
 Restart `npm run dev` after changing `.env.local`.
 
@@ -125,6 +126,8 @@ lib/sources/                 googlePlaces.ts, osm.ts, apollo.ts, gmapsScraper.ts
 lib/enrich/                  crawl.ts (website check), discover.ts (find missing websites), searchProviders.ts (SearXNG / Tavily / Brave / DuckDuckGo), pagespeed.ts
 lib/score/websiteDev.ts      opportunity score for this niche
 lib/dedupe.ts                merging duplicates across sources
+lib/safeFetch.ts             blocks private/internal addresses when checking websites in a live build
+proxy.ts                     password protection (APP_PASSWORD)
 lib/categories.ts            business types and their search terms
 supabase/schema.sql          database tables
 searxng/                     free self-hosted web search (docker compose up -d)
@@ -139,11 +142,13 @@ tests/                       npm test
 - Website checks are polite: one request at a time per site, short timeouts, a clear User-Agent.
 - Apollo data is only fetched with the client's own key and not reused for other clients.
 - Instagram and Facebook: only search-result links and Meta's official API. No logins, no scraping of profile pages.
+- Live builds never load private or internal addresses (localhost, 192.168.x, cloud metadata…) when checking a business website, even through a redirect.
+- A live app must have `APP_PASSWORD` set. Keys stay on the server; the browser only learns which sources are switched on.
 
 ## Checks
 
 ```
-npm test          # 107 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 113 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

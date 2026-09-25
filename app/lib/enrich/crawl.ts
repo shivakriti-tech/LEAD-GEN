@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 import type { WebsiteAudit } from "../types";
-import { domainOf, fetchWithTimeout, isMobile, isSocialHost, normalizePhone } from "../util";
+import { fetchPublic } from "../safeFetch";
+import { domainOf, isMobile, isSocialHost, normalizePhone } from "../util";
 
 const FREE_BUILDERS: Array<[RegExp, string]> = [
   [/\.wixsite\.com$/, "Wix free site"],
@@ -73,7 +74,7 @@ export function parsePage(html: string, pageUrl: string) {
   // 5. Emails from schema.org itemProp
   $('[itemprop="email"]').each((_, el) => {
     const e = ($(el).attr("content") || $(el).text() || "").trim().toLowerCase();
-    if (e && EMAIL_RE.test(e) && !BAD_EMAIL.test(e)) emails.add(e);
+    if (e && /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(e) && !BAD_EMAIL.test(e)) emails.add(e);
   });
 
   // --- Phones ---
@@ -221,7 +222,7 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
 
   let res: Response;
   try {
-    res = await fetchWithTimeout(url, { redirect: "follow", headers: { Accept: "text/html" } }, 12_000);
+    res = await fetchPublic(url, { headers: { Accept: "text/html" } }, 12_000);
   } catch (e) {
     return emptyAudit("down", { checkedUrl: url, error: e instanceof Error ? (e.name === "AbortError" ? "Timed out after 12s" : e.message) : "Failed" });
   }
@@ -244,7 +245,7 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
   // look at up to 2 contact/about pages for more contacts
   for (const link of first.contactLinks) {
     try {
-      const r = await fetchWithTimeout(link, { headers: { Accept: "text/html" } }, 8_000);
+      const r = await fetchPublic(link, { headers: { Accept: "text/html" } }, 8_000);
       if (!r.ok || !(r.headers.get("content-type") || "").includes("html")) continue;
       const p = parsePage((await r.text()).slice(0, 800_000), link);
       p.emails.forEach((e) => emails.add(e));

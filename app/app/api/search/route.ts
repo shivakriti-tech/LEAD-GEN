@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   const valid = new Set(CATEGORIES.map((c) => c.key));
   const params: SearchParams = {
     sells: "website_development",
-    categories: (body.categories ?? []).filter((c) => valid.has(c)).slice(0, 8),
+    categories: (Array.isArray(body.categories) ? body.categories : []).filter((c) => valid.has(c)).slice(0, 8),
     city: String(body.city ?? "").trim().slice(0, 80),
     area: body.area ? String(body.area).trim().slice(0, 80) : undefined,
     perCategory: Math.min(60, Math.max(5, Number(body.perCategory) || 20)),
@@ -45,10 +45,24 @@ export async function POST(req: Request) {
   const enc = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
-      const emit = (e: ProgressEvent) => controller.enqueue(enc.encode(JSON.stringify(e) + "\n"));
-      const result = await runSearch(params, deps, emit);
-      emit({ type: "done", search: result.search, leads: result.leads });
-      controller.close();
+      let closed = false;
+      const emit = (e: ProgressEvent) => {
+        if (closed) return; // browser went away: keep working, just stop sending
+        try {
+          controller.enqueue(enc.encode(JSON.stringify(e) + "\n"));
+        } catch {
+          closed = true;
+        }
+      };
+      try {
+        const result = await runSearch(params, deps, emit);
+        emit({ type: "done", search: result.search, leads: result.leads });
+      } catch (e) {
+        // e.g. the store couldn't save the new search; without this the browser waits forever
+        emit({ type: "log", level: "error", message: e instanceof Error ? e.message : "Search failed" });
+      } finally {
+        if (!closed) controller.close();
+      }
     },
   });
   return new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" } });

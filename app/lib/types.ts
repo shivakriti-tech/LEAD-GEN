@@ -42,6 +42,8 @@ export interface WebsiteAudit {
   socials: Record<string, string>;
   pageSpeed?: { score: number; lcp?: string };
   error?: string;
+  foundedYear?: number; // "since 2009", JSON-LD foundingDate
+  designedBy?: string; // agency credit in the footer, e.g. "Designed by XYZ Web"
 }
 
 export interface Signal {

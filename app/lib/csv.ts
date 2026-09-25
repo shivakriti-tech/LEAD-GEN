@@ -28,9 +28,9 @@ const COLS: Array<[string, (l: Lead) => unknown]> = [
 
 const cell = (v: unknown) => {
   const s = v == null ? "" : String(v);
-  // guard against spreadsheet formula injection
-  const safe = /^[=+\-@]/.test(s) && !/^[+-]?\d/.test(s) ? `'${s}` : s;
-  return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+  // guard against spreadsheet formula injection; plain numbers and phone numbers (+91 98…) stay as they are
+  const safe = /^[=+\-@\t\r]/.test(s) && !/^[+-]?[\d\s().-]+$/.test(s) ? `'${s}` : s;
+  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 };
 
 export function leadsToCsv(leads: Lead[]): string {

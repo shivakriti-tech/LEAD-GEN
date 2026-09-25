@@ -113,6 +113,8 @@ export default function LeadFinder() {
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       let buf = "";
+      let finished = false;
+      let lastError = "";
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -123,15 +125,20 @@ export default function LeadFinder() {
           buf = buf.slice(nl + 1);
           if (!line.trim()) continue;
           const ev = JSON.parse(line) as ProgressEvent;
-          if (ev.type === "log") setLog((l) => [...l, { level: ev.level, message: ev.message }]);
+          if (ev.type === "log") {
+            setLog((l) => [...l, { level: ev.level, message: ev.message }]);
+            if (ev.level === "error") lastError = ev.message;
+          }
           else if (ev.type === "stage") setStage({ stage: ev.stage, done: ev.done, total: ev.total });
           else if (ev.type === "done") {
+            finished = true;
             setSearch(ev.search);
             setLeads(ev.leads);
             if (ev.search.status === "failed") setError(ev.search.error || "Search failed");
           }
         }
       }
+      if (!finished) throw new Error(lastError || "The search stopped before it finished.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Search failed");
     } finally {

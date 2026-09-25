@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import type { Lead } from "../types";
+import { fetchPublic } from "../safeFetch";
 import { domainOf, fetchWithTimeout, isSocialHost } from "../util";
 
 /**
@@ -157,7 +158,7 @@ export function candidateDomains(name: string, city?: string): string[] {
 
 async function fetchHtml(url: string, ms = 7000): Promise<{ html: string; finalUrl: string } | null> {
   try {
-    const r = await fetchWithTimeout(url, { redirect: "follow", headers: { Accept: "text/html" } }, ms);
+    const r = await fetchPublic(url, { headers: { Accept: "text/html" } }, ms);
     if (!r.ok || !(r.headers.get("content-type") || "").includes("html")) return null;
     return { html: (await r.text()).slice(0, 1_000_000), finalUrl: r.url || url };
   } catch {

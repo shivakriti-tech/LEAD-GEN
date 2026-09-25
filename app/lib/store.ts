@@ -93,7 +93,8 @@ function supabaseStore(db: SupabaseClient): Store {
       if (error) throw new Error(`Supabase: ${error.message}`);
     },
     async saveLeads(id, leads) {
-      await db.from("leads").delete().eq("search_id", id);
+      const del = await db.from("leads").delete().eq("search_id", id);
+      if (del.error) throw new Error(`Supabase: ${del.error.message}`);
       for (let i = 0; i < leads.length; i += 200) {
         const { error } = await db.from("leads").insert(leads.slice(i, i + 200).map((l) => toRow(id, l)));
         if (error) throw new Error(`Supabase: ${error.message}`);
@@ -105,7 +106,9 @@ function supabaseStore(db: SupabaseClient): Store {
       return (data ?? []).map(fromSearch);
     },
     async getSearch(id) {
-      const { data: s } = await db.from("searches").select("*").eq("id", id).maybeSingle();
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
+      const { data: s, error: sErr } = await db.from("searches").select("*").eq("id", id).maybeSingle();
+      if (sErr) throw new Error(`Supabase: ${sErr.message}`);
       if (!s) return null;
       const { data: rows, error } = await db.from("leads").select("data").eq("search_id", id).order("score", { ascending: false });
       if (error) throw new Error(`Supabase: ${error.message}`);

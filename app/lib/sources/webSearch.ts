@@ -1,7 +1,8 @@
 import * as cheerio from "cheerio";
 import type { RawPlace } from "../types";
 import { CHAIN_WORDS, isDirectory, significantTokens, type SearchHit } from "../enrich/discover";
-import { domainOf, fetchWithTimeout, isSocialHost, normalizePhone } from "../util";
+import { fetchPublic } from "../safeFetch";
+import { domainOf, isSocialHost, normalizePhone } from "../util";
 
 /**
  * Search engines as a lead source (through SearXNG / Tavily / … — whatever web search is set up).
@@ -73,7 +74,7 @@ export interface WebLeadDeps {
 
 async function defaultFetch(url: string) {
   try {
-    const r = await fetchWithTimeout(url, { redirect: "follow", headers: { Accept: "text/html" } }, 8000);
+    const r = await fetchPublic(url, { headers: { Accept: "text/html" } }, 8000);
     if (!r.ok || !(r.headers.get("content-type") || "").includes("html")) return null;
     return { html: (await r.text()).slice(0, 800_000), finalUrl: r.url || url };
   } catch {
