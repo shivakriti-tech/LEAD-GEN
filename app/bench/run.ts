@@ -7,9 +7,10 @@
  *   npm run bench -- --limit=30   first 30 businesses only
  *   npm run bench -- --no-search  likely web addresses only, no web search
  *
- * Prints the headline numbers, compares them with the previous run, and saves everything
+ * Prints the headline numbers, compares them with the last run on the same businesses, and saves everything
  * (including each business's result) to bench/results/.
  */
+import { createHash } from "node:crypto";
 import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 
@@ -55,9 +56,19 @@ async function main() {
 
   // compare with the last run
   await fs.mkdir(resultsDir, { recursive: true });
-  const previous = (await fs.readdir(resultsDir)).filter((f) => f.endsWith(".json")).sort().at(-1);
-  const before: Record<string, number | null> | undefined = previous ? JSON.parse(await fs.readFile(path.join(resultsDir, previous), "utf8")).headline : undefined;
+  // Only compare with a run on the same businesses: a different list gives different numbers
+  // even when the code is the same.
+  const businessList = createHash("sha1").update(cases.map((c: { id: string }) => c.id).sort().join("\n")).digest("hex").slice(0, 12);
+  let before: Record<string, number | null> | undefined;
+  for (const f of (await fs.readdir(resultsDir)).filter((f) => f.endsWith(".json")).sort().reverse()) {
+    const prev = JSON.parse(await fs.readFile(path.join(resultsDir, f), "utf8"));
+    if (prev.businessList === businessList) {
+      before = prev.headline;
+      break;
+    }
+  }
 
+  if (!before) console.log(`\n\nFirst run on this list of ${cases.length} businesses, so nothing to compare with yet.`);
   console.log(`\n\nDone in ${totalSec}s${deps.cacheStats?.hits ? ` (${deps.cacheStats.hits} saved result${deps.cacheStats.hits > 1 ? "s" : ""} reused)` : ""}.\n`);
   const w = Math.max(...Object.keys(now).map((k) => k.length));
   for (const [k, v] of Object.entries(now)) {
@@ -83,7 +94,7 @@ async function main() {
     tried: o.lead.websiteCheck?.tried, email: o.lead.email, emailInfo: o.lead.emailInfo, phones: o.lead.phones, owner: o.lead.owner?.name,
     score: o.lead.score, tier: o.lead.tier, signals: o.lead.signals.map((s) => s.label),
   }));
-  await fs.writeFile(file, JSON.stringify({ at: new Date().toISOString(), args, totalSec, headline: now, report: { ...report, rows: undefined }, websiteRows: report.rows, perBusiness }, null, 1));
+  await fs.writeFile(file, JSON.stringify({ at: new Date().toISOString(), args, businessList, totalSec, headline: now, report: { ...report, rows: undefined }, websiteRows: report.rows, perBusiness }, null, 1));
   console.log(`\nSaved ${path.relative(process.cwd(), file)}`);
 }
 

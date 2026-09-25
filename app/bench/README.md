@@ -60,4 +60,4 @@ It uses the same web search you set up for the app (SearXNG / Tavily / Brave / D
 | tier agrees with you % | Hot/Warm when you said `yes`, Cold when you said `no` | higher |
 | sec per business | Speed (use `--fresh` for honest numbers) | lower |
 
-Each run is compared with the previous one (▲ better / ▼ worse), and saved in full to `bench/results/`. That includes every business's result, what was tried, and the evidence, so you can see exactly why a site was accepted or missed. The results folder isn't committed.
+Each run is compared with the last run on the same list of businesses (▲ better / ▼ worse); after the list changes, the first run starts a new baseline, and saved in full to `bench/results/`. That includes every business's result, what was tried, and the evidence, so you can see exactly why a site was accepted or missed. The results folder isn't committed.
