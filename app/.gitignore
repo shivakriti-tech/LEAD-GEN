@@ -6,3 +6,5 @@ node_modules
 next-env.d.ts
 gmaps-scraper/gmapsdata
 bench/results
+bench/vadodara.cases.json
+bench/vadodara.labels.csv
