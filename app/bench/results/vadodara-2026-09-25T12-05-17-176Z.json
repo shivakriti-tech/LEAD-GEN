@@ -1,0 +1,4877 @@
+{
+ "at": "2026-09-25T12:05:17.189Z",
+ "args": [
+  "--fresh"
+ ],
+ "businessList": "3df125a15455",
+ "totalSec": 279,
+ "headline": {
+  "website precision %": 77.3,
+  "website recall %": 23,
+  "wrong websites": 5,
+  "businesses with a known answer": 74,
+  "mobile/WhatsApp %": 67.8,
+  "email %": 20.7,
+  "personal email %": 12.6,
+  "owner name %": 60.9,
+  "hand-checked email found %": null,
+  "hand-checked mobile found %": null,
+  "hand-checked owner found %": null,
+  "tier agrees with you %": null,
+  "sec per business (avg)": 6.3,
+  "sec per business (p90)": 15.5
+ },
+ "report": {
+  "businesses": 174,
+  "website": {
+   "checked": 74,
+   "correct": 17,
+   "wrong": 5,
+   "missed": 52,
+   "correctNone": 0,
+   "chainsSkipped": 5,
+   "precision": 77.3,
+   "recall": 23
+  },
+  "contacts": {
+   "mobileOrWhatsapp": 67.8,
+   "email": 20.7,
+   "personalEmail": 12.6,
+   "owner": 60.9
+  },
+  "handChecked": {
+   "emailFound": null,
+   "mobileFound": null,
+   "ownerFound": null,
+   "tierAgrees": null,
+   "labelled": 0
+  },
+  "speed": {
+   "avgSec": 6.3,
+   "p90Sec": 15.5
+  }
+ },
+ "websiteRows": [
+  {
+   "id": "node/8244971790",
+   "name": "Max Fashion",
+   "truth": "maxfashion.in",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJq6oaIsfFXzkRhlBlYcdvoSc",
+   "name": "2th Saver Dental Clinic(advanced dental care at affordable rates)",
+   "truth": "2thsaver.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJ68NGYRDGXzkRbmaBFOdpzTA",
+   "name": "Subhadra Dental Clinic",
+   "truth": "subhadradentalclinic.com",
+   "found": "subhadradentalclinic.com",
+   "verdict": "correct",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page"
+  },
+  {
+   "id": "gmaps/ChIJPesjixzGXzkRr53ZjMR0sgk",
+   "name": "Vivaan Dental Care",
+   "truth": "vivaandentalcare.in",
+   "found": "vivaandentalcare.in",
+   "verdict": "correct",
+   "evidence": "business name and phone number are on the page"
+  },
+  {
+   "id": "gmaps/ChIJy7F1eGrHXzkRvDb9rxmIUqM",
+   "name": "Smile Dental",
+   "truth": "smiledentalvadodara.co.in",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJWSCtinnPXzkRoyslXYHWgXU",
+   "name": "Vasudha Hospital and Dental Clinic in Vadodara",
+   "truth": "vasudhaclinic.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJ88KZp9LIXzkRjM1raS3b8Oo",
+   "name": "Vadodara Dental Care",
+   "truth": "vadodaradentalcare.com",
+   "found": "vadodaradentalcare.com",
+   "verdict": "correct",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page"
+  },
+  {
+   "id": "gmaps/ChIJ-YwQ0X_JXzkRV8sImpAZgY8",
+   "name": "Dr. Hada dental and orthodontic clinic - Vadodara",
+   "truth": "drhadadental.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJS6Eoi4rPXzkRGjm0N4_k0sI",
+   "name": "Swastik Dental And Face Hospital",
+   "truth": "swastikdentalhospital.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJObW5b-nIXzkRVUN1g1fVy-k",
+   "name": "Smile Dental Clinic And Implant Center - Subhanpura (Dr. Saurav Shah)",
+   "truth": "drsauravshahsmiledentalclinic.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJf-WiJt_OXzkREWz7jQ-G_10",
+   "name": "Vraj Group of Dental Clinics",
+   "truth": "vrajdentalclinic.com",
+   "found": "vrajgroupofdentalclinics.in",
+   "verdict": "wrong",
+   "evidence": "business name and phone number are on the page"
+  },
+  {
+   "id": "gmaps/ChIJz2Iz7RzGXzkRYP5DrQCO8cY",
+   "name": "Parekh's Dental Care Multi Speciality Dental Clinic & Implant Centre – Akota Vadodara",
+   "truth": "parekhsdentalcare.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJtaXgHLDIXzkRnfQMFqcpDw4",
+   "name": "Dental Clinic & Implant Center",
+   "truth": "smilecreation.in",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJ5ad1ir3IXzkRxFF3vOUcfOo",
+   "name": "Shah's Dental Care",
+   "truth": "sdcclinic.in",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJ3Vd25K7IXzkRLRorV-eoMq4",
+   "name": "The Tooth Clinic Baroda",
+   "truth": "thetoothclinicbaroda.com",
+   "found": "thetoothclinicbaroda.com",
+   "verdict": "correct",
+   "evidence": "business name and phone number are on the page"
+  },
+  {
+   "id": "gmaps/ChIJhc8MC67IXzkRGFvWpkjn-wY",
+   "name": "Dr Amish Mehta's Chandan Dental",
+   "truth": "chandanorthodontics.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJEU5Of0fHXzkRg9j6X8n3U6w",
+   "name": "Dr. Divya's Dental Care",
+   "truth": "drdivyadentalcare.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJt0_CQtHHXzkRh-Mp90UaE7o",
+   "name": "VYOM DENTAL CARE",
+   "truth": "vyom-dental-care.grexa.site",
+   "found": "vyomdentalcare.com",
+   "verdict": "wrong",
+   "evidence": "business name (in the page title) and \"vyom dental care\" are on the page"
+  },
+  {
+   "id": "gmaps/ChIJi1VnUYbFXzkRyUtvISUE90E",
+   "name": "Heaven Haircut Studio Unisex Salon",
+   "truth": "heavenhaircutstudio.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJMcVWW7vJXzkR_TRn7fOUSds",
+   "name": "Sanskruti Family Salon",
+   "truth": "sanskrutisalon.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJbyJSBiTEXzkRVkx2_jeqKmI",
+   "name": "New look salon - Top Hair & Beauty Salon In Vadodara",
+   "truth": "newlooksalon.in",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJb91mfhzGXzkRg8_iWLbyrvw",
+   "name": "The Big Bang Salon & Bridal Studio | Makeup Artist & Bridal Makeup in Vadodara | Unisex Salon",
+   "truth": "thebigbangsalon.in",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJ7-K7iIXPXzkRaKP5hXg0gn4",
+   "name": "Spaarsh Beauty Salon",
+   "truth": "sparsh-beauty-salon.ueniweb.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJJ7oMOPnJXzkRTAo7wofTURM",
+   "name": "Royal Touch Hair And Beauty Studio",
+   "truth": "royal-touch-hair.grexa.site",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJif___6PPXzkRE0z54FZsFoI",
+   "name": "Snehal's Beyoutie - Beauty Salon HAIR EXTENTION SPECIALIST & MAKEUP ARTIST",
+   "truth": "snehalsbeyoutie.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJa4EPnffJXzkRK7Vki-JtOqQ",
+   "name": "Hair Saint",
+   "truth": "hairsaintsalons.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJh0wPH27JXzkR-MpuotoI0gE",
+   "name": "The beauty town Unisex salon & Makeup Studio Vadodara - Bridal Salon Vadodara - Bridal Makeup Salon Alkapuri - make-up artist",
+   "truth": "thebeautytownsalon.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJ8QRtioDJXzkRc4JW4Eyf4dc",
+   "name": "𝗦𝘁𝘆𝗹𝗼𝗿𝗶𝗮 𝗨𝗻𝗶𝘀𝗲𝘅 𝗛𝗮𝗶𝗿 𝗦𝘁𝘂𝗱𝗶𝗼 & 𝗟𝗼𝘂𝗻𝗴𝗲 - Biggest Salon/Professional Hair Salon/Best Unisex Hair Salon in Vadodara",
+   "truth": "styloriastudio.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJIVqf9FfIXzkRZDlsWtFZQv8",
+   "name": "Friends Factory Cafe - Rooftop Candle Light Dinner",
+   "truth": "friendsfactorycafe.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJI47redLPXzkRv_I8tXbrFmE",
+   "name": "The Cave Cafe",
+   "truth": "thecavecafe.online",
+   "found": "thecavecafe.in",
+   "verdict": "wrong",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page"
+  },
+  {
+   "id": "gmaps/ChIJ8XixPivJXzkRctR09ZH-q9s",
+   "name": "Lionize Restro Cafe",
+   "truth": "lionizerestrocafe.com",
+   "found": "lionizerestrocafe.com",
+   "verdict": "correct",
+   "evidence": "business name and phone number are on the page"
+  },
+  {
+   "id": "gmaps/ChIJM-96eo3PXzkRiZgk2lH6YWQ",
+   "name": "Cafe Brewito - Best cafe in vadodara | Best specialty coffee in town",
+   "truth": "cafebrewito.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJ-09yNybJXzkRO_KsGFjrW4w",
+   "name": "After Dunes Cafe",
+   "truth": "afterdunes.com",
+   "found": "afterdunes.com",
+   "verdict": "correct",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page"
+  },
+  {
+   "id": "gmaps/ChIJNdY1yjrJXzkRxu6o15DIo7I",
+   "name": "Woodbond Cafe",
+   "truth": "woodbondcafe.com",
+   "found": "woodbondcafe.com",
+   "verdict": "correct",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page"
+  },
+  {
+   "id": "gmaps/ChIJm6XjSf3JXzkRXwJwPLWWtqc",
+   "name": "Sakura Pan Asian Cuisine",
+   "truth": "sakurapanasian.in",
+   "found": "sakurapanasian.in",
+   "verdict": "correct",
+   "evidence": "business name and phone number are on the page (homepage of sakurapanasian.in)"
+  },
+  {
+   "id": "gmaps/ChIJLYEoC0PJXzkRsHZEgoU8WyM",
+   "name": "Creekyard-Vadodara",
+   "truth": "creekyard.in",
+   "found": "creekyard.in",
+   "verdict": "correct",
+   "evidence": "business name and phone number are on the page (homepage of creekyard.in)"
+  },
+  {
+   "id": "gmaps/ChIJCc0xErvIXzkRucLZNFsskYc",
+   "name": "Jassi De Parathe",
+   "truth": "jassideparathe.com",
+   "verdict": "missed",
+   "evidence": "social page found by web search (its title carries the business name)"
+  },
+  {
+   "id": "gmaps/ChIJTUpOZIjJXzkR0oWrkMyN9mE",
+   "name": "The House of Makeba - Veg Family Dining Restaurant in Vadodara",
+   "truth": "thehouseofmakeba.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJR0ZyprnIXzkRGNaSBrZ8oV8",
+   "name": "The Morsel Restaurant",
+   "truth": "themorsel.in",
+   "verdict": "missed",
+   "evidence": "social page found by web search (its title carries the business name)"
+  },
+  {
+   "id": "gmaps/ChIJzRzER7DIXzkRXL7GcTtUeac",
+   "name": "Peshawri by Welcomhotel Vadodara",
+   "truth": "itchotels.in",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJbYJkROHHXzkRwr5qxOivi0Q",
+   "name": "Vibes The Bistro",
+   "truth": "superyou.bio",
+   "verdict": "missed",
+   "evidence": "social page found by web search (its title carries the business name)"
+  },
+  {
+   "id": "gmaps/ChIJi3uIbqzJXzkRprb5ZC721NU",
+   "name": "Anjoy",
+   "truth": "anjoyrestaurant.com",
+   "found": "anjoy-laddu.netlify.app",
+   "verdict": "wrong",
+   "evidence": "business name (in the page title) and \"anjoy\" are on the page"
+  },
+  {
+   "id": "gmaps/ChIJ-ZRbPOHJXzkRUCxoS-DLKSQ",
+   "name": "Thyme & Whisk",
+   "truth": "trinetraventure.com",
+   "verdict": "missed",
+   "evidence": "social page found by web search (its title carries the business name)"
+  },
+  {
+   "id": "gmaps/ChIJ40A0V6PIXzkR1MziRFGtiX8",
+   "name": "Retro Bistro : The Fine Multi Cuisine Restaurant ( Vadodara )",
+   "truth": "retrobistro.in",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJbyB62aHJXzkRYh9gI4-E3-M",
+   "name": "812 CE Urban Restaurant",
+   "truth": "marriott.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJ41sAr6jHXzkRzQaMOprSwuI",
+   "name": "Pind Balluchi Vadodara",
+   "truth": "pindballuchi.com",
+   "verdict": "missed",
+   "evidence": "social page found by web search (its title carries the business name)"
+  },
+  {
+   "id": "gmaps/ChIJS29ZsSzJXzkR3yUEiEw6Oe0",
+   "name": "Wooden Street - Furniture and Mattress Store in Vadiwadi, Vadodara",
+   "truth": "woodenstreet.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJy8WzBrjIXzkRa6kZdrhPYyM",
+   "name": "Nilkamal Homes, Furniture | Decor | Mattress - Centre Square Mall, Vadodara",
+   "truth": "stores.nilkamalhomes.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJUc0VAbnIXzkR0pwa1BCRk3Y",
+   "name": "Agro Furniture - Premium Furniture Manufacturer and Dealer In Vadodara",
+   "truth": "agrofurniture.in",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJi_6_6ArFXzkR8h7thpAW8Ko",
+   "name": "Interio by Godrej - Furniture & Mattress Store in Sarabhai Campus, Vadodara",
+   "truth": "stores.interio.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJl0-RTF_JXzkRc7RVTvWLzAQ",
+   "name": "Urban Ladder - Furniture and Decor Store in Vadodara",
+   "truth": "urbanladder.com",
+   "verdict": "missed",
+   "evidence": "social page found by web search (its title carries the business name)"
+  },
+  {
+   "id": "gmaps/ChIJ____E2HPXzkRXPdknXqwwMM",
+   "name": "Living Style",
+   "truth": "livingstylebaroda.in",
+   "found": "livingstyleindia.com",
+   "verdict": "wrong",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page, and the web address matches the name"
+  },
+  {
+   "id": "gmaps/ChIJvX7bsKTIXzkRV9f2kimg7RY",
+   "name": "Pepperfry Home Furniture & Mattress Shop in Chikuwadi",
+   "truth": "pepperfry.com",
+   "verdict": "missed",
+   "evidence": "social page found by web search (its title carries the business name)"
+  },
+  {
+   "id": "gmaps/ChIJq6qqarHIXzkRDzXirp8nTYo",
+   "name": "Aakruti Furnishers & decorators - Furniture store| Mattress shop in Vadodara | Furnishers and decorators in Vadodara",
+   "truth": "aakrutifurniture.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJN0j7vsHJXzkR0oiAfq7vCcs",
+   "name": "Durian Furniture - Vadodara - Subhanpura",
+   "truth": "stores.durian.in",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJL03aNZPIXzkRPCRV5vs6ayw",
+   "name": "Modern Furniture & Interior",
+   "truth": "modernfurnitures.in",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJf-FHdCjJXzkRwkS0KcyzD8M",
+   "name": "IDcreators Interior Designers",
+   "truth": "idcreators.in",
+   "found": "idcreators.in",
+   "verdict": "correct",
+   "evidence": "business name and phone number are on the page"
+  },
+  {
+   "id": "gmaps/ChIJhfpWx2rJXzkRyERbL-XltI4",
+   "name": "Pranay Shah Designs - Interior Designers & Decorators",
+   "truth": "pranayshahdesigns.com",
+   "found": "pranayshahdesigns.com",
+   "verdict": "correct",
+   "evidence": "business name and phone number are on the page (homepage of pranayshahdesigns.com)"
+  },
+  {
+   "id": "gmaps/ChIJlT9kqTHJXzkRGk7TKH_v__Q",
+   "name": "Livspace - Interior Design Studio, Alkapuri",
+   "truth": "livspace.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJczroKY7IXzkR32huJZBPTgk",
+   "name": "Absolute Civil & Interiors",
+   "truth": "apssengineering.com",
+   "verdict": "missed",
+   "evidence": "social page found by web search (its title carries the business name)"
+  },
+  {
+   "id": "gmaps/ChIJiStS1znEXzkRqLvhfxcKRSQ",
+   "name": "Dream Maker Architects",
+   "truth": "dreamaker.in",
+   "verdict": "missed",
+   "evidence": "social page found by web search (its title carries the business name)"
+  },
+  {
+   "id": "gmaps/ChIJE0-6NinHXzkR2i0Sws8Fh6A",
+   "name": "Studio Inside Out – Best Interior Designer in Vadodara for Homes, Offices & Architecture Services",
+   "truth": "studioinsideout.co.in",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJ4bRoNGfHXzkRZDiADmGaPqU",
+   "name": "Z R Interior Design",
+   "truth": "zrinterior.com",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJBWFCrzrHXzkRGOe9i9kI1Lo",
+   "name": "Your Design Interiors-Interior Designers Vadodara",
+   "truth": "your-design-interiors.grexa.site",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJ6dGsLJbIXzkRuFqIghgcLRA",
+   "name": "Saar Interior Design",
+   "truth": "saarinteriordesign.in",
+   "found": "saarinteriordesign.in",
+   "verdict": "correct",
+   "evidence": "business name and phone number are on the page"
+  },
+  {
+   "id": "gmaps/ChIJ_0cbtkfJXzkRyRt0D1zIIQs",
+   "name": "The LJ Interior Concept",
+   "truth": "sites.google.com",
+   "verdict": "missed",
+   "evidence": "social page found by web search (its title carries the business name)"
+  },
+  {
+   "id": "gmaps/ChIJm0aGbIjFXzkRgqsJptqoLLo",
+   "name": "Space13 Design Studio",
+   "truth": "space13design.com",
+   "found": "space13design.com",
+   "verdict": "correct",
+   "evidence": "business name and phone number are on the page, and the web address matches the name"
+  },
+  {
+   "id": "gmaps/ChIJS-beFcLHXzkRlDhtaMwPTjQ",
+   "name": "The Royal Interior Studio",
+   "truth": "theroyalinteriorstudio.com",
+   "found": "theroyalinteriorstudio.com",
+   "verdict": "correct",
+   "evidence": "business name and phone number are on the page"
+  },
+  {
+   "id": "gmaps/ChIJmzRvvNXHXzkRns5g3Jb2fqU",
+   "name": "Sunrise Interiors",
+   "truth": "sunriseinteriordesigner.com",
+   "verdict": "missed",
+   "evidence": "social page found by web search (its title carries the business name)"
+  },
+  {
+   "id": "gmaps/ChIJfTlH3vPJXzkRI0VetBUc4y4",
+   "name": "One Interior",
+   "truth": "oneinterior.in",
+   "found": "oneinterior.in",
+   "verdict": "correct",
+   "evidence": "business name and phone number are on the page"
+  },
+  {
+   "id": "gmaps/ChIJEapfnUPHXzkRW8xF34B8K_s",
+   "name": "Studio InteriorWall",
+   "truth": "studiointeriorwall.com",
+   "found": "studiointeriorwall.com",
+   "verdict": "correct",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page"
+  },
+  {
+   "id": "gmaps/ChIJRb8R7KrHXzkRBF9FxgOvAes",
+   "name": "Makeover Design Studio",
+   "truth": "makeoverdesign.in",
+   "verdict": "missed"
+  },
+  {
+   "id": "gmaps/ChIJ7aBfMHnJXzkRdE085TVeMys",
+   "name": "Sampoorna Design Studio",
+   "truth": "sampoornadesignstudio.com",
+   "found": "sampoornadesignstudio.com",
+   "verdict": "correct",
+   "evidence": "business name and phone number are on the page"
+  },
+  {
+   "id": "gmaps/ChIJue-nVZPFXzkRbyI9FPhE_5E",
+   "name": "Fourteenth Four Design Studio",
+   "truth": "gharpedia.com",
+   "verdict": "missed",
+   "evidence": "social page found by web search (its title carries the business name)"
+  }
+ ],
+ "perBusiness": [
+  {
+   "id": "node/6975781970",
+   "name": "Toshi Dental Clinic",
+   "sec": 10.1,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (toshidentalclinic.com, toshidentalclinic.in, toshidentalclinic.co.in…)",
+    "web search for \"Toshi Dental Clinic Vadodara\"",
+    "rejected toshi.co.in (name found but no matching phone or location), toshiautomation.com (name found but no matching phone or location), en.wikipedia.org (listing site), coinmarketcap.com (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6981646331",
+   "name": "Vakade Centre For Dental Excellence",
+   "sec": 9.1,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (vakadecentrefordentalexcellence.com, vakadecentrefordentalexcellence.in, vakadecentrefordentalexcellence.co.in…)",
+    "web search for \"Vakade Centre For Dental Excellence Vadodara\"",
+    "rejected support.microsoft.com (business name not on the page), support.microsoft.com (business name not on the page), elevenforum.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6990989119",
+   "name": "Parshwa Dental Clinic",
+   "sec": 18.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (parshwadentalclinic.com, parshwadentalclinic.in, parshwadentalclinic.co.in…)",
+    "web search for \"Parshwa Dental Clinic Vadodara\"",
+    "rejected support.microsoft.com (business name not on the page), support.microsoft.com (business name not on the page), elevenforum.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/7866013247",
+   "name": "Disha Dental Care",
+   "sec": 17.3,
+   "website": "https://www.instagram.com/dishapatani/",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (dishadentalcare.com, dishadentalcare.in, dishadentalcare.co.in…)",
+    "web search for \"Disha Dental Care Vadodara\"",
+    "rejected disha.gov.in (name found but no matching phone or location), disha.gov.in (name found but no matching phone or location), en.wikipedia.org (listing site), epaper.dishadaily.com (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 50,
+   "tier": "warm",
+   "signals": [
+    "Uses Instagram as its website"
+   ]
+  },
+  {
+   "id": "node/7866013261",
+   "name": "Vadodara Smiles Dental Clinic",
+   "sec": 4.6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (vadodarasmilesdentalclinic.com, vadodarasmilesdentalclinic.in, vadodarasmilesdentalclinic.co.in…)",
+    "web search for \"Vadodara Smiles Dental Clinic Vadodara\"",
+    "rejected en.wikipedia.org (listing site), tripadvisor.in (listing site), trawell.in (business name not on the page), holidify.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/7866085823",
+   "name": "Kiansh Dental Clinic and Implant Centre",
+   "sec": 3.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (kianshdentalclinicandimplantcentre.com, kianshdentalclinicandimplantcentre.in, kianshdentalclinicandimplantcentre.co.in…)",
+    "web search for \"Kiansh Dental Clinic and Implant Centre Vadodara\"",
+    "rejected viralxxxporn.com (business name not on the page), many.xxx (business name not on the page), artofzoo.fun (business name not on the page), 4kpornvideos.tv (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/7866687036",
+   "name": "Dayamadhav Dental Clinic",
+   "sec": 0.6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (dayamadhavdentalclinic.com, dayamadhavdentalclinic.in, dayamadhavdentalclinic.co.in…)",
+    "web search for \"Dayamadhav Dental Clinic Vadodara\""
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/12850024945",
+   "name": "Ishwar Dental Clinic",
+   "sec": 5.2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (ishwardentalclinic.com, ishwardentalclinic.in, ishwardentalclinic.co.in…)",
+    "web search for \"Ishwar Dental Clinic Vadodara\"",
+    "rejected en.wikipedia.org (listing site), youtube.com (listing site), ishwargiripathashale.com (name found but no matching phone or location), vajiramandravi.com (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4275241789",
+   "name": "Nital skin clinic",
+   "sec": 18.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (nitalskinclinic.com, nitalskinclinic.in, nitalskinclinic.co.in…)",
+    "web search for \"Nital skin clinic Vadodara\"",
+    "rejected zhidao.baidu.com (business name not on the page), zhidao.baidu.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6968406121",
+   "name": "Alpana Clinic",
+   "sec": 4.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (alpanaclinic.com, alpanaclinic.in, alpanaclinic.co.in…)",
+    "web search for \"Alpana Clinic Vadodara\"",
+    "rejected en.wikipedia.org (listing site), in.pinterest.com (listing site), dharma.werindia.com (name found but no matching phone or location), culturalindia.net (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6968861312",
+   "name": "Rushabh Nursing Home and Clinic",
+   "sec": 4.6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (rushabhnursinghomeandclinic.com, rushabhnursinghomeandclinic.in, rushabhnursinghomeandclinic.co.in…)",
+    "web search for \"Rushabh Nursing Home and Clinic Vadodara\"",
+    "rejected zhidao.baidu.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6969842707",
+   "name": "Priyal Clinic",
+   "sec": 4.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (priyalclinic.com, priyalclinic.in, priyalclinic.co.in…)",
+    "web search for \"Priyal Clinic Vadodara\"",
+    "rejected capcut.en.softonic.com (business name not on the page), capcut.en.softonic.com (business name not on the page), apps.microsoft.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970343550",
+   "name": "Acharya Nursing Home and Icu",
+   "sec": 2.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (acharyanursinghomeandicu.com, acharyanursinghomeandicu.in, acharyanursinghomeandicu.co.in…)",
+    "web search for \"Acharya Nursing Home and Icu Vadodara\"",
+    "rejected en.m.wikipedia.org (listing site), acharya.ac.in (name found but no matching phone or location), en.m.wikipedia.org (listing site), acharyaprashant.org (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970622256",
+   "name": "Kamubala Poly Clinic",
+   "sec": 2.3,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (kamubalapolyclinic.com, kamubalapolyclinic.in, kamubalapolyclinic.co.in…)",
+    "web search for \"Kamubala Poly Clinic Vadodara\"",
+    "rejected play.google.com (listing site), instagram.en.softonic.com (business name not on the page), meta.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970636559",
+   "name": "Rishabh Nursing Home",
+   "sec": 1.6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (rishabhnursinghome.com, rishabhnursinghome.in, rishabhnursinghome.co.in…)",
+    "web search for \"Rishabh Nursing Home Vadodara\""
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970669189",
+   "name": "Shrey Nursing Home and Iccu",
+   "sec": 2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (shreynursinghomeandiccu.com, shreynursinghomeandiccu.in, shreynursinghomeandiccu.co.in…)",
+    "web search for \"Shrey Nursing Home and Iccu Vadodara\"",
+    "rejected xxx.com (business name not on the page), xxx.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970680766",
+   "name": "Aditya Oral And Maxillofacial Clinic",
+   "sec": 3.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (adityaoralandmaxillofacialclinic.com, adityaoralandmaxillofacialclinic.in, adityaoralandmaxillofacialclinic.co.in…)",
+    "web search for \"Aditya Oral And Maxillofacial Clinic Vadodara\"",
+    "rejected adityabirla.com (business name not on the page), adityauniversity.in (business name not on the page), aditya.ac.in (business name not on the page), en.wikipedia.org (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970701030",
+   "name": "Prutha Maternity Nursing Home",
+   "sec": 3.8,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (pruthamaternitynursinghome.com, pruthamaternitynursinghome.in, pruthamaternitynursinghome.co.in…)",
+    "web search for \"Prutha Maternity Nursing Home Vadodara\"",
+    "rejected inxxx.com (business name not on the page), xvideos.com (business name not on the page), sexvid.xxx (business name not on the page), xnxx.health (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970717636",
+   "name": "Dr. Girish K. Zinzuvadia",
+   "sec": 5.5,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (drgirishkzinzuvadia.com, drgirishkzinzuvadia.in, drgirishkzinzuvadia.co.in…)",
+    "web search for \"Dr. Girish K. Zinzuvadia Vadodara\"",
+    "rejected q1hospitals.com (business name not on the page), drvskrishnagdc.edu.in (business name not on the page), practo.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970724566",
+   "name": "Swar Clinic",
+   "sec": 6.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (swarclinic.com, swarclinic.in, swarclinic.co.in…)",
+    "web search for \"Swar Clinic Vadodara\"",
+    "rejected hindivarnamala.in (business name not on the page), cheggindia.com (business name not on the page), bsebresult.in (business name not on the page), hindios.in (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4349341791",
+   "name": "k hair salon",
+   "sec": 3.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (khairsalon.com, khairsalon.in, khairsalon.co.in…)",
+    "web search for \"k hair salon Vadodara\"",
+    "rejected en.wikipedia.org (listing site), youtube.com (listing site), youtube.com (listing site), us.sofatutor.com (name is too generic to verify)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/3320465231",
+   "name": "Delhi Express",
+   "sec": 2.6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (delhiexpress.com, delhiexpress.in, delhiexpress.co.in…)",
+    "web search for \"Delhi Express Vadodara\"",
+    "rejected en.wikipedia.org (listing site), delhitourism.gov.in (business name not on the page), delhi.gov.in (business name not on the page), incredibleindia.gov.in (business name not on the page)"
+   ],
+   "phones": [
+    "+912656585555"
+   ],
+   "score": 60,
+   "tier": "warm",
+   "signals": [
+    "No website",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "node/4470087289",
+   "name": "Pizza Mēo",
+   "sec": 16.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (pizzamo.com, pizzamo.in, pizzamo.co.in…)",
+    "web search for \"Pizza Mēo Vadodara\"",
+    "rejected dominos.co.in (name is too generic to verify), dominos.co.in (name is too generic to verify), lapinozpizza.in (name is too generic to verify), pizzahut.co.in (name is too generic to verify)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/8932000241",
+   "name": "Spice Kraft",
+   "sec": 4.1,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (spicekraft.com, spicekraft.in, spicekraft.co.in…)",
+    "web search for \"Spice Kraft Vadodara\"",
+    "rejected spicemoney.com (business name not on the page), spicejet.com (business name not on the page), en.wikipedia.org (listing site), spiceexportersdirectory.com (business name not on the page)"
+   ],
+   "phones": [
+    "+919099034796"
+   ],
+   "score": 60,
+   "tier": "warm",
+   "signals": [
+    "No website",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "node/11502663110",
+   "name": "white house panjabi khana",
+   "sec": 2.3,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (whitehousepanjabikhana.com, whitehousepanjabikhana.in, whitehousepanjabikhana.co.in…)",
+    "web search for \"white house panjabi khana Vadodara\"",
+    "rejected en.wikipedia.org (listing site), en.wikipedia.org (listing site), whitescreen.im (business name not on the page), whitescreen.online (business name not on the page)"
+   ],
+   "phones": [
+    "+919724623813"
+   ],
+   "score": 60,
+   "tier": "warm",
+   "signals": [
+    "No website",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "node/4473292490",
+   "name": "Kalyan",
+   "sec": 16.3,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "6 likely web addresses (kalyan.com, kalyan.in, kalyan.co.in…)",
+    "web search for \"Kalyan Vadodara\"",
+    "rejected mydpboss.com (name found but no matching phone or location), madhurstarline.com (a page about it on another site), dpbossx.net (name found but no matching phone or location), kalyanjewellers.net (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/5240630041",
+   "name": "The Gateway Hotel",
+   "sec": 16.5,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (thegatewayhotel.com, thegatewayhotel.in, thegatewayhotel.co.in…)",
+    "web search for \"The Gateway Hotel Vadodara\"",
+    "rejected gateway.esic.gov.in (name found but no matching phone or location), geeksforgeeks.org (name found but no matching phone or location), en.wikipedia.org (listing site), biblegateway.com (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6050547003",
+   "name": "Giriraj",
+   "sec": 16.6,
+   "website": "https://www.giriraj.co.in/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page",
+   "tried": [
+    "OpenStreetMap listing",
+    "6 likely web addresses (giriraj.com, giriraj.in, giriraj.co.in…)"
+   ],
+   "email": "sales@giriraj.co.in",
+   "emailInfo": [
+    {
+     "email": "sales@giriraj.co.in",
+     "kind": "own_generic",
+     "deliverable": true
+    },
+    {
+     "email": "support@giriraj.co.in",
+     "kind": "own_generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919374693429",
+    "+919377693430",
+    "+912652525262"
+   ],
+   "score": 15,
+   "tier": "cold",
+   "signals": [
+    "Running since 1997",
+    "Has a phone number",
+    "Has an email"
+   ]
+  },
+  {
+   "id": "node/6357743403",
+   "name": "Da Pizza Planet",
+   "sec": 2.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (dapizzaplanet.com, dapizzaplanet.in, dapizzaplanet.co.in…)",
+    "web search for \"Da Pizza Planet Vadodara\"",
+    "rejected indianpaycalculator.in (business name not on the page), cleartax.in (business name not on the page), 7thpaycommissionnews.in (business name not on the page), bankbazaar.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6357743405",
+   "name": "Ready Platter",
+   "sec": 3.3,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (readyplatter.com, readyplatter.in, readyplatter.co.in…)",
+    "web search for \"Ready Platter Vadodara\"",
+    "rejected m.youtube.com (listing site), en.m.wikipedia.org (listing site), m.youtube.com (listing site), login.i-ready.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6357758242",
+   "name": "The Chocolate Room",
+   "sec": 0,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing"
+   ],
+   "phones": [],
+   "score": 10,
+   "tier": "cold",
+   "signals": [
+    "No website",
+    "Chain or franchise (a well-known chain)"
+   ]
+  },
+  {
+   "id": "node/7098040237",
+   "name": "Pizza Hut",
+   "sec": 0,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing"
+   ],
+   "phones": [],
+   "score": 10,
+   "tier": "cold",
+   "signals": [
+    "No website",
+    "Chain or franchise (a well-known chain)"
+   ]
+  },
+  {
+   "id": "node/7098062368",
+   "name": "Pizza Hut",
+   "sec": 0,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing"
+   ],
+   "phones": [],
+   "score": 10,
+   "tier": "cold",
+   "signals": [
+    "No website",
+    "Chain or franchise (a well-known chain)"
+   ]
+  },
+  {
+   "id": "node/2095556797",
+   "name": "J.N.V Vadodara",
+   "sec": 3.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (jnvvadodara.com, jnvvadodara.in, jnvvadodara.co.in…)",
+    "web search for \"J.N.V Vadodara Vadodara\"",
+    "rejected en.wikipedia.org (listing site), youtube.com (listing site), youtube.com (listing site), junaidjamshed.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/2153514988",
+   "name": "Navarachana School",
+   "sec": 2.5,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (navarachanaschool.com, navarachanaschool.in, navarachanaschool.co.in…)",
+    "web search for \"Navarachana School Vadodara\"",
+    "rejected forum.xnxx.com (business name not on the page), support.google.com (listing site), forum.xnxx.com (business name not on the page), support.google.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/2343996418",
+   "name": "Maharani Kanya Vidyalaya",
+   "sec": 1.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (maharanikanyavidyalaya.com, maharanikanyavidyalaya.in, maharanikanyavidyalaya.co.in…)",
+    "web search for \"Maharani Kanya Vidyalaya Vadodara\"",
+    "rejected reddit.com (business name not on the page), reddit.com (business name not on the page), zhihu.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/2344001571",
+   "name": "Maharani English Medium School",
+   "sec": 3.1,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (maharanienglishmediumschool.com, maharanienglishmediumschool.in, maharanienglishmediumschool.co.in…)",
+    "web search for \"Maharani English Medium School Vadodara\"",
+    "rejected ilovepdf.com (business name not on the page), freeconvert.com (business name not on the page), adobe.com (business name not on the page), smallpdf.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/3647017657",
+   "name": "Cricket Pitch",
+   "sec": 5.2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (cricketpitch.com, cricketpitch.in, cricketpitch.co.in…)",
+    "web search for \"Cricket Pitch Vadodara\"",
+    "rejected ainycity.com (business name not on the page), startuphub.ai (business name not on the page), getaiperks.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4323397091",
+   "name": "Ambe school",
+   "sec": 4.4,
+   "website": "https://ambeschool.com/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (ambeschool.com, ambeschool.in, ambeschool.co.in…)"
+   ],
+   "email": "ambe_parivar@yahoo.co.in",
+   "emailInfo": [
+    {
+     "email": "ambe_parivar@yahoo.co.in",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+912652644262",
+    "+912652642264",
+    "+912652648263"
+   ],
+   "score": 10,
+   "tier": "cold",
+   "signals": [
+    "Has a phone number",
+    "Has a personal email"
+   ]
+  },
+  {
+   "id": "node/4326504192",
+   "name": "suman deep vidhyapeeth",
+   "sec": 1.5,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (sumandeepvidhyapeeth.com, sumandeepvidhyapeeth.in, sumandeepvidhyapeeth.co.in…)",
+    "web search for \"suman deep vidhyapeeth Vadodara\"",
+    "rejected en.wikipedia.org (listing site), nhsrcindia.org (business name not on the page), starsunfolded.com (business name not on the page), en.wikipedia.org (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4547413889",
+   "name": "Jivan bharti school",
+   "sec": 3.1,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (jivanbhartischool.com, jivanbhartischool.in, jivanbhartischool.co.in…)",
+    "web search for \"Jivan bharti school Vadodara\"",
+    "rejected ujjivansfb.bank.in (business name not on the page), jivan.bank.in (business name not on the page), youtube.com (listing site), jaljeevanmission.gov.in (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4944062721",
+   "name": "Rameshwar school",
+   "sec": 14.2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (rameshwarschool.com, rameshwarschool.in, rameshwarschool.co.in…)",
+    "web search for \"Rameshwar school Vadodara\"",
+    "rejected en.wikipedia.org (listing site), tripadvisor.in (listing site), en.wikipedia.org (listing site), rameswaramtourism.com (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6305492274",
+   "name": "Computer Application Department",
+   "sec": 1.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (computerapplicationdepartment.com, computerapplicationdepartment.in, computerapplicationdepartment.co.in…)",
+    "web search for \"Computer Application Department Vadodara\"",
+    "rejected en.wikipedia.org (listing site), geeksforgeeks.org (business name not on the page), en.wikipedia.org (listing site), computechstore.in (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6305492275",
+   "name": "Statistics Department",
+   "sec": 3,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (statisticsdepartment.com, statisticsdepartment.in, statisticsdepartment.co.in…)",
+    "web search for \"Statistics Department Vadodara\"",
+    "rejected geeksforgeeks.org (business name not on the page), en.wikipedia.org (listing site), geeksforgeeks.org (business name not on the page), w3schools.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6305492276",
+   "name": "Mathematics Department",
+   "sec": 2.1,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (mathematicsdepartment.com, mathematicsdepartment.in, mathematicsdepartment.co.in…)",
+    "web search for \"Mathematics Department Vadodara\"",
+    "rejected en.wikipedia.org (listing site), geeksforgeeks.org (business name not on the page), khanacademy.org (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/12852240993",
+   "name": "Maruti Lining & Furniture",
+   "sec": 1.2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (marutiliningandfurniture.com, marutiliningandfurniture.in, marutiliningandfurniture.co.in…)",
+    "web search for \"Maruti Lining & Furniture Vadodara\"",
+    "rejected marutisuzuki.com (business name not on the page), carwale.com (business name not on the page), marutisuzuki.com (business name not on the page), en.wikipedia.org (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/8244971790",
+   "name": "Max Fashion",
+   "sec": 15.7,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (maxfashion.com, maxfashion.in, maxfashion.co.in…)",
+    "web search for \"Max Fashion Vadodara\"",
+    "rejected maxfashion.in (name found but no matching phone or location), auth.hbomax.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/2346907388",
+   "name": "Sachin Tailor",
+   "sec": 1.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (sachintailor.com, sachintailor.in, sachintailor.co.in…)",
+    "web search for \"Sachin Tailor Vadodara\"",
+    "rejected en.wikipedia.org (listing site), live.sachinacademy.com (business name not on the page), en.wikipedia.org (listing site), youtube.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4273735300",
+   "name": "Palav shree ani Madayali",
+   "sec": 6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (palavshreeanimadayali.com, palavshreeanimadayali.in, palavshreeanimadayali.co.in…)",
+    "web search for \"Palav shree ani Madayali Vadodara\"",
+    "rejected bydfi.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/12830392193",
+   "name": "Westside",
+   "sec": 5.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "6 likely web addresses (westside.com, westside.in, westside.co.in…)",
+    "web search for \"Westside Vadodara\"",
+    "rejected westside.com (name found but no matching phone or location), westside.com (name found but no matching phone or location), tatacliq.com (a page about it on another site), global.westside.com (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/13970132197",
+   "name": "Westside",
+   "sec": 1.8,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "6 likely web addresses (westside.com, westside.in, westside.co.in…)",
+    "web search for \"Westside Vadodara\"",
+    "rejected westside.com (name found but no matching phone or location), westside.com (name found but no matching phone or location), tatacliq.com (a page about it on another site), global.westside.com (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/14005921574",
+   "name": "Marks And Spencers",
+   "sec": 11.8,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (marksandspencers.com, marksandspencers.in, marksandspencers.co.in…)",
+    "web search for \"Marks And Spencers Vadodara\"",
+    "rejected web.getmarks.app (business name not on the page), getmarks.app (business name not on the page), web.getmarks.app (business name not on the page), play.google.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/14005921575",
+   "name": "Rare Rabbit",
+   "sec": 3.8,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (rarerabbit.com, rarerabbit.in, rarerabbit.co.in…)",
+    "web search for \"Rare Rabbit Vadodara\"",
+    "rejected thehouseofrare.com (name found but no matching phone or location), en.wikipedia.org (listing site), thehouseofrare.com (a page about it on another site), rareindia.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/14005944280",
+   "name": "Gini & Jony",
+   "sec": 5.3,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (giniandjony.com, giniandjony.in, giniandjony.co.in…)",
+    "web search for \"Gini & Jony Vadodara\"",
+    "rejected en.wikipedia.org (listing site), data.worldbank.org (business name not on the page), gini.org (business name not on the page), en.wikipedia.org (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJq6oaIsfFXzkRhlBlYcdvoSc",
+   "name": "2th Saver Dental Clinic(advanced dental care at affordable rates)",
+   "sec": 2,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (2thsaveradvancedaffordablerates.com, 2thsaveradvancedaffordablerates.in, 2thsaveradvancedaffordablerates.co.in…)",
+    "web search for \"2th Saver Dental Clinic(advanced dental care at affordable rates) Vadodara\"",
+    "rejected support.google.com (listing site), support.google.com (listing site), zhihu.com (business name not on the page), support.google.com (listing site)"
+   ],
+   "phones": [
+    "+919426210900"
+   ],
+   "owner": "2th Saver Dental Clinic(advanced dental care at affordable rates) (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 122 reviews, 5.0★",
+    "Has a phone number",
+    "Owner: 2th Saver Dental Clinic(advanced dental care at affordable rates) (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ68NGYRDGXzkRbmaBFOdpzTA",
+   "name": "Subhadra Dental Clinic",
+   "sec": 10,
+   "website": "https://subhadradentalclinic.com/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (subhadradentalclinic.com, subhadradentalclinic.in, subhadradentalclinic.co.in…)"
+   ],
+   "email": "dr.mayur_agrawal85@yahoo.com",
+   "emailInfo": [
+    {
+     "email": "dr.mayur_agrawal85@yahoo.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919725929645",
+    "+917990063181",
+    "+919001279900",
+    "+919002079900"
+   ],
+   "owner": "Subhadra Dental Clinic (Owner)",
+   "score": 25,
+   "tier": "cold",
+   "signals": [
+    "Busy business: 500 reviews, 4.9★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: Subhadra Dental Clinic (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJPesjixzGXzkRr53ZjMR0sgk",
+   "name": "Vivaan Dental Care",
+   "sec": 2.8,
+   "website": "https://www.vivaandentalcare.in/",
+   "via": "domain_guess",
+   "evidence": "business name and phone number are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (vivaandentalcare.com, vivaandentalcare.in, vivaandentalcare.co.in…)"
+   ],
+   "phones": [
+    "+918511580198",
+    "+919185115801",
+    "+919002085115"
+   ],
+   "owner": "Vivaan Dental Care (Owner)",
+   "score": 20,
+   "tier": "cold",
+   "signals": [
+    "Busy business: 1181 reviews, 4.7★",
+    "Has a phone number",
+    "Owner: Vivaan Dental Care (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJy7F1eGrHXzkRvDb9rxmIUqM",
+   "name": "Smile Dental",
+   "sec": 13.3,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (smiledental.com, smiledental.in, smiledental.co.in…)",
+    "web search for \"Smile Dental Vadodara\"",
+    "rejected en.m.wikipedia.org (listing site), imdb.com (business name not on the page), m.youtube.com (listing site), netflix.com (name found but no matching phone or location)"
+   ],
+   "phones": [
+    "+919998599980"
+   ],
+   "owner": "Smile Dental (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 183 reviews, 5.0★",
+    "Has a phone number",
+    "Owner: Smile Dental (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJWSCtinnPXzkRoyslXYHWgXU",
+   "name": "Vasudha Hospital and Dental Clinic in Vadodara",
+   "sec": 2,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "6 likely web addresses (vasudhahospitalanddentalclinicinvadodara.com, vasudhahospitalanddentalclinicinvadodara.in, vasudhahospitalanddentalclinicinvadodara.co.in…)",
+    "web search for \"Vasudha Hospital and Dental Clinic in Vadodara Vadodara\"",
+    "rejected zhihu.com (business name not on the page), zhihu.com (business name not on the page), india.com (business name not on the page), india.com (business name not on the page)"
+   ],
+   "email": "contact@vasudhaclinic.com",
+   "emailInfo": [
+    {
+     "email": "contact@vasudhaclinic.com",
+     "kind": "generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+917383475241"
+   ],
+   "owner": "Vasudha Hospital and Dental Clinic in Vadodara (Owner)",
+   "score": 80,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 254 reviews, 4.9★",
+    "Has a phone number",
+    "Has an email",
+    "Owner: Vasudha Hospital and Dental Clinic in Vadodara (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJWbDtq9Ge5YURhHvrqYwWpxc",
+   "name": "Family Dental Care & Implant Center – Best Dentist in Vadodara",
+   "sec": 3.1,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (familyimplantbestvadodara.com, familyimplantbestvadodara.in, familyimplantbestvadodara.co.in…)",
+    "web search for \"Family Dental Care & Implant Center – Best Dentist in Vadodara Vadodara\"",
+    "rejected translate.google.co.in (business name not on the page), google.co.in (business name not on the page), google.co.in (business name not on the page), books.google.co.in (business name not on the page)"
+   ],
+   "phones": [
+    "+919601285785"
+   ],
+   "owner": "Family Dental Care & Implant Center – Best Dentist in Vadodara (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 133 reviews, 5.0★",
+    "Has a phone number",
+    "Owner: Family Dental Care & Implant Center – Best Dentist in Vadodara (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ88KZp9LIXzkRjM1raS3b8Oo",
+   "name": "Vadodara Dental Care",
+   "sec": 2,
+   "website": "http://vadodaradentalcare.com/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (vadodaradentalcare.com, vadodaradentalcare.in, vadodaradentalcare.co.in…)"
+   ],
+   "email": "vadodaradentalcare@gmail.com",
+   "emailInfo": [
+    {
+     "email": "vadodaradentalcare@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+912652786040",
+    "+919033975629",
+    "+919033975429"
+   ],
+   "owner": "Vadodara Dental Care (Owner)",
+   "score": 60,
+   "tier": "warm",
+   "signals": [
+    "Not mobile-friendly",
+    "No HTTPS (browser shows 'Not secure')",
+    "Busy business: 197 reviews, 4.9★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: Vadodara Dental Care (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ-YwQ0X_JXzkRV8sImpAZgY8",
+   "name": "Dr. Hada dental and orthodontic clinic - Vadodara",
+   "sec": 4,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "6 likely web addresses (drhadadentalandorthodonticclinicvadodara.com, drhadadentalandorthodonticclinicvadodara.in, drhadadentalandorthodonticclinicvadodara.co.in…)",
+    "web search for \"Dr. Hada dental and orthodontic clinic - Vadodara Vadodara\"",
+    "rejected q1hospitals.com (business name not on the page), drvskrishnagdc.edu.in (business name not on the page), practo.com (listing site)"
+   ],
+   "phones": [
+    "+919429559687"
+   ],
+   "owner": "Dr. Hada dental and orthodontic clinic - Vadodara (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 319 reviews, 5.0★",
+    "Has a phone number",
+    "Owner: Dr. Hada dental and orthodontic clinic - Vadodara (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ2e0gcufFXzkRTGm6rJTUtYs",
+   "name": "Sanjeevani Dental Clinic and Implant Centre",
+   "sec": 8.5,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "6 likely web addresses (sanjeevanidentalclinicandimplantcentre.com, sanjeevanidentalclinicandimplantcentre.in, sanjeevanidentalclinicandimplantcentre.co.in…)",
+    "web search for \"Sanjeevani Dental Clinic and Implant Centre Vadodara\"",
+    "rejected esanjeevani.mohfw.gov.in (business name not on the page), web.umang.gov.in (business name not on the page), en.wikipedia.org (listing site), sanjevani.com (business name not on the page)"
+   ],
+   "phones": [
+    "+919427409241"
+   ],
+   "owner": "Sanjeevani Dental Clinic and Implant Centre (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 773 reviews, 5.0★",
+    "Has a phone number",
+    "Owner: Sanjeevani Dental Clinic and Implant Centre (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJS6Eoi4rPXzkRGjm0N4_k0sI",
+   "name": "Swastik Dental And Face Hospital",
+   "sec": 7.5,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (swastikdentalandfacehospital.com, swastikdentalandfacehospital.in, swastikdentalandfacehospital.co.in…)",
+    "web search for \"Swastik Dental And Face Hospital Vadodara\"",
+    "rejected swastikstories.com (business name not on the page), swastika.co.in (business name not on the page), swastikkits.com (business name not on the page), swastikpenn.com (name found but no matching phone or location)"
+   ],
+   "email": "swastikdentalclinic2330@gmail.com",
+   "emailInfo": [
+    {
+     "email": "swastikdentalclinic2330@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919106855351"
+   ],
+   "owner": "Swastik Dental And Face Hospital (Owner)",
+   "score": 80,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 274 reviews, 4.8★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: Swastik Dental And Face Hospital (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJObW5b-nIXzkRVUN1g1fVy-k",
+   "name": "Smile Dental Clinic And Implant Center - Subhanpura (Dr. Saurav Shah)",
+   "sec": 4.2,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (smileimplantsubhanpurasauravshah.com, smileimplantsubhanpurasauravshah.in, smileimplantsubhanpurasauravshah.co.in…)",
+    "web search for \"Smile Dental Clinic And Implant Center - Subhanpura (Dr. Saurav Shah) Vadodara\"",
+    "rejected en.m.wikipedia.org (listing site), imdb.com (business name not on the page), m.youtube.com (listing site), netflix.com (business name not on the page)"
+   ],
+   "email": "smiledentalclinicfeb2008@gmail.com",
+   "emailInfo": [
+    {
+     "email": "smiledentalclinicfeb2008@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919426362011"
+   ],
+   "owner": "Smile Dental Clinic And Implant Center - Subhanpura (Dr. Saurav Shah) (Owner)",
+   "score": 80,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 141 reviews, 5.0★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: Smile Dental Clinic And Implant Center - Subhanpura (Dr. Saurav Shah) (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJf-WiJt_OXzkREWz7jQ-G_10",
+   "name": "Vraj Group of Dental Clinics",
+   "sec": 2.1,
+   "website": "https://vrajgroupofdentalclinics.in/",
+   "via": "domain_guess",
+   "evidence": "business name and phone number are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (vrajgroupofdentalclinics.com, vrajgroupofdentalclinics.in, vrajgroupofdentalclinics.co.in…)"
+   ],
+   "email": "vrajgroupofdental@gmail.com",
+   "emailInfo": [
+    {
+     "email": "vrajgroupofdental@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    },
+    {
+     "email": "enhancements.vrajgroupofdental@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919427784433",
+    "+918048033266",
+    "+919197252684",
+    "+919725268440"
+   ],
+   "owner": "Vraj Group of Dental Clinics (Owner)",
+   "score": 30,
+   "tier": "cold",
+   "signals": [
+    "Running since 2012",
+    "Busy business: 740 reviews, 4.9★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: Vraj Group of Dental Clinics (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJz2Iz7RzGXzkRYP5DrQCO8cY",
+   "name": "Parekh's Dental Care Multi Speciality Dental Clinic & Implant Centre – Akota Vadodara",
+   "sec": 0.9,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (parekhmultiimplantakotavadodara.com, parekhmultiimplantakotavadodara.in, parekhmultiimplantakotavadodara.co.in…)",
+    "web search for \"Parekh's Dental Care Multi Speciality Dental Clinic & Implant Centre – Akota Vadodara Vadodara\""
+   ],
+   "phones": [
+    "+919825590265"
+   ],
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 244 reviews, 4.9★",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJtaXgHLDIXzkRnfQMFqcpDw4",
+   "name": "Dental Clinic & Implant Center",
+   "sec": 3.8,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (dentalclinicandimplantcenter.com, dentalclinicandimplantcenter.in, dentalclinicandimplantcenter.co.in…)",
+    "web search for \"Dental Clinic & Implant Center Vadodara\"",
+    "rejected clovedental.in (name found but no matching phone or location), updentalcouncil.org (business name not on the page), updentalcouncil.up.gov.in (business name not on the page), realtooth.in (name found but no matching phone or location)"
+   ],
+   "email": "drshloka15115@gmail.com",
+   "emailInfo": [
+    {
+     "email": "drshloka15115@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+918487837502"
+   ],
+   "owner": "Dental Clinic & Implant Center (Owner)",
+   "score": 80,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 126 reviews, 4.9★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: Dental Clinic & Implant Center (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ5ad1ir3IXzkRxFF3vOUcfOo",
+   "name": "Shah's Dental Care",
+   "sec": 4.2,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (shahsdentalcare.com, shahsdentalcare.in, shahsdentalcare.co.in…)",
+    "web search for \"Shah's Dental Care Vadodara\"",
+    "rejected en.m.wikipedia.org (listing site), en.m.wikipedia.org (listing site), amitshah.co.in (business name not on the page), sihl.in (business name not on the page)"
+   ],
+   "phones": [
+    "+912652333394"
+   ],
+   "owner": "Shah's Dental Care (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 75 reviews, 4.9★",
+    "Has a phone number",
+    "Owner: Shah's Dental Care (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ3Vd25K7IXzkRLRorV-eoMq4",
+   "name": "The Tooth Clinic Baroda",
+   "sec": 3.3,
+   "website": "https://thetoothclinicbaroda.com/",
+   "via": "domain_guess",
+   "evidence": "business name and phone number are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (thetoothclinicbaroda.com, thetoothclinicbaroda.in, thetoothclinicbaroda.co.in…)"
+   ],
+   "phones": [
+    "+917041486684"
+   ],
+   "owner": "The Tooth Clinic Baroda (Owner)",
+   "score": 20,
+   "tier": "cold",
+   "signals": [
+    "Busy business: 565 reviews, 4.9★",
+    "Has a phone number",
+    "Owner: The Tooth Clinic Baroda (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJLdOoHyLFXzkRU8fTeEsaQcg",
+   "name": "Harmony Dental Care",
+   "sec": 2.8,
+   "website": "https://www.harmonydentalcare.com/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"harmony dental care\" are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (harmonydentalcare.com, harmonydentalcare.in, harmonydentalcare.co.in…)"
+   ],
+   "phones": [
+    "+919023621290",
+    "+916017131923",
+    "+16017131923"
+   ],
+   "owner": "Harmony Dental Care (Owner)",
+   "score": 20,
+   "tier": "cold",
+   "signals": [
+    "Busy business: 329 reviews, 5.0★",
+    "Has a phone number",
+    "Owner: Harmony Dental Care (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJhc8MC67IXzkRGFvWpkjn-wY",
+   "name": "Dr Amish Mehta's Chandan Dental",
+   "sec": 4.7,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (dramishmehtaschandandental.com, dramishmehtaschandandental.in, dramishmehtaschandandental.co.in…)",
+    "web search for \"Dr Amish Mehta's Chandan Dental Vadodara\"",
+    "rejected q1hospitals.com (business name not on the page), drvskrishnagdc.edu.in (business name not on the page), practo.com (listing site)"
+   ],
+   "email": "info@chandanorthodontics.com",
+   "emailInfo": [
+    {
+     "email": "info@chandanorthodontics.com",
+     "kind": "generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919426330762"
+   ],
+   "owner": "Dr Amish Mehta's Chandan Dental (Owner)",
+   "score": 80,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 372 reviews, 4.7★",
+    "Has a phone number",
+    "Has an email",
+    "Owner: Dr Amish Mehta's Chandan Dental (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJEU5Of0fHXzkRg9j6X8n3U6w",
+   "name": "Dr. Divya's Dental Care",
+   "sec": 5.6,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (drdivyasdentalcare.com, drdivyasdentalcare.in, drdivyasdentalcare.co.in…)",
+    "web search for \"Dr. Divya's Dental Care Vadodara\"",
+    "rejected q1hospitals.com (business name not on the page), drvskrishnagdc.edu.in (name found but no matching phone or location), practo.com (listing site)"
+   ],
+   "email": "hello@drdivyadentalcare.com",
+   "emailInfo": [
+    {
+     "email": "hello@drdivyadentalcare.com",
+     "kind": "generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+918733846021"
+   ],
+   "owner": "Dr. Divya's Dental Care (Owner)",
+   "score": 80,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 103 reviews, 5.0★",
+    "Has a phone number",
+    "Has an email",
+    "Owner: Dr. Divya's Dental Care (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJt0_CQtHHXzkRh-Mp90UaE7o",
+   "name": "VYOM DENTAL CARE",
+   "sec": 4,
+   "website": "https://www.vyomdentalcare.com/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"vyom dental care\" are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (vyomdentalcare.com, vyomdentalcare.in, vyomdentalcare.co.in…)"
+   ],
+   "email": "kalyanimtrivedi@gmail.com",
+   "emailInfo": [
+    {
+     "email": "kalyanimtrivedi@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    },
+    {
+     "email": "emailkalyanimtrivedi@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919879100108",
+    "+919825719810",
+    "+919825319810"
+   ],
+   "owner": "VYOM DENTAL CARE (Owner)",
+   "score": 25,
+   "tier": "cold",
+   "signals": [
+    "Busy business: 192 reviews, 4.7★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: VYOM DENTAL CARE (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJi1VnUYbFXzkRyUtvISUE90E",
+   "name": "Heaven Haircut Studio Unisex Salon",
+   "sec": 6,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (heavenhaircutstudiounisexsalon.com, heavenhaircutstudiounisexsalon.in, heavenhaircutstudiounisexsalon.co.in…)",
+    "web search for \"Heaven Haircut Studio Unisex Salon Vadodara\"",
+    "rejected en.wikipedia.org (listing site), benchmark.unigine.com (business name not on the page), en.wikipedia.org (listing site), biblestudytools.com (business name not on the page)"
+   ],
+   "phones": [
+    "+919090888188"
+   ],
+   "owner": "Heaven Haircut Studio Unisex Salon (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 894 reviews, 4.9★",
+    "Has a phone number",
+    "Owner: Heaven Haircut Studio Unisex Salon (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJMcVWW7vJXzkR_TRn7fOUSds",
+   "name": "Sanskruti Family Salon",
+   "sec": 0.8,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (sanskrutifamilysalon.com, sanskrutifamilysalon.in, sanskrutifamilysalon.co.in…)",
+    "web search for \"Sanskruti Family Salon Vadodara\"",
+    "rejected support.google.com (listing site), support.google.com (listing site), support.google.com (listing site), support.google.com (listing site)"
+   ],
+   "email": "info@sanskrutisalon.com",
+   "emailInfo": [
+    {
+     "email": "info@sanskrutisalon.com",
+     "kind": "generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+916359012335"
+   ],
+   "owner": "Sanskruti Family Salon (Owner)",
+   "score": 80,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 21861 reviews, 4.9★",
+    "Has a phone number",
+    "Has an email",
+    "Owner: Sanskruti Family Salon (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJLZ1ysxrJXzkRYbSVHoVEY9Y",
+   "name": "Lakme Salon For Him and Her in Race Course Road,Vadodara",
+   "sec": 0,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)"
+   ],
+   "email": "care.llpl@unilever.com",
+   "emailInfo": [
+    {
+     "email": "care.llpl@unilever.com",
+     "kind": "other",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+917045210788"
+   ],
+   "owner": "Lakme Salon For Him and Her in Race Course Road,Vadodara (Owner)",
+   "score": 35,
+   "tier": "cold",
+   "signals": [
+    "No website",
+    "Chain or franchise (a well-known chain)",
+    "Busy business: 2321 reviews, 4.8★",
+    "Has a phone number",
+    "Has an email",
+    "Owner: Lakme Salon For Him and Her in Race Course Road,Vadodara (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJbyJSBiTEXzkRVkx2_jeqKmI",
+   "name": "New look salon - Top Hair & Beauty Salon In Vadodara",
+   "sec": 3.4,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (newlooktopvadodara.com, newlooktopvadodara.in, newlooktopvadodara.co.in…)",
+    "web search for \"New look salon - Top Hair & Beauty Salon In Vadodara Vadodara\"",
+    "rejected news.google.com (listing site), newindianexpress.com (business name not on the page), news.google.com (listing site), news9live.com (business name not on the page)"
+   ],
+   "email": "webiluxe@gmail.com",
+   "emailInfo": [
+    {
+     "email": "webiluxe@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919275031605"
+   ],
+   "owner": "New look salon - Top Hair & Beauty Salon In Vadodara (Owner)",
+   "score": 80,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 2131 reviews, 4.9★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: New look salon - Top Hair & Beauty Salon In Vadodara (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ3XWp1CXHXzkRM-TXn1XUlv4",
+   "name": "The AJ's Hair & Beauty Studio",
+   "sec": 4,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (theajshairandbeautystudio.com, theajshairandbeautystudio.in, theajshairandbeautystudio.co.in…)",
+    "web search for \"The AJ's Hair & Beauty Studio Vadodara\"",
+    "rejected devforum.roblox.com (name is too generic to verify), devforum.roblox.com (name is too generic to verify), devforum.roblox.com (name is too generic to verify), devforum.roblox.com (name is too generic to verify)"
+   ],
+   "phones": [
+    "+918200769390"
+   ],
+   "owner": "The AJ's Hair & Beauty Studio (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 565 reviews, 4.7★",
+    "Has a phone number",
+    "Owner: The AJ's Hair & Beauty Studio (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJb91mfhzGXzkRg8_iWLbyrvw",
+   "name": "The Big Bang Salon & Bridal Studio | Makeup Artist & Bridal Makeup in Vadodara | Unisex Salon",
+   "sec": 6.4,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "web search for \"The Big Bang Salon & Bridal Studio | Makeup Artist & Bridal Makeup in Vadodara | Unisex Salon Vadodara\"",
+    "rejected en.m.wikipedia.org (listing site), englishstudyonline.org (business name not on the page), learnenglish.britishcouncil.org (business name not on the page), m.youtube.com (listing site)"
+   ],
+   "email": "thebigbangsalon@gmail.com",
+   "emailInfo": [
+    {
+     "email": "thebigbangsalon@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+916359111999"
+   ],
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 2985 reviews, 4.8★",
+    "Has a phone number",
+    "Has a personal email"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJIcD1BCjGXzkR3oVnYMGIpsI",
+   "name": "Beautymanntra Unisex Salon & Spa",
+   "sec": 2.1,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (beautymanntraunisexsalonandspa.com, beautymanntraunisexsalonandspa.in, beautymanntraunisexsalonandspa.co.in…)",
+    "web search for \"Beautymanntra Unisex Salon & Spa Vadodara\"",
+    "rejected support.microsoft.com (business name not on the page), support.microsoft.com (business name not on the page), support.microsoft.com (business name not on the page), support.microsoft.com (business name not on the page)"
+   ],
+   "phones": [
+    "+912652250077"
+   ],
+   "owner": "Beautymanntra Unisex Salon & Spa (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 1015 reviews, 4.6★",
+    "Has a phone number",
+    "Owner: Beautymanntra Unisex Salon & Spa (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ7-K7iIXPXzkRaKP5hXg0gn4",
+   "name": "Spaarsh Beauty Salon",
+   "sec": 18.5,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (spaarshbeautysalon.com, spaarshbeautysalon.in, spaarshbeautysalon.co.in…)",
+    "web search for \"Spaarsh Beauty Salon Vadodara\"",
+    "rejected spotify.app.link (business name not on the page), spotify.com (business name not on the page)"
+   ],
+   "email": "sparshcare99@gmail.com",
+   "emailInfo": [
+    {
+     "email": "sparshcare99@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919909016843"
+   ],
+   "owner": "Spaarsh Beauty Salon (Owner)",
+   "score": 80,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 560 reviews, 4.7★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: Spaarsh Beauty Salon (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJe4qqBDbFXzkRKx4DX6gYjnU",
+   "name": "Aim family salon - Top Hair And Beauty Salon In Vadodara..Baroda",
+   "sec": 1.9,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (aimfamilytopvadodarabaroda.com, aimfamilytopvadodarabaroda.in, aimfamilytopvadodarabaroda.co.in…)",
+    "web search for \"Aim family salon - Top Hair And Beauty Salon In Vadodara..Baroda Vadodara\""
+   ],
+   "phones": [
+    "+919909308008"
+   ],
+   "owner": "Aim family salon - Top Hair And Beauty Salon In Vadodara..Baroda (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 123 reviews, 5.0★",
+    "Has a phone number",
+    "Owner: Aim family salon - Top Hair And Beauty Salon In Vadodara..Baroda (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJEzlmJ43FXzkRSvR0Vobters",
+   "name": "Serene Salon & Academy | Hair, Beauty, Nail & Bridal Makeup Studio | Best Ladies Salon in Manjalpur, Vadodara",
+   "sec": 2.5,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "web search for \"Serene Salon & Academy | Hair, Beauty, Nail & Bridal Makeup Studio | Best Ladies Salon in Manjalpur, Vadodara Vadodara\"",
+    "rejected forum.xnxx.com (business name not on the page), forum.xnxx.com (business name not on the page), forum.xnxx.com (business name not on the page), forum.xnxx.com (business name not on the page)"
+   ],
+   "phones": [
+    "+916203060789"
+   ],
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 1358 reviews, 5.0★",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJJ7oMOPnJXzkRTAo7wofTURM",
+   "name": "Royal Touch Hair And Beauty Studio",
+   "sec": 7.2,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (royaltouchhairandbeautystudio.com, royaltouchhairandbeautystudio.in, royaltouchhairandbeautystudio.co.in…)",
+    "web search for \"Royal Touch Hair And Beauty Studio Vadodara\"",
+    "rejected royalenfield.com (business name not on the page), royal.uk (business name not on the page), bikewale.com (business name not on the page), dealers.royalenfield.com (business name not on the page)"
+   ],
+   "phones": [
+    "+918980556977"
+   ],
+   "owner": "Royal Touch Hair And Beauty Studio (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 323 reviews, 4.9★",
+    "Has a phone number",
+    "Owner: Royal Touch Hair And Beauty Studio (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ6UNZot7FXzkRiw85wabYBqA",
+   "name": "Grooming Lounge salon",
+   "sec": 7.8,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (groomingloungesalon.com, groomingloungesalon.in, groomingloungesalon.co.in…)",
+    "web search for \"Grooming Lounge salon Vadodara\"",
+    "rejected health.clevelandclinic.org (business name not on the page), tipsandtoes.com (business name not on the page), nearby-petstore.in (business name not on the page), en.m.wikipedia.org (listing site)"
+   ],
+   "phones": [
+    "+918780622975"
+   ],
+   "owner": "Grooming Lounge salon (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 847 reviews, 4.8★",
+    "Has a phone number",
+    "Owner: Grooming Lounge salon (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJeXQ8rS_PXzkRO6ovwBgjE0c",
+   "name": "Beauty Heaven Salon",
+   "sec": 11.8,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (beautyheavensalon.com, beautyheavensalon.in, beautyheavensalon.co.in…)",
+    "web search for \"Beauty Heaven Salon Vadodara\"",
+    "rejected vogue.in (business name not on the page), en.wikipedia.org (listing site), fresha.com (business name not on the page)"
+   ],
+   "phones": [
+    "+918320690296"
+   ],
+   "owner": "Beauty Heaven Salon (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 663 reviews, 4.7★",
+    "Has a phone number",
+    "Owner: Beauty Heaven Salon (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJif___6PPXzkRE0z54FZsFoI",
+   "name": "Snehal's Beyoutie - Beauty Salon HAIR EXTENTION SPECIALIST & MAKEUP ARTIST",
+   "sec": 4.9,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "web search for \"Snehal's Beyoutie - Beauty Salon HAIR EXTENTION SPECIALIST & MAKEUP ARTIST Vadodara\"",
+    "rejected momjunction.com (business name not on the page), namediscoveries.com (business name not on the page), moonastro.com (business name not on the page), snehalcreation.com (business name not on the page)"
+   ],
+   "email": "snehalsbeyoutie@gmail.com",
+   "emailInfo": [
+    {
+     "email": "snehalsbeyoutie@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+917622017665"
+   ],
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 420 reviews, 4.8★",
+    "Has a phone number",
+    "Has a personal email"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJa4EPnffJXzkRK7Vki-JtOqQ",
+   "name": "Hair Saint",
+   "sec": 4.1,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (hairsaint.com, hairsaint.in, hairsaint.co.in…)",
+    "web search for \"Hair Saint Vadodara\"",
+    "rejected en.m.wikipedia.org (listing site), urbancompany.com (listing site), fresha.com (business name not on the page), labelle.in (business name not on the page)"
+   ],
+   "phones": [
+    "+918602650265"
+   ],
+   "owner": "Hair Saint (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 670 reviews, 4.6★",
+    "Has a phone number",
+    "Owner: Hair Saint (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJh0wPH27JXzkR-MpuotoI0gE",
+   "name": "The beauty town Unisex salon & Makeup Studio Vadodara - Bridal Salon Vadodara - Bridal Makeup Salon Alkapuri - make-up artist",
+   "sec": 8.6,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "web search for \"The beauty town Unisex salon & Makeup Studio Vadodara - Bridal Salon Vadodara - Bridal Makeup Salon Alkapuri - make-up artist Vadodara\"",
+    "rejected vogue.in (business name not on the page), en.wikipedia.org (listing site), fresha.com (business name not on the page)"
+   ],
+   "email": "info@website.com",
+   "emailInfo": [
+    {
+     "email": "info@website.com",
+     "kind": "generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919157819391"
+   ],
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 383 reviews, 4.5★",
+    "Has a phone number",
+    "Has an email"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ8QRtioDJXzkRc4JW4Eyf4dc",
+   "name": "𝗦𝘁𝘆𝗹𝗼𝗿𝗶𝗮 𝗨𝗻𝗶𝘀𝗲𝘅 𝗛𝗮𝗶𝗿 𝗦𝘁𝘂𝗱𝗶𝗼 & 𝗟𝗼𝘂𝗻𝗴𝗲 - Biggest Salon/Professional Hair Salon/Best Unisex Hair Salon in Vadodara",
+   "sec": 3.6,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (biggestprofessionalbestvadodara.com, biggestprofessionalbestvadodara.in, biggestprofessionalbestvadodara.co.in…)",
+    "web search for \"𝗦𝘁𝘆𝗹𝗼𝗿𝗶𝗮 𝗨𝗻𝗶𝘀𝗲𝘅 𝗛𝗮𝗶𝗿 𝗦𝘁𝘂𝗱𝗶𝗼 & 𝗟𝗼𝘂𝗻𝗴𝗲 - Biggest Salon/Professional Hair Salon/Best Unisex Hair Salon in Vadodara Vadodara\"",
+    "rejected support.microsoft.com (business name not on the page), support.microsoft.com (business name not on the page), elevenforum.com (business name not on the page)"
+   ],
+   "phones": [
+    "+917600088148"
+   ],
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 1897 reviews, 4.7★",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ65dt0FnIXzkRMAhrV7m3F7o",
+   "name": "Beyound Beauty Unisex Salon & Academy",
+   "sec": 17.9,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (beyoundbeautyunisexsalonandacademy.com, beyoundbeautyunisexsalonandacademy.in, beyoundbeautyunisexsalonandacademy.co.in…)",
+    "web search for \"Beyound Beauty Unisex Salon & Academy Vadodara\"",
+    "rejected beyondappliances.in (business name not on the page), beyound.in (name found but no matching phone or location), scootersoftware.com (business name not on the page), beyound.in (name found but no matching phone or location)"
+   ],
+   "phones": [
+    "+919727802586"
+   ],
+   "owner": "Beyound Beauty Unisex Salon & Academy (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 404 reviews, 4.6★",
+    "Has a phone number",
+    "Owner: Beyound Beauty Unisex Salon & Academy (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJXb6GdlTHXzkRA2WXaFzAERo",
+   "name": "Ashi Beauty Studio",
+   "sec": 10.2,
+   "website": "https://www.instagram.com/ashi_khanna/",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (ashibeautystudio.com, ashibeautystudio.in, ashibeautystudio.co.in…)",
+    "web search for \"Ashi Beauty Studio Vadodara\"",
+    "rejected youtube.com (listing site), ashielectronics.com (business name not on the page), en.wikipedia.org (listing site), en.wikipedia.org (listing site)"
+   ],
+   "phones": [
+    "+919875084927"
+   ],
+   "owner": "Ashi Beauty Studio (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 141 reviews, 4.8★",
+    "Has a phone number",
+    "Owner: Ashi Beauty Studio (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJqyuonSLJXzkRzIq_NDvjYqg",
+   "name": "Bloom Unisex Salon",
+   "sec": 7.8,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (bloomunisexsalon.com, bloomunisexsalon.in, bloomunisexsalon.co.in…)",
+    "web search for \"Bloom Unisex Salon Vadodara\"",
+    "rejected bloomnu.com (name found but no matching phone or location), bloomai.co (name found but no matching phone or location)"
+   ],
+   "phones": [
+    "+919023814398"
+   ],
+   "owner": "Bloom Unisex Salon (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 1188 reviews, 4.7★",
+    "Has a phone number",
+    "Owner: Bloom Unisex Salon (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJIVqf9FfIXzkRZDlsWtFZQv8",
+   "name": "Friends Factory Cafe - Rooftop Candle Light Dinner",
+   "sec": 2,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (friendsfactoryrooftopcandlelightdinner.com, friendsfactoryrooftopcandlelightdinner.in, friendsfactoryrooftopcandlelightdinner.co.in…)",
+    "web search for \"Friends Factory Cafe - Rooftop Candle Light Dinner Vadodara\"",
+    "rejected angelone.in (business name not on the page), angelone.in (business name not on the page), angelone.in (business name not on the page), angelone.in (business name not on the page)"
+   ],
+   "emailInfo": [
+    {
+     "email": "hello@friendsfactorycafe.com",
+     "kind": "generic",
+     "deliverable": false
+    }
+   ],
+   "phones": [
+    "+917487888730"
+   ],
+   "owner": "Friends Factory Cafe - Rooftop Candle Light Dinner (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 1431 reviews, 4.8★",
+    "Has a phone number",
+    "Owner: Friends Factory Cafe - Rooftop Candle Light Dinner (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJI47redLPXzkRv_I8tXbrFmE",
+   "name": "The Cave Cafe",
+   "sec": 16.3,
+   "website": "https://thecavecafe.in/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (thecavecafe.com, thecavecafe.in, thecavecafe.co.in…)"
+   ],
+   "phones": [
+    "+918866557838"
+   ],
+   "owner": "The Cave Cafe (Owner)",
+   "score": 20,
+   "tier": "cold",
+   "signals": [
+    "Built by The Cave Cafe",
+    "Busy business: 479 reviews, 4.9★",
+    "Has a phone number",
+    "Owner: The Cave Cafe (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJjXNWxafIXzkRTIZW2rzsEv8",
+   "name": "Cafe Bistro",
+   "sec": 15.5,
+   "website": "https://www.facebook.com/coffeeshop.baroda",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (cafebistro.com, cafebistro.in, cafebistro.co.in…)",
+    "web search for \"Cafe Bistro Vadodara\"",
+    "rejected zomato.com (listing site), district.in (a page about it on another site), tripadvisor.com (listing site), eazydiner.com (listing site)"
+   ],
+   "phones": [
+    "+919904319904"
+   ],
+   "owner": "Cafe Bistro (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Facebook as its website",
+    "Busy business: 1912 reviews, 4.2★",
+    "Has a phone number",
+    "Owner: Cafe Bistro (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ8XixPivJXzkRctR09ZH-q9s",
+   "name": "Lionize Restro Cafe",
+   "sec": 1.8,
+   "website": "https://lionizerestrocafe.com/",
+   "via": "domain_guess",
+   "evidence": "business name and phone number are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (lionizerestrocafe.com, lionizerestrocafe.in, lionizerestrocafe.co.in…)"
+   ],
+   "emailInfo": [
+    {
+     "email": "d@b.mgmz",
+     "kind": "other",
+     "deliverable": false
+    },
+    {
+     "email": "d3d@dd.hsf",
+     "kind": "other",
+     "deliverable": false
+    },
+    {
+     "email": "ysn@vwxq.cjhea",
+     "kind": "other",
+     "deliverable": false
+    },
+    {
+     "email": "spjs9zhlexxm_b@a.fl",
+     "kind": "other",
+     "deliverable": false
+    },
+    {
+     "email": "ngwaos@x.hfw",
+     "kind": "other",
+     "deliverable": false
+    }
+   ],
+   "phones": [
+    "+919898177703"
+   ],
+   "owner": "Lionize Restro Cafe (Owner)",
+   "score": 20,
+   "tier": "cold",
+   "signals": [
+    "Busy business: 413 reviews, 4.6★",
+    "Has a phone number",
+    "Owner: Lionize Restro Cafe (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJIzxoa-DJXzkRkOAWlKkybUI",
+   "name": "Charmant – The Heritage Café",
+   "sec": 3.1,
+   "website": "https://www.facebook.com/charmantthecafe",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (charmanttheheritagecaf.com, charmanttheheritagecaf.in, charmanttheheritagecaf.co.in…)",
+    "web search for \"Charmant – The Heritage Café Vadodara\"",
+    "rejected zomato.com (listing site), justdial.com (listing site), district.in (a page about it on another site), tripadvisor.com (listing site)"
+   ],
+   "phones": [
+    "+919773050954"
+   ],
+   "owner": "Charmant – The Heritage Café (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Facebook as its website",
+    "Busy business: 1270 reviews, 4.3★",
+    "Has a phone number",
+    "Owner: Charmant – The Heritage Café (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJJaAKQgrJXzkRwimuPLKtIF8",
+   "name": "The Tulip Touch Café",
+   "sec": 4.4,
+   "website": "https://www.facebook.com/thetuliptouchcafe",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (thetuliptouchcaf.com, thetuliptouchcaf.in, thetuliptouchcaf.co.in…)",
+    "web search for \"The Tulip Touch Café Vadodara\"",
+    "rejected swiggy.com (listing site), district.in (a page about it on another site), justdial.com (listing site), thetuliptouch.netlify.app (mentions the business but isn't its own site)"
+   ],
+   "phones": [
+    "+919106183731"
+   ],
+   "owner": "The Tulip Touch Café (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Facebook as its website",
+    "Busy business: 2053 reviews, 4.5★",
+    "Has a phone number",
+    "Owner: The Tulip Touch Café (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJG8Z51lbPXzkRynvKV6b5Zas",
+   "name": "Cafe L'amour - Best Cafe In Vadodara For Birthday Celebration And Candle light Date",
+   "sec": 3,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "web search for \"Cafe L'amour - Best Cafe In Vadodara For Birthday Celebration And Candle light Date Vadodara\"",
+    "rejected magicpin.in (listing site), eazydiner.com (listing site), zomato.com (listing site)"
+   ],
+   "phones": [
+    "+918849055749"
+   ],
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 441 reviews, 4.5★",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJd2dvEOHPXzkRerZN5RvSt1M",
+   "name": "Gazra Cafe",
+   "sec": 3.1,
+   "website": "https://www.instagram.com/p/DV06tlYE1E-",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (gazracafe.com, gazracafe.in, gazracafe.co.in…)",
+    "web search for \"Gazra Cafe Vadodara\"",
+    "rejected cntraveller.in (a page about it on another site), eazydiner.com (listing site), tripadvisor.com (listing site), zomato.com (listing site)"
+   ],
+   "phones": [
+    "+918200306871"
+   ],
+   "owner": "Gazra Cafe (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 656 reviews, 4.5★",
+    "Has a phone number",
+    "Owner: Gazra Cafe (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJn4rZk2PPXzkR02C17NMkmJg",
+   "name": "La Ville Cafe",
+   "sec": 2.4,
+   "website": "https://www.instagram.com/reel/C7z_EwQSRWe?hl=en",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (lavillecafe.com, lavillecafe.in, lavillecafe.co.in…)",
+    "web search for \"La Ville Cafe Vadodara\"",
+    "rejected swiggy.com (listing site), justdial.com (listing site), zomato.com (listing site), snapchat.com (a page about it on another site)"
+   ],
+   "phones": [
+    "+917600031580"
+   ],
+   "owner": "La Ville Cafe (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 520 reviews, 4.6★",
+    "Has a phone number",
+    "Owner: La Ville Cafe (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJRTESeabIXzkRc-xAEmjKEFY",
+   "name": "Coffee Clan",
+   "sec": 17,
+   "website": "https://www.facebook.com/coffeeclancafe",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (coffeeclan.com, coffeeclan.in, coffeeclan.co.in…)",
+    "web search for \"Coffee Clan Vadodara\"",
+    "rejected zomato.com (listing site), magicpin.in (listing site), swiggy.com (listing site), district.in (a page about it on another site)"
+   ],
+   "phones": [
+    "+917405412238"
+   ],
+   "owner": "Coffee Clan (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Facebook as its website",
+    "Busy business: 1666 reviews, 4.4★",
+    "Has a phone number",
+    "Owner: Coffee Clan (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJbxksNgDJXzkRQCdWhfQqqI8",
+   "name": "Kaffa Coffee Roasters",
+   "sec": 13.5,
+   "website": "https://www.instagram.com/kaffacoffeeroasters?hl=en",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (kaffacoffeeroasters.com, kaffacoffeeroasters.in, kaffacoffeeroasters.co.in…)",
+    "web search for \"Kaffa Coffee Roasters Vadodara\"",
+    "rejected eazydiner.com (listing site), zomato.com (listing site), district.in (a page about it on another site), swiggy.com (listing site)"
+   ],
+   "phones": [
+    "+919825336364"
+   ],
+   "owner": "Kaffa Coffee Roasters (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 442 reviews, 4.4★",
+    "Has a phone number",
+    "Owner: Kaffa Coffee Roasters (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJM-96eo3PXzkRiZgk2lH6YWQ",
+   "name": "Cafe Brewito - Best cafe in vadodara | Best specialty coffee in town",
+   "sec": 2,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (brewitobestvadodarabestspecialtytown.com, brewitobestvadodarabestspecialtytown.in, brewitobestvadodarabestspecialtytown.co.in…)",
+    "web search for \"Cafe Brewito - Best cafe in vadodara | Best specialty coffee in town Vadodara\"",
+    "rejected yandex.com (a page about it on another site), wanderlog.com (a page about it on another site), eazydiner.com (listing site), tripadvisor.com (listing site)"
+   ],
+   "phones": [
+    "+919586968006"
+   ],
+   "owner": "Cafe Brewito - Best cafe in vadodara | Best specialty coffee in town (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 1037 reviews, 4.1★",
+    "Has a phone number",
+    "Owner: Cafe Brewito - Best cafe in vadodara | Best specialty coffee in town (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJo_oNiOXJXzkRiIqVfPOR2bM",
+   "name": "Curators Coffee",
+   "sec": 11.8,
+   "website": "https://www.instagram.com/curators.coffee?hl=en",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (curatorscoffee.com, curatorscoffee.in, curatorscoffee.co.in…)",
+    "web search for \"Curators Coffee Vadodara\"",
+    "rejected swiggy.com (listing site), zomato.com (listing site), justdial.com (listing site), district.in (a page about it on another site)"
+   ],
+   "phones": [
+    "+916359220791"
+   ],
+   "owner": "Curators Coffee (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 1238 reviews, 4.5★",
+    "Has a phone number",
+    "Owner: Curators Coffee (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ8XhnNljPXzkRVTad4ICcjUU",
+   "name": "16th Hour Cafe || Best Cafe In Vadodara | Coffee Shop In Vadodara",
+   "sec": 7.6,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (16thhourbestvadodaravadodara.com, 16thhourbestvadodaravadodara.in, 16thhourbestvadodaravadodara.co.in…)",
+    "web search for \"16th Hour Cafe || Best Cafe In Vadodara | Coffee Shop In Vadodara Vadodara\"",
+    "rejected eazydiner.com (listing site), zomato.com (listing site), reddit.com (business name not on the page), justdial.com (listing site)"
+   ],
+   "phones": [
+    "+917433811616"
+   ],
+   "owner": "16th Hour Cafe || Best Cafe In Vadodara | Coffee Shop In Vadodara (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 105 reviews, 4.8★",
+    "Has a phone number",
+    "Owner: 16th Hour Cafe || Best Cafe In Vadodara | Coffee Shop In Vadodara (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJY_Tfo3jJXzkRxHIF-yMPuw0",
+   "name": "Candle Light Cafe - Best Cafe In Vadodara For candle Light Dinner And Date",
+   "sec": 6.7,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "web search for \"Candle Light Cafe - Best Cafe In Vadodara For candle Light Dinner And Date Vadodara\"",
+    "rejected district.in (name only in the text, not the title), zomato.com (listing site), expresshotelsindia.com (business name not on the page), reddit.com (business name not on the page)"
+   ],
+   "phones": [
+    "+917778993357"
+   ],
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 538 reviews, 4.6★",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJZ_W031LHXzkRK_PVFZyAHlE",
+   "name": "The Nirvaan Cafe & Lounge",
+   "sec": 2.2,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (thenirvaancafeandlounge.com, thenirvaancafeandlounge.in, thenirvaancafeandlounge.co.in…)",
+    "web search for \"The Nirvaan Cafe & Lounge Vadodara\"",
+    "rejected wanderlog.com (a page about it on another site), yappe.in (a page about it on another site), yappe.in (a page about it on another site), magicpin.in (listing site)"
+   ],
+   "phones": [],
+   "owner": "The Nirvaan Cafe & Lounge (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 1185 reviews, 4.2★",
+    "Owner: The Nirvaan Cafe & Lounge (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ-09yNybJXzkRO_KsGFjrW4w",
+   "name": "After Dunes Cafe",
+   "sec": 10.5,
+   "website": "https://www.afterdunes.com/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (afterdunescafe.com, afterdunescafe.in, afterdunescafe.co.in…)"
+   ],
+   "email": "afterdunescafe@gmail.com",
+   "emailInfo": [
+    {
+     "email": "afterdunescafe@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    },
+    {
+     "email": "afterdunescafe@gmail.comafter",
+     "kind": "personal",
+     "deliverable": false
+    },
+    {
+     "email": "605a7baede844d278b89dc95ae0a9123@sentry-next.wixpress.com",
+     "kind": "other",
+     "deliverable": false
+    },
+    {
+     "email": "18d2f96d279149989b95faf0a4b41882@sentry-next.wixpress.com",
+     "kind": "other",
+     "deliverable": false
+    },
+    {
+     "email": "e0b4d631da7b4200828051f7f9c783e3@sentry-next.wixpress.com",
+     "kind": "other",
+     "deliverable": false
+    }
+   ],
+   "phones": [
+    "+919724040536",
+    "+917903378009",
+    "+919977430186",
+    "+919992748208",
+    "+917880060625"
+   ],
+   "owner": "After Dunes Cafe (Owner)",
+   "score": 25,
+   "tier": "cold",
+   "signals": [
+    "Busy business: 149 reviews, 4.2★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: After Dunes Cafe (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJQTnPDvPPXzkRVtabSMxuSpY",
+   "name": "The Dark Bite Cafe",
+   "sec": 3.5,
+   "website": "https://www.instagram.com/the_darkbite_cafe?hl=en",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (thedarkbitecafe.com, thedarkbitecafe.in, thedarkbitecafe.co.in…)",
+    "web search for \"The Dark Bite Cafe Vadodara\"",
+    "rejected justdial.com (listing site), wanderlog.com (a page about it on another site), in.bookmyshow.com (listing site)"
+   ],
+   "phones": [
+    "+918160116083"
+   ],
+   "owner": "The Dark Bite Cafe (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 321 reviews, 4.4★",
+    "Has a phone number",
+    "Owner: The Dark Bite Cafe (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJNdY1yjrJXzkRxu6o15DIo7I",
+   "name": "Woodbond Cafe",
+   "sec": 16.7,
+   "website": "https://woodbondcafe.com/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (woodbondcafe.com, woodbondcafe.in, woodbondcafe.co.in…)"
+   ],
+   "phones": [
+    "+918799578701",
+    "+919825469563"
+   ],
+   "owner": "Woodbond Cafe (Owner)",
+   "score": 20,
+   "tier": "cold",
+   "signals": [
+    "Busy business: 712 reviews, 4.5★",
+    "Has a phone number",
+    "Owner: Woodbond Cafe (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJhynnrQ_HXzkRVnH62NJfnzY",
+   "name": "SHOZO Cafe & Bakery",
+   "sec": 10.9,
+   "website": "https://www.facebook.com/shozobakers",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (shozocafeandbakery.com, shozocafeandbakery.in, shozocafeandbakery.co.in…)",
+    "web search for \"SHOZO Cafe & Bakery Vadodara\"",
+    "rejected justdial.com (listing site), swiggy.com (listing site), zomato.com (listing site), reddit.com (business name not on the page)"
+   ],
+   "phones": [
+    "+918866277625"
+   ],
+   "owner": "SHOZO Cafe & Bakery (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Facebook as its website",
+    "Busy business: 260 reviews, 4.4★",
+    "Has a phone number",
+    "Owner: SHOZO Cafe & Bakery (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJYQqx1WzJXzkRpqhEwSV0WaQ",
+   "name": "Candle Light Date N Dinner & Rooftop Restaurant Vadodara",
+   "sec": 5.4,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (candlelightdatedinnerrooftopvadodara.com, candlelightdatedinnerrooftopvadodara.in, candlelightdatedinnerrooftopvadodara.co.in…)",
+    "web search for \"Candle Light Date N Dinner & Rooftop Restaurant Vadodara Vadodara\"",
+    "rejected tripadvisor.com (listing site), district.in (mentions the business but isn't its own site), zomato.com (listing site), expresshotelsindia.com (business name not on the page)"
+   ],
+   "phones": [
+    "+917069115511"
+   ],
+   "owner": "Candle Light Date N Dinner & Rooftop Restaurant Vadodara (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 1387 reviews, 4.8★",
+    "Has a phone number",
+    "Owner: Candle Light Date N Dinner & Rooftop Restaurant Vadodara (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJm6XjSf3JXzkRXwJwPLWWtqc",
+   "name": "Sakura Pan Asian Cuisine",
+   "sec": 1.5,
+   "website": "https://sakurapanasian.in/",
+   "via": "web_search",
+   "evidence": "business name and phone number are on the page (homepage of sakurapanasian.in)",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (sakurapanasiancuisine.com, sakurapanasiancuisine.in, sakurapanasiancuisine.co.in…)",
+    "web search for \"Sakura Pan Asian Cuisine Vadodara\"",
+    "rejected eazydiner.com (listing site)"
+   ],
+   "phones": [
+    "+918511226544"
+   ],
+   "owner": "Sakura Pan Asian Cuisine (Owner)",
+   "score": 20,
+   "tier": "cold",
+   "signals": [
+    "Busy business: 949 reviews, 4.7★",
+    "Has a phone number",
+    "Owner: Sakura Pan Asian Cuisine (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJLYEoC0PJXzkRsHZEgoU8WyM",
+   "name": "Creekyard-Vadodara",
+   "sec": 18,
+   "website": "https://creekyard.in/",
+   "via": "web_search",
+   "evidence": "business name and phone number are on the page (homepage of creekyard.in)",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (creekyardvadodara.com, creekyardvadodara.in, creekyardvadodara.co.in…)",
+    "web search for \"Creekyard-Vadodara Vadodara\""
+   ],
+   "email": "creekyard.vadodra@gmail.com",
+   "emailInfo": [
+    {
+     "email": "creekyard.vadodra@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+917600609684",
+    "+917641027023",
+    "+919176006096",
+    "+916113989637"
+   ],
+   "owner": "Creekyard-Vadodara (Owner)",
+   "score": 25,
+   "tier": "cold",
+   "signals": [
+    "Busy business: 7270 reviews, 4.8★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: Creekyard-Vadodara (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJCc0xErvIXzkRucLZNFsskYc",
+   "name": "Jassi De Parathe",
+   "sec": 2.3,
+   "website": "https://www.instagram.com/jassideparathe?hl=en",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (jassideparathe.com, jassideparathe.in, jassideparathe.co.in…)",
+    "web search for \"Jassi De Parathe Vadodara\"",
+    "rejected swiggy.com (listing site), tripadvisor.com (listing site), justdial.com (listing site), zomato.com (listing site)"
+   ],
+   "phones": [
+    "+919978881313"
+   ],
+   "owner": "Jassi De Parathe (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 11950 reviews, 4.4★",
+    "Has a phone number",
+    "Owner: Jassi De Parathe (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJTz4CoKrPXzkRSpRGGJgPr5Q",
+   "name": "The Bullet Restaurant",
+   "sec": 6.6,
+   "website": "https://www.facebook.com/Sevenseasmall/videos/the-bullet-restaurant-seven-seas-mall-fatehgunj-vadodarainauguration-by-msshradd/933604355720794",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (thebulletrestaurant.com, thebulletrestaurant.in, thebulletrestaurant.co.in…)",
+    "web search for \"The Bullet Restaurant Vadodara\"",
+    "rejected swiggy.com (listing site), zomato.com (listing site), eazydiner.com (listing site), zomato.com (listing site)"
+   ],
+   "phones": [
+    "+919925076655"
+   ],
+   "owner": "The Bullet Restaurant (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Facebook as its website",
+    "Busy business: 1323 reviews, 4.8★",
+    "Has a phone number",
+    "Owner: The Bullet Restaurant (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJTUpOZIjJXzkR0oWrkMyN9mE",
+   "name": "The House of Makeba - Veg Family Dining Restaurant in Vadodara",
+   "sec": 2.6,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (housemakebavegfamilydiningvadodara.com, housemakebavegfamilydiningvadodara.in, housemakebavegfamilydiningvadodara.co.in…)",
+    "web search for \"The House of Makeba - Veg Family Dining Restaurant in Vadodara Vadodara\"",
+    "rejected magicpin.in (listing site), justdial.com (listing site), justdial.com (listing site)"
+   ],
+   "email": "info@thehouseofmakeba.com",
+   "emailInfo": [
+    {
+     "email": "info@thehouseofmakeba.com",
+     "kind": "generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919265028703"
+   ],
+   "owner": "The House of Makeba - Veg Family Dining Restaurant in Vadodara (Owner)",
+   "score": 80,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 1151 reviews, 4.6★",
+    "Has a phone number",
+    "Has an email",
+    "Owner: The House of Makeba - Veg Family Dining Restaurant in Vadodara (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJR0ZyprnIXzkRGNaSBrZ8oV8",
+   "name": "The Morsel Restaurant",
+   "sec": 7.4,
+   "website": "https://www.instagram.com/reel/DHgOTQzMMJX",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (themorselrestaurant.com, themorselrestaurant.in, themorselrestaurant.co.in…)",
+    "web search for \"The Morsel Restaurant Vadodara\"",
+    "rejected eazydiner.com (listing site), justdial.com (listing site), zomato.com (listing site), district.in (mentions the business but isn't its own site)"
+   ],
+   "phones": [
+    "+917575077957"
+   ],
+   "owner": "The Morsel Restaurant (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 3420 reviews, 4.3★",
+    "Has a phone number",
+    "Owner: The Morsel Restaurant (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJC9fc-8XJXzkRDfPLZO5FP88",
+   "name": "Sky Roof Restaurant & Cafe",
+   "sec": 13.1,
+   "website": "https://www.instagram.com/popular/the-roof-sky-restaurant-and-cafe",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (skyroofrestaurantandcafe.com, skyroofrestaurantandcafe.in, skyroofrestaurantandcafe.co.in…)",
+    "web search for \"Sky Roof Restaurant & Cafe Vadodara\"",
+    "rejected zomato.com (listing site), snapchat.com (name found but no matching phone or location), restaurant-guru.in (listing site)"
+   ],
+   "phones": [
+    "+918155000501"
+   ],
+   "owner": "Sky Roof Restaurant & Cafe (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 780 reviews, 4.3★",
+    "Has a phone number",
+    "Owner: Sky Roof Restaurant & Cafe (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJzRzER7DIXzkRXL7GcTtUeac",
+   "name": "Peshawri by Welcomhotel Vadodara",
+   "sec": 16,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (peshawribywelcomhotelvadodara.com, peshawribywelcomhotelvadodara.in, peshawribywelcomhotelvadodara.co.in…)",
+    "web search for \"Peshawri by Welcomhotel Vadodara Vadodara\"",
+    "rejected holidaycheck.de (name only in the text, not the title), zomato.com (listing site), holidaycheck.ch (name only in the text, not the title), holidaycheck.ch (name only in the text, not the title)"
+   ],
+   "phones": [
+    "+912656677045"
+   ],
+   "owner": "Peshawri by Welcomhotel Vadodara (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 1145 reviews, 4.4★",
+    "Has a phone number",
+    "Owner: Peshawri by Welcomhotel Vadodara (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJbYJkROHHXzkRwr5qxOivi0Q",
+   "name": "Vibes The Bistro",
+   "sec": 2.5,
+   "website": "https://www.instagram.com/vibesthebistro?hl=en",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (vibesthebistro.com, vibesthebistro.in, vibesthebistro.co.in…)",
+    "web search for \"Vibes The Bistro Vadodara\"",
+    "rejected eazydiner.com (listing site), justdial.com (listing site), district.in (a page about it on another site), tripadvisor.com (listing site)"
+   ],
+   "phones": [
+    "+918780561962"
+   ],
+   "owner": "Vibes The Bistro (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 667 reviews, 4.8★",
+    "Has a phone number",
+    "Owner: Vibes The Bistro (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJvxDRwwfJXzkRnsy5joWotY8",
+   "name": "Southa - Authentic South Indian Restaurant",
+   "sec": 2.6,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (southaauthenticsouthindianrestaurant.com, southaauthenticsouthindianrestaurant.in, southaauthenticsouthindianrestaurant.co.in…)",
+    "web search for \"Southa - Authentic South Indian Restaurant Vadodara\"",
+    "rejected agoda.com (listing site), eazydiner.com (listing site), district.in (mentions the business but isn't its own site), zomato.com (listing site)"
+   ],
+   "phones": [
+    "+919023700413"
+   ],
+   "owner": "Southa - Authentic South Indian Restaurant (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 1379 reviews, 4.6★",
+    "Has a phone number",
+    "Owner: Southa - Authentic South Indian Restaurant (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJi3uIbqzJXzkRprb5ZC721NU",
+   "name": "Anjoy",
+   "sec": 1.8,
+   "website": "https://anjoy-laddu.netlify.app/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"anjoy\" are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "6 likely web addresses (anjoy.com, anjoy.in, anjoy.co.in…)"
+   ],
+   "phones": [
+    "+917574037050"
+   ],
+   "owner": "Anjoy (Owner)",
+   "score": 40,
+   "tier": "warm",
+   "signals": [
+    "Free builder site (Free hosting subdomain)",
+    "Built by Anjoy",
+    "Busy business: 1445 reviews, 4.3★",
+    "Has a phone number",
+    "Owner: Anjoy (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJaVqpUKPIXzkRkBSUFL0StCw",
+   "name": "The Secret Kitchen",
+   "sec": 17.6,
+   "website": "https://thesecretkitchen.co/about.html",
+   "via": "web_search",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page, and the web address matches the name",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (thesecretkitchen.com, thesecretkitchen.in, thesecretkitchen.co.in…)",
+    "web search for \"The Secret Kitchen Vadodara\""
+   ],
+   "email": "78778info@thesecretkitchen.co",
+   "emailInfo": [
+    {
+     "email": "78778info@thesecretkitchen.co",
+     "kind": "own_named",
+     "deliverable": true
+    },
+    {
+     "email": "info@thesecretkitchen.co",
+     "kind": "own_generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919825778778",
+    "+919825175399",
+    "+919825797797",
+    "+919825729729"
+   ],
+   "owner": "The Secret Kitchen (Owner)",
+   "score": 0,
+   "tier": "cold",
+   "signals": [
+    "Chain or franchise (its website mentions outlets or franchising)",
+    "Busy business: 5356 reviews, 4.2★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: The Secret Kitchen (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ-ZRbPOHJXzkRUCxoS-DLKSQ",
+   "name": "Thyme & Whisk",
+   "sec": 3.5,
+   "website": "https://www.facebook.com/thymeandwhisk",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (thymeandwhisk.com, thymeandwhisk.in, thymeandwhisk.co.in…)",
+    "web search for \"Thyme & Whisk Vadodara\"",
+    "rejected trinetraventure.com (mentions the business but isn't its own site), trinetraventure.com (name only in the text, not the title), tripadvisor.com (listing site), eazydiner.com (listing site)"
+   ],
+   "phones": [
+    "+917874019688"
+   ],
+   "owner": "Thyme & Whisk (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Facebook as its website",
+    "Busy business: 2694 reviews, 4.4★",
+    "Has a phone number",
+    "Owner: Thyme & Whisk (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ40A0V6PIXzkR1MziRFGtiX8",
+   "name": "Retro Bistro : The Fine Multi Cuisine Restaurant ( Vadodara )",
+   "sec": 5.5,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (retrobistrofinemulticuisinevadodara.com, retrobistrofinemulticuisinevadodara.in, retrobistrofinemulticuisinevadodara.co.in…)",
+    "web search for \"Retro Bistro : The Fine Multi Cuisine Restaurant ( Vadodara ) Vadodara\"",
+    "rejected eazydiner.com (listing site), tripadvisor.com (listing site), justdial.com (listing site), zomato.com (listing site)"
+   ],
+   "phones": [
+    "+918980088877"
+   ],
+   "owner": "Retro Bistro : The Fine Multi Cuisine Restaurant ( Vadodara ) (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 3119 reviews, 4.3★",
+    "Has a phone number",
+    "Owner: Retro Bistro : The Fine Multi Cuisine Restaurant ( Vadodara ) (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJAYiVNbXHXzkRv8o7VtxZHBU",
+   "name": "Night Dinner",
+   "sec": 3.2,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (nightdinner.com, nightdinner.in, nightdinner.co.in…)",
+    "web search for \"Night Dinner Vadodara\"",
+    "rejected zomato.com (listing site), justdial.com (listing site), swiggy.com (listing site), tripadvisor.in (listing site)"
+   ],
+   "phones": [
+    "+919978677882"
+   ],
+   "owner": "Night Dinner (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 554 reviews, 4.4★",
+    "Has a phone number",
+    "Owner: Night Dinner (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ51-DfwDJXzkRbwZMc45X_u0",
+   "name": "Taste Carnival - (Banquet, Rooms, Restaurant)",
+   "sec": 6.7,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (tastecarnivalbanquetroomsrestaurant.com, tastecarnivalbanquetroomsrestaurant.in, tastecarnivalbanquetroomsrestaurant.co.in…)",
+    "web search for \"Taste Carnival - (Banquet, Rooms, Restaurant) Vadodara\"",
+    "rejected restaurantguru.com (listing site), hotelriddhisiddhi.com (business name not on the page), weddingwire.in (business name not on the page), zomato.com (listing site)"
+   ],
+   "phones": [
+    "+917383530110"
+   ],
+   "owner": "Taste Carnival - (Banquet, Rooms, Restaurant) (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 4100 reviews, 4.6★",
+    "Has a phone number",
+    "Owner: Taste Carnival - (Banquet, Rooms, Restaurant) (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJbyB62aHJXzkRYh9gI4-E3-M",
+   "name": "812 CE Urban Restaurant",
+   "sec": 2.4,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (812ceurbanrestaurant.com, 812ceurbanrestaurant.in, 812ceurbanrestaurant.co.in…)",
+    "web search for \"812 CE Urban Restaurant Vadodara\"",
+    "rejected marriott.com (a page about it on another site), tripadvisor.ie (a page about it on another site), marriott.com (name only in the text, not the title), eazydiner.com (listing site)"
+   ],
+   "phones": [
+    "+916358923528"
+   ],
+   "owner": "812 CE Urban Restaurant (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 177 reviews, 4.6★",
+    "Has a phone number",
+    "Owner: 812 CE Urban Restaurant (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJP_cV8ifPXzkR4yhWo8FCUn4",
+   "name": "Ka & Wa Spice Punch Restaurant",
+   "sec": 5.1,
+   "website": "https://www.instagram.com/ka_n_wa_spice_punch?hl=en",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (kaandwaspicepunchrestaurant.com, kaandwaspicepunchrestaurant.in, kaandwaspicepunchrestaurant.co.in…)",
+    "web search for \"Ka & Wa Spice Punch Restaurant Vadodara\"",
+    "rejected yandex.ru (a page about it on another site), justdial.com (listing site), zomato.com (listing site), zomato.com (listing site)"
+   ],
+   "phones": [
+    "+919408232403"
+   ],
+   "owner": "Ka & Wa Spice Punch Restaurant (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 317 reviews, 4.9★",
+    "Has a phone number",
+    "Owner: Ka & Wa Spice Punch Restaurant (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ41sAr6jHXzkRzQaMOprSwuI",
+   "name": "Pind Balluchi Vadodara",
+   "sec": 4.4,
+   "website": "https://www.instagram.com/pindballuchi_vadodara?hl=en",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (pindballuchivadodara.com, pindballuchivadodara.in, pindballuchivadodara.co.in…)",
+    "web search for \"Pind Balluchi Vadodara Vadodara\"",
+    "rejected eazydiner.com (listing site), swiggy.com (listing site), justdial.com (listing site), zomato.com (listing site)"
+   ],
+   "phones": [
+    "+919558211212"
+   ],
+   "owner": "Pind Balluchi Vadodara (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 678 reviews, 4.1★",
+    "Has a phone number",
+    "Owner: Pind Balluchi Vadodara (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJHwAAAPTPXzkROZxfrSV7Ab4",
+   "name": "New Modern Furniture",
+   "sec": 4.1,
+   "website": "https://www.facebook.com/NewModernFurnitureShop",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (newmodernfurniture.com, newmodernfurniture.in, newmodernfurniture.co.in…)",
+    "web search for \"New Modern Furniture Vadodara\"",
+    "rejected tradeindia.com (listing site), indiamart.com (listing site), indiamart.com (listing site), indiamart.com (listing site)"
+   ],
+   "phones": [
+    "+918000999105"
+   ],
+   "owner": "New Modern Furniture (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Facebook as its website",
+    "Busy business: 263 reviews, 4.9★",
+    "Has a phone number",
+    "Owner: New Modern Furniture (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJJQ_8rpPFXzkRelMLON2A9Z8",
+   "name": "Furniture Planet",
+   "sec": 5.4,
+   "website": "https://www.instagram.com/popular/furniture-planet-vadodara",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (furnitureplanet.com, furnitureplanet.in, furnitureplanet.co.in…)",
+    "web search for \"Furniture Planet Vadodara\"",
+    "rejected justdial.com (listing site), indiamart.com (listing site), tracxn.com (name found but no matching phone or location), planetfurniture.in (name found but no matching phone or location)"
+   ],
+   "phones": [
+    "+919099552815"
+   ],
+   "owner": "Furniture Planet (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 532 reviews, 4.5★",
+    "Has a phone number",
+    "Owner: Furniture Planet (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJS29ZsSzJXzkR3yUEiEw6Oe0",
+   "name": "Wooden Street - Furniture and Mattress Store in Vadiwadi, Vadodara",
+   "sec": 3.5,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "web search for \"Wooden Street - Furniture and Mattress Store in Vadiwadi, Vadodara Vadodara\"",
+    "rejected wanderlog.com (mentions the business but isn't its own site), woodenstreet.com (mentions the business but isn't its own site), woodenstreet.com (mentions the business but isn't its own site), magicpin.in (listing site)"
+   ],
+   "email": "support@woodenstreet.com",
+   "emailInfo": [
+    {
+     "email": "support@woodenstreet.com",
+     "kind": "generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919314444747"
+   ],
+   "owner": "Wooden Street - Furniture and Mattress Store in Vadiwadi, Vadodara (Owner)",
+   "score": 80,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 521 reviews, 4.6★",
+    "Has a phone number",
+    "Has an email",
+    "Owner: Wooden Street - Furniture and Mattress Store in Vadiwadi, Vadodara (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJy8WzBrjIXzkRa6kZdrhPYyM",
+   "name": "Nilkamal Homes, Furniture | Decor | Mattress - Centre Square Mall, Vadodara",
+   "sec": 6,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "web search for \"Nilkamal Homes, Furniture | Decor | Mattress - Centre Square Mall, Vadodara Vadodara\"",
+    "rejected stores.nilkamalhomes.com (mentions the business but isn't its own site), stores.nilkamalhomes.com (mentions the business but isn't its own site), justdial.com (listing site), stores.nilkamalhomes.com (mentions the business but isn't its own site)"
+   ],
+   "email": "connect@nilkamalhomes.com",
+   "emailInfo": [
+    {
+     "email": "connect@nilkamalhomes.com",
+     "kind": "other",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+918305678879"
+   ],
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 21053 reviews, 4.9★",
+    "Has a phone number",
+    "Has an email"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJUc0VAbnIXzkR0pwa1BCRk3Y",
+   "name": "Agro Furniture - Premium Furniture Manufacturer and Dealer In Vadodara",
+   "sec": 9.3,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "web search for \"Agro Furniture - Premium Furniture Manufacturer and Dealer In Vadodara Vadodara\"",
+    "rejected fine-art-furniture-best.grexa.site (business name not on the page), indianyellowpages.com (business name not on the page), brindapharma.com (business name not on the page), steelxdecor.in (business name not on the page)"
+   ],
+   "phones": [
+    "+918866266555"
+   ],
+   "owner": "Agro Furniture - Premium Furniture Manufacturer and Dealer In Vadodara (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 266 reviews, 4.5★",
+    "Has a phone number",
+    "Owner: Agro Furniture - Premium Furniture Manufacturer and Dealer In Vadodara (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJnRPpByLFXzkRLBeFarAH6Ws",
+   "name": "Rishi Furniture: Vadodara’s Furniture Expert",
+   "sec": 3.4,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "6 likely web addresses (rishifurniturevadodarasfurnitureexpert.com, rishifurniturevadodarasfurnitureexpert.in, rishifurniturevadodarasfurnitureexpert.co.in…)",
+    "web search for \"Rishi Furniture: Vadodara’s Furniture Expert Vadodara\"",
+    "rejected justdial.com (listing site), zoominfo.com (business name not on the page), tracxn.com (business name not on the page)"
+   ],
+   "phones": [
+    "+918460270042"
+   ],
+   "owner": "Rishi Furniture: Vadodara’s Furniture Expert (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 209 reviews, 4.9★",
+    "Has a phone number",
+    "Owner: Rishi Furniture: Vadodara’s Furniture Expert (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJi_6_6ArFXzkR8h7thpAW8Ko",
+   "name": "Interio by Godrej - Furniture & Mattress Store in Sarabhai Campus, Vadodara",
+   "sec": 7.2,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "web search for \"Interio by Godrej - Furniture & Mattress Store in Sarabhai Campus, Vadodara Vadodara\"",
+    "rejected stores.interio.com (mentions the business but isn't its own site), yandex.com (business name not on the page), stores.interio.com (mentions the business but isn't its own site), stores.interio.com (mentions the business but isn't its own site)"
+   ],
+   "phones": [
+    "+918291959359"
+   ],
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 700 reviews, 4.8★",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJl0-RTF_JXzkRc7RVTvWLzAQ",
+   "name": "Urban Ladder - Furniture and Decor Store in Vadodara",
+   "sec": 2.2,
+   "website": "https://www.instagram.com/popular/urban-ladder-furniture-and-decor-store-in-vadodara-photos",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (urbanladderfurniturevadodara.com, urbanladderfurniturevadodara.in, urbanladderfurniturevadodara.co.in…)",
+    "web search for \"Urban Ladder - Furniture and Decor Store in Vadodara Vadodara\"",
+    "rejected magicpin.in (listing site), justdial.com (listing site), play.google.com (listing site), urbanladder.com (business name not on the page)"
+   ],
+   "email": "hello@urbanladder.com",
+   "emailInfo": [
+    {
+     "email": "hello@urbanladder.com",
+     "kind": "generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+918355847550"
+   ],
+   "owner": "Urban Ladder - Furniture and Decor Store in Vadodara (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 531 reviews, 4.8★",
+    "Has a phone number",
+    "Has an email",
+    "Owner: Urban Ladder - Furniture and Decor Store in Vadodara (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ8fBcvLnIXzkRyVfOe6aeK3s",
+   "name": "UrbanLiving - The Furniture Lounge",
+   "sec": 5.7,
+   "website": "https://www.instagram.com/urbanliving.furniture?hl=en",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (urbanlivingthefurniturelounge.com, urbanlivingthefurniturelounge.in, urbanlivingthefurniturelounge.co.in…)",
+    "web search for \"UrbanLiving - The Furniture Lounge Vadodara\"",
+    "rejected justdial.com (listing site), mapquest.com (listing site), mapquest.com (listing site), mapquest.com (listing site)"
+   ],
+   "phones": [
+    "+919773296053"
+   ],
+   "owner": "UrbanLiving - The Furniture Lounge (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 104 reviews, 4.3★",
+    "Has a phone number",
+    "Owner: UrbanLiving - The Furniture Lounge (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ____E2HPXzkRXPdknXqwwMM",
+   "name": "Living Style",
+   "sec": 5.5,
+   "website": "https://www.livingstyleindia.com/",
+   "via": "web_search",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page, and the web address matches the name",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (livingstyle.com, livingstyle.in, livingstyle.co.in…)",
+    "web search for \"Living Style Vadodara\"",
+    "rejected justdial.com (listing site), indiamart.com (listing site)"
+   ],
+   "email": "livingstylebaroda@gmail.com",
+   "emailInfo": [
+    {
+     "email": "livingstylebaroda@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919925003796",
+    "+917942564840",
+    "+918532955098",
+    "+918549851606",
+    "+918532956948",
+    "+916274038291",
+    "+918532950502"
+   ],
+   "owner": "Living Style (Owner)",
+   "score": 25,
+   "tier": "cold",
+   "signals": [
+    "Busy business: 213 reviews, 4.9★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: Living Style (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJvX7bsKTIXzkRV9f2kimg7RY",
+   "name": "Pepperfry Home Furniture & Mattress Shop in Chikuwadi",
+   "sec": 3.3,
+   "website": "https://www.facebook.com/fb-answers/pepperfry-chikuwadi-multi-brand-furniture-mattress-home-furnishings-shop-vadodara-reviews",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (pepperfryhomefurnituremattresschikuwadi.com, pepperfryhomefurnituremattresschikuwadi.in, pepperfryhomefurnituremattresschikuwadi.co.in…)",
+    "web search for \"Pepperfry Home Furniture & Mattress Shop in Chikuwadi Vadodara\"",
+    "rejected magicpin.in (listing site), justdial.com (listing site)"
+   ],
+   "phones": [
+    "+917948060757"
+   ],
+   "owner": "Pepperfry Home Furniture & Mattress Shop in Chikuwadi (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Facebook as its website",
+    "Busy business: 1635 reviews, 4.6★",
+    "Has a phone number",
+    "Owner: Pepperfry Home Furniture & Mattress Shop in Chikuwadi (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ7WzCulnPXzkRP8VODs3GAfM",
+   "name": "Rajdhani Furniture Shop/Store in Vadodara | Home, Office & Mattress Store.",
+   "sec": 3.5,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "web search for \"Rajdhani Furniture Shop/Store in Vadodara | Home, Office & Mattress Store. Vadodara\"",
+    "rejected tradeindia.com (listing site), vadodarahelpline.com (mentions the business but isn't its own site), justdial.com (listing site), woodenstreet.com (business name not on the page)"
+   ],
+   "phones": [
+    "+918000671234"
+   ],
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 101 reviews, 4.9★",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJuUbP2KzIXzkR15FHUV_HT7Q",
+   "name": "Dhanlaxmi Furniture - Plastic Chair Showroom - Revolving chairs In Vadodara",
+   "sec": 3.1,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "web search for \"Dhanlaxmi Furniture - Plastic Chair Showroom - Revolving chairs In Vadodara Vadodara\"",
+    "rejected magicpin.in (listing site), yandex.com (a page about it on another site), justdial.com (listing site), justdial.com (listing site)"
+   ],
+   "phones": [
+    "+919825355118"
+   ],
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 709 reviews, 5.0★",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJq6qqarHIXzkRDzXirp8nTYo",
+   "name": "Aakruti Furnishers & decorators - Furniture store| Mattress shop in Vadodara | Furnishers and decorators in Vadodara",
+   "sec": 11.6,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "web search for \"Aakruti Furnishers & decorators - Furniture store| Mattress shop in Vadodara | Furnishers and decorators in Vadodara Vadodara\"",
+    "rejected magicpin.in (listing site), kingkoil.in (business name not on the page), gharpedia.com (business name not on the page), tradeindia.com (listing site)"
+   ],
+   "phones": [
+    "+919898610016"
+   ],
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 63 reviews, 4.6★",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJN0j7vsHJXzkR0oiAfq7vCcs",
+   "name": "Durian Furniture - Vadodara - Subhanpura",
+   "sec": 4.3,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "6 likely web addresses (durianfurniturevadodarasubhanpura.com, durianfurniturevadodarasubhanpura.in, durianfurniturevadodarasubhanpura.co.in…)",
+    "web search for \"Durian Furniture - Vadodara - Subhanpura Vadodara\"",
+    "rejected justdial.com (listing site), justdial.com (listing site), justdial.com (listing site), justdial.com (listing site)"
+   ],
+   "phones": [
+    "+918062916657"
+   ],
+   "owner": "Durian Furniture - Vadodara - Subhanpura (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 179 reviews, 4.7★",
+    "Has a phone number",
+    "Owner: Durian Furniture - Vadodara - Subhanpura (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJL03aNZPIXzkRPCRV5vs6ayw",
+   "name": "Modern Furniture & Interior",
+   "sec": 12.4,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (modernfurnitureandinterior.com, modernfurnitureandinterior.in, modernfurnitureandinterior.co.in…)",
+    "web search for \"Modern Furniture & Interior Vadodara\"",
+    "rejected en.wikipedia.org (listing site), yelp.com (listing site), finance.yahoo.com (name found but no matching phone or location), tripadvisor.com (listing site)"
+   ],
+   "emailInfo": [
+    {
+     "email": "info@modernfurnitures.com",
+     "kind": "generic",
+     "deliverable": false
+    }
+   ],
+   "phones": [
+    "+919106075688"
+   ],
+   "owner": "Modern Furniture & Interior (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 65 reviews, 5.0★",
+    "Has a phone number",
+    "Owner: Modern Furniture & Interior (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJC7PXuJPFXzkRort4IvMbuMs",
+   "name": "M. K. Furniture",
+   "sec": 8.2,
+   "website": "https://www.mkfurniture.co.in/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (mkfurniture.com, mkfurniture.in, mkfurniture.co.in…)"
+   ],
+   "phones": [
+    "+919327231999",
+    "+917942623580",
+    "+918518643993",
+    "+918539625267",
+    "+918544416678",
+    "+918517326356"
+   ],
+   "owner": "M. K. Furniture (Owner)",
+   "score": 20,
+   "tier": "cold",
+   "signals": [
+    "Busy business: 875 reviews, 4.1★",
+    "Has a phone number",
+    "Owner: M. K. Furniture (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ____PwrFXzkRfXzKDTtqKgc",
+   "name": "New Chandan Furniture House",
+   "sec": 11.5,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (newchandanfurniturehouse.com, newchandanfurniturehouse.in, newchandanfurniturehouse.co.in…)",
+    "web search for \"New Chandan Furniture House Vadodara\"",
+    "rejected exportersindia.com (business name not on the page), theprint.in (business name not on the page), esi.in (business name not on the page), justdial.com (listing site)"
+   ],
+   "phones": [
+    "+919825351294"
+   ],
+   "owner": "New Chandan Furniture House (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 397 reviews, 4.7★",
+    "Has a phone number",
+    "Owner: New Chandan Furniture House (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJR5O3yOvHXzkR7vHMi0t6VPY",
+   "name": "Furniture Hub",
+   "sec": 11.8,
+   "website": "https://www.instagram.com/furniturehubbaroda",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (furniturehub.com, furniturehub.in, furniturehub.co.in…)",
+    "web search for \"Furniture Hub Vadodara\"",
+    "rejected justdial.com (listing site), exportersindia.com (a page about it on another site), dial4trade.com (a page about it on another site), tradeindia.com (listing site)"
+   ],
+   "phones": [
+    "+918780118222"
+   ],
+   "owner": "Furniture Hub (Owner)",
+   "score": 60,
+   "tier": "warm",
+   "signals": [
+    "Uses Instagram as its website",
+    "Has a phone number",
+    "Owner: Furniture Hub (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJQ0uwZL3PXzkRjNM04LNDod4",
+   "name": "Namaste & Co.- Furniture, Ladder and Cloth Stand Wholesale",
+   "sec": 9.4,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "web search for \"Namaste & Co.- Furniture, Ladder and Cloth Stand Wholesale Vadodara\"",
+    "rejected justdial.com (listing site), indiamart.com (listing site), helloindia.co (business name not on the page), yelp.com (listing site)"
+   ],
+   "phones": [
+    "+919825045352"
+   ],
+   "owner": "Namaste & Co.- Furniture, Ladder and Cloth Stand Wholesale (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 116 reviews, 4.9★",
+    "Has a phone number",
+    "Owner: Namaste & Co.- Furniture, Ladder and Cloth Stand Wholesale (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJf-FHdCjJXzkRwkS0KcyzD8M",
+   "name": "IDcreators Interior Designers",
+   "sec": 10.8,
+   "website": "https://www.idcreators.in/",
+   "via": "domain_guess",
+   "evidence": "business name and phone number are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (idcreatorsinteriordesigners.com, idcreatorsinteriordesigners.in, idcreatorsinteriordesigners.co.in…)"
+   ],
+   "phones": [
+    "+919898531849",
+    "+918651031534"
+   ],
+   "owner": "IDcreators Interior Designers (Owner)",
+   "score": 20,
+   "tier": "cold",
+   "signals": [
+    "Busy business: 82 reviews, 5.0★",
+    "Has a phone number",
+    "Owner: IDcreators Interior Designers (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJhfpWx2rJXzkRyERbL-XltI4",
+   "name": "Pranay Shah Designs - Interior Designers & Decorators",
+   "sec": 6.5,
+   "website": "https://www.pranayshahdesigns.com/index.html",
+   "via": "web_search",
+   "evidence": "business name and phone number are on the page (homepage of pranayshahdesigns.com)",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (pranayshahdesignsdecorators.com, pranayshahdesignsdecorators.in, pranayshahdesignsdecorators.co.in…)",
+    "web search for \"Pranay Shah Designs - Interior Designers & Decorators Vadodara\""
+   ],
+   "email": "info@pranayshahdesigns.com",
+   "emailInfo": [
+    {
+     "email": "info@pranayshahdesigns.com",
+     "kind": "own_generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919998769186"
+   ],
+   "owner": "Pranay Shah Designs - Interior Designers & Decorators (Owner)",
+   "score": 25,
+   "tier": "cold",
+   "signals": [
+    "Built by Pranay Shah Interior Designer",
+    "Busy business: 135 reviews, 4.9★",
+    "Has a phone number",
+    "Has an email",
+    "Owner: Pranay Shah Designs - Interior Designers & Decorators (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJlT9kqTHJXzkRGk7TKH_v__Q",
+   "name": "Livspace - Interior Design Studio, Alkapuri",
+   "sec": 4,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (livspaceinteriordesignstudioalkapuri.com, livspaceinteriordesignstudioalkapuri.in, livspaceinteriordesignstudioalkapuri.co.in…)",
+    "web search for \"Livspace - Interior Design Studio, Alkapuri Vadodara\"",
+    "rejected livspace.com (mentions the business but isn't its own site), livspace.com (mentions the business but isn't its own site), livspace.com (mentions the business but isn't its own site)"
+   ],
+   "email": "care@livspace.com",
+   "emailInfo": [
+    {
+     "email": "care@livspace.com",
+     "kind": "generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+918047759144"
+   ],
+   "owner": "Livspace - Interior Design Studio, Alkapuri (Owner)",
+   "score": 80,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 3264 reviews, 4.7★",
+    "Has a phone number",
+    "Has an email",
+    "Owner: Livspace - Interior Design Studio, Alkapuri (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJczroKY7IXzkR32huJZBPTgk",
+   "name": "Absolute Civil & Interiors",
+   "sec": 6.8,
+   "website": "https://www.instagram.com/absolute_civil_interiors?hl=en",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (absolutecivilandinteriors.com, absolutecivilandinteriors.in, absolutecivilandinteriors.co.in…)",
+    "web search for \"Absolute Civil & Interiors Vadodara\"",
+    "rejected justdial.com (listing site), in.linkedin.com (listing site), find-and-update.company-information.service.gov.uk (business name not on the page), yelp.com (listing site)"
+   ],
+   "phones": [
+    "+919898299916"
+   ],
+   "owner": "Absolute Civil & Interiors (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 154 reviews, 4.7★",
+    "Has a phone number",
+    "Owner: Absolute Civil & Interiors (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJiStS1znEXzkRqLvhfxcKRSQ",
+   "name": "Dream Maker Architects",
+   "sec": 2.5,
+   "website": "https://www.facebook.com/architectmaker",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (dreammakerarchitects.com, dreammakerarchitects.in, dreammakerarchitects.co.in…)",
+    "web search for \"Dream Maker Architects Vadodara\"",
+    "rejected houzz.in (a page about it on another site), gharpedia.com (a page about it on another site)"
+   ],
+   "phones": [
+    "+917300950755"
+   ],
+   "owner": "Dream Maker Architects (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Facebook as its website",
+    "Busy business: 93 reviews, 4.7★",
+    "Has a phone number",
+    "Owner: Dream Maker Architects (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJE0-6NinHXzkR2i0Sws8Fh6A",
+   "name": "Studio Inside Out – Best Interior Designer in Vadodara for Homes, Offices & Architecture Services",
+   "sec": 9.1,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (insideoutbestvadodaraofficesarchitecture.com, insideoutbestvadodaraofficesarchitecture.in, insideoutbestvadodaraofficesarchitecture.co.in…)",
+    "web search for \"Studio Inside Out – Best Interior Designer in Vadodara for Homes, Offices & Architecture Services Vadodara\"",
+    "rejected justdial.com (listing site), in.linkedin.com (listing site), livspace.com (business name not on the page), studioinsideout.co.in (business name not on the page)"
+   ],
+   "email": "studioinsideoutbyhs@gmail.com",
+   "emailInfo": [
+    {
+     "email": "studioinsideoutbyhs@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [],
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 50 reviews, 4.8★",
+    "Has a personal email"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ4bRoNGfHXzkRZDiADmGaPqU",
+   "name": "Z R Interior Design",
+   "sec": 6.4,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (zrinteriordesign.com, zrinteriordesign.in, zrinteriordesign.co.in…)",
+    "web search for \"Z R Interior Design Vadodara\"",
+    "rejected sulekha.com (listing site), dial4trade.com (name is too generic to verify), ahmedabadinteriordesigner.in (name is too generic to verify), dial4trade.com (name is too generic to verify)"
+   ],
+   "phones": [
+    "+917878588859"
+   ],
+   "owner": "Z R Interior Design (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 158 reviews, 4.5★",
+    "Has a phone number",
+    "Owner: Z R Interior Design (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ0xDh1OTFXzkRtYZYZAOe8_M",
+   "name": "EVARA INTERIOR DESIGN",
+   "sec": 11,
+   "website": "https://www.instagram.com/p/DZRp3R8Gmok",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (evarainteriordesign.com, evarainteriordesign.in, evarainteriordesign.co.in…)",
+    "web search for \"EVARA INTERIOR DESIGN Vadodara\"",
+    "rejected evarainterior.great-site.net (name found but no matching phone or location), evarainterior.co.uk (name found but no matching phone or location), evaraassociates.com (name found but no matching phone or location), find-and-update.company-information.service.gov.uk (name found but no matching phone or location)"
+   ],
+   "phones": [
+    "+919016232790"
+   ],
+   "owner": "EVARA INTERIOR DESIGN (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 53 reviews, 4.9★",
+    "Has a phone number",
+    "Owner: EVARA INTERIOR DESIGN (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJBWFCrzrHXzkRGOe9i9kI1Lo",
+   "name": "Your Design Interiors-Interior Designers Vadodara",
+   "sec": 14.3,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "3 likely web addresses (yourvadodara.com, yourvadodara.in, yourvadodara.co.in…)",
+    "web search for \"Your Design Interiors-Interior Designers Vadodara Vadodara\"",
+    "rejected space13design.com (name only in the text, not the title), houzz.in (name only in the text, not the title), scribd.com (business name not on the page)"
+   ],
+   "phones": [
+    "+919824604038"
+   ],
+   "owner": "Your Design Interiors-Interior Designers Vadodara (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 71 reviews, 4.4★",
+    "Has a phone number",
+    "Owner: Your Design Interiors-Interior Designers Vadodara (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ6dGsLJbIXzkRuFqIghgcLRA",
+   "name": "Saar Interior Design",
+   "sec": 4.9,
+   "website": "https://saarinteriordesign.in/",
+   "via": "domain_guess",
+   "evidence": "business name and phone number are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (saarinteriordesign.com, saarinteriordesign.in, saarinteriordesign.co.in…)"
+   ],
+   "email": "info@saarinteriordesign.in",
+   "emailInfo": [
+    {
+     "email": "info@saarinteriordesign.in",
+     "kind": "own_generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+918141379939"
+   ],
+   "owner": "Saar Interior Design (Owner)",
+   "score": 25,
+   "tier": "cold",
+   "signals": [
+    "Busy business: 76 reviews, 4.8★",
+    "Has a phone number",
+    "Has an email",
+    "Owner: Saar Interior Design (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ_0cbtkfJXzkRyRt0D1zIIQs",
+   "name": "The LJ Interior Concept",
+   "sec": 6.2,
+   "website": "https://www.facebook.com/The.LJ.Interior.Concept/posts/-samruddhi-skyrise-1-kalalithe-lj-interior-concept-modern-bedroom-area-design-lu/1646726037154643",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (theljinteriorconcept.com, theljinteriorconcept.in, theljinteriorconcept.co.in…)",
+    "web search for \"The LJ Interior Concept Vadodara\"",
+    "rejected in.linkedin.com (listing site), justdial.com (listing site), gharpedia.com (mentions the business but isn't its own site), houzz.in (a page about it on another site)"
+   ],
+   "email": "lalitjangid48@gmail.com",
+   "emailInfo": [
+    {
+     "email": "lalitjangid48@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919638262328"
+   ],
+   "owner": "The LJ Interior Concept (Owner)",
+   "score": 75,
+   "tier": "hot",
+   "signals": [
+    "Uses Facebook as its website",
+    "Busy business: 51 reviews, 4.8★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: The LJ Interior Concept (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJm0aGbIjFXzkRgqsJptqoLLo",
+   "name": "Space13 Design Studio",
+   "sec": 4,
+   "website": "https://space13design.com/",
+   "via": "web_search",
+   "evidence": "business name and phone number are on the page, and the web address matches the name",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (space13designstudio.com, space13designstudio.in, space13designstudio.co.in…)",
+    "web search for \"Space13 Design Studio Vadodara\""
+   ],
+   "email": "space13designstudio@gmail.com",
+   "emailInfo": [
+    {
+     "email": "space13designstudio@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919173717652",
+    "+917383341307",
+    "+919191737176"
+   ],
+   "owner": "Space13 Design Studio (Owner)",
+   "score": 30,
+   "tier": "cold",
+   "signals": [
+    "Running since 2017",
+    "Busy business: 98 reviews, 4.9★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: Space13 Design Studio (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJkedXm4zFXzkRgyqYKgmqG4U",
+   "name": "Kedar Designs",
+   "sec": 2.2,
+   "website": "https://kedardesigns.com/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"kedar designs\" are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (kedardesigns.com, kedardesigns.in, kedardesigns.co.in…)"
+   ],
+   "phones": [
+    "+919662969122"
+   ],
+   "owner": "Kedar Designs (Owner)",
+   "score": 20,
+   "tier": "cold",
+   "signals": [
+    "Busy business: 120 reviews, 4.9★",
+    "Has a phone number",
+    "Owner: Kedar Designs (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJS-beFcLHXzkRlDhtaMwPTjQ",
+   "name": "The Royal Interior Studio",
+   "sec": 9.4,
+   "website": "https://theroyalinteriorstudio.com/",
+   "via": "domain_guess",
+   "evidence": "business name and phone number are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (theroyalinteriorstudio.com, theroyalinteriorstudio.in, theroyalinteriorstudio.co.in…)"
+   ],
+   "email": "theroyalinteriorstudio@gmail.com",
+   "emailInfo": [
+    {
+     "email": "theroyalinteriorstudio@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919106369151",
+    "+918140754393",
+    "+919181407543"
+   ],
+   "owner": "The Royal Interior Studio (Owner)",
+   "score": 15,
+   "tier": "cold",
+   "signals": [
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: The Royal Interior Studio (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJmzRvvNXHXzkRns5g3Jb2fqU",
+   "name": "Sunrise Interiors",
+   "sec": 17.3,
+   "website": "https://www.instagram.com/sunrise_interior746",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (sunriseinteriors.com, sunriseinteriors.in, sunriseinteriors.co.in…)",
+    "web search for \"Sunrise Interiors Vadodara\"",
+    "rejected tradeindia.com (listing site), justdial.com (listing site), sunriseinteriors.design (name found but no matching phone or location), sunriseinteriorhub.com (name found but no matching phone or location)"
+   ],
+   "phones": [
+    "+919510880746"
+   ],
+   "owner": "Sunrise Interiors (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 74 reviews, 4.9★",
+    "Has a phone number",
+    "Owner: Sunrise Interiors (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJfTlH3vPJXzkRI0VetBUc4y4",
+   "name": "One Interior",
+   "sec": 4.1,
+   "website": "https://oneinterior.in/",
+   "via": "domain_guess",
+   "evidence": "business name and phone number are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (oneinterior.com, oneinterior.in, oneinterior.co.in…)"
+   ],
+   "phones": [
+    "+919157870147"
+   ],
+   "owner": "One Interior (Owner)",
+   "score": 20,
+   "tier": "cold",
+   "signals": [
+    "Built by baldevtech",
+    "Busy business: 77 reviews, 5.0★",
+    "Has a phone number",
+    "Owner: One Interior (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJEapfnUPHXzkRW8xF34B8K_s",
+   "name": "Studio InteriorWall",
+   "sec": 8.1,
+   "website": "https://studiointeriorwall.com/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (studiointeriorwall.com, studiointeriorwall.in, studiointeriorwall.co.in…)"
+   ],
+   "phones": [
+    "+917984552970"
+   ],
+   "owner": "Studio InteriorWall (Owner)",
+   "score": 10,
+   "tier": "cold",
+   "signals": [
+    "Built by Studio InteriorWall",
+    "Has a phone number",
+    "Owner: Studio InteriorWall (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJRb8R7KrHXzkRBF9FxgOvAes",
+   "name": "Makeover Design Studio",
+   "sec": 12.1,
+   "via": "none_found",
+   "tried": [
+    "Google Maps (scraper)",
+    "9 likely web addresses (makeoverdesignstudio.com, makeoverdesignstudio.in, makeoverdesignstudio.co.in…)",
+    "web search for \"Makeover Design Studio Vadodara\"",
+    "rejected linkedin.com (listing site), in.linkedin.com (listing site), houzz.in (name is too generic to verify), houzz.in (name is too generic to verify)"
+   ],
+   "email": "themakeoverdesign@gmail.com",
+   "emailInfo": [
+    {
+     "email": "themakeoverdesign@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+918320869701"
+   ],
+   "owner": "Makeover Design Studio (Owner)",
+   "score": 80,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Busy business: 57 reviews, 4.8★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: Makeover Design Studio (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJ7aBfMHnJXzkRdE085TVeMys",
+   "name": "Sampoorna Design Studio",
+   "sec": 12.9,
+   "website": "https://www.sampoornadesignstudio.com/",
+   "via": "domain_guess",
+   "evidence": "business name and phone number are on the page",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (sampoornadesignstudio.com, sampoornadesignstudio.in, sampoornadesignstudio.co.in…)"
+   ],
+   "email": "sampoornadesignstudio@gmail.com",
+   "emailInfo": [
+    {
+     "email": "sampoornadesignstudio@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    },
+    {
+     "email": "support@test.com",
+     "kind": "generic",
+     "deliverable": false
+    }
+   ],
+   "phones": [
+    "+919714105474",
+    "+917041547639",
+    "+919197141054",
+    "+157189993939"
+   ],
+   "owner": "Sampoorna Design Studio (Owner)",
+   "score": 35,
+   "tier": "cold",
+   "signals": [
+    "Not updated since 2021",
+    "Busy business: 71 reviews, 4.9★",
+    "Has a phone number",
+    "Has a personal email",
+    "Owner: Sampoorna Design Studio (Owner)"
+   ]
+  },
+  {
+   "id": "gmaps/ChIJue-nVZPFXzkRbyI9FPhE_5E",
+   "name": "Fourteenth Four Design Studio",
+   "sec": 2.6,
+   "website": "https://www.instagram.com/1404designstudio_?hl=en",
+   "via": "web_search",
+   "evidence": "social page found by web search (its title carries the business name)",
+   "tried": [
+    "Google Maps (scraper)",
+    "10 likely web addresses (fourteenthfourdesignstudio.com, fourteenthfourdesignstudio.in, fourteenthfourdesignstudio.co.in…)",
+    "web search for \"Fourteenth Four Design Studio Vadodara\"",
+    "rejected wanderlog.com (a page about it on another site), gharpedia.com (a page about it on another site), tracxn.com (business name not on the page), mapquest.com (listing site)"
+   ],
+   "phones": [
+    "+919662412321"
+   ],
+   "owner": "Fourteenth Four Design Studio (Owner)",
+   "score": 70,
+   "tier": "hot",
+   "signals": [
+    "Uses Instagram as its website",
+    "Busy business: 50 reviews, 4.9★",
+    "Has a phone number",
+    "Owner: Fourteenth Four Design Studio (Owner)"
+   ]
+  }
+ ]
+}
