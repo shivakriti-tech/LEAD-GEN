@@ -1,0 +1,60 @@
+# Starts from SearXNG's defaults and changes only what Lead Autopilot needs.
+use_default_settings: true
+
+general:
+  instance_name: "Lead Autopilot search"
+
+search:
+  safe_search: 0
+  default_lang: "en-IN"
+  # The app asks for JSON. Without "json" here SearXNG answers 403.
+  formats:
+    - html
+    - json
+  # When an engine shows a captcha, SearXNG pauses it. Defaults are up to a day;
+  # retry sooner so a short block doesn't knock search out for the whole day.
+  suspended_times:
+    SearxEngineAccessDenied: 3600
+    SearxEngineCaptcha: 3600
+    SearxEngineTooManyRequests: 600
+    cf_SearxEngineCaptcha: 3600
+    cf_SearxEngineAccessDenied: 3600
+    recaptcha_SearxEngineCaptcha: 3600
+
+server:
+  # Change this to any long random text before you share the machine with anyone.
+  secret_key: "change-me-to-a-long-random-string-leadautopilot"
+  # Only you use this instance, so the bot limiter isn't needed.
+  limiter: false
+  image_proxy: false
+
+# Which engines to use.
+# On a home connection DuckDuckGo, Startpage and Brave start showing captchas quickly,
+# and every search that hits them makes the block last longer. So they're off.
+# Google is kept (its block clears after about an hour); Bing, Mojeek, Yahoo and Qwant
+# rarely block and do most of the work. Wikipedia/Wikidata don't help find businesses.
+engines:
+  - name: google
+    disabled: false
+  - name: bing
+    disabled: false
+  - name: mojeek
+    disabled: false
+  - name: yahoo
+    disabled: false
+  - name: qwant
+    disabled: false
+  - name: duckduckgo
+    disabled: true
+  - name: startpage
+    disabled: true
+  - name: brave
+    disabled: true
+  - name: wikipedia
+    disabled: true
+  - name: wikidata
+    disabled: true
+  - name: ahmia
+    disabled: true
+  - name: torch
+    disabled: true

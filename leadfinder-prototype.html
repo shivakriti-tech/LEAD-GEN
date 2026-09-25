@@ -1,0 +1,756 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0">
+<title>Lead Autopilot Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600&family=DM+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#E4F9F5; --surface:#FFFFFF; --sunk:#EDF7F5; --ink:#1B2826; --muted:#4F605C; --line:#CBE6E0;
+  --accent:#11999E; --accent-ink:#FFFFFF; --accent-soft:#D1F6EF;
+  --btn:#40514E; --btn-ink:#FFFFFF;
+  --gold:#0B7377; --gold-soft:#D1F6EF; --lav:#30E3CA;
+  --side:#40514E; --side-ink:#E4F9F5; --side-muted:#B3C7C3; --side-hover:#4C5F5B; --side-active:#30E3CA; --side-active-ink:#10201E;
+  --bad:#B53A2E; --bad-soft:#FCE4DF; --warn:#86620A; --warn-soft:#FFF0C2; --good:#0B7377; --good-soft:#D1F6EF;
+  --shadow:0 1px 2px rgba(27,40,38,.06),0 4px 16px rgba(17,153,158,.08);
+  --display:"Unbounded",ui-sans-serif,system-ui,sans-serif;
+  --body:"Schibsted Grotesk","Noto Sans Devanagari",ui-sans-serif,system-ui,sans-serif;
+  --mono:"DM Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#111918; --surface:#182321; --sunk:#1F2D2A; --ink:#E4F9F5; --muted:#9FB5B0; --line:#2B3B38;
+  --accent:#30E3CA; --accent-ink:#0D1A18; --accent-soft:#163A36;
+  --btn:#30E3CA; --btn-ink:#0D1A18;
+  --gold:#30E3CA; --gold-soft:#163A36; --lav:#30E3CA;
+  --side:#0B1211; --side-ink:#E4F9F5; --side-muted:#92A8A3; --side-hover:#1F2D2A; --side-active:#30E3CA; --side-active-ink:#0D1A18;
+  --bad:#F0907D; --bad-soft:#3D2019; --warn:#E8C160; --warn-soft:#3A3014; --good:#30E3CA; --good-soft:#163A36;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+}}
+:root[data-theme="dark"]{
+  --ground:#111918; --surface:#182321; --sunk:#1F2D2A; --ink:#E4F9F5; --muted:#9FB5B0; --line:#2B3B38;
+  --accent:#30E3CA; --accent-ink:#0D1A18; --accent-soft:#163A36;
+  --btn:#30E3CA; --btn-ink:#0D1A18;
+  --gold:#30E3CA; --gold-soft:#163A36; --lav:#30E3CA;
+  --side:#0B1211; --side-ink:#E4F9F5; --side-muted:#92A8A3; --side-hover:#1F2D2A; --side-active:#30E3CA; --side-active-ink:#0D1A18;
+  --bad:#F0907D; --bad-soft:#3D2019; --warn:#E8C160; --warn-soft:#3A3014; --good:#30E3CA; --good-soft:#163A36;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font:15px/1.5 var(--body)}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--display);font-weight:600;margin:0;text-wrap:balance;letter-spacing:-.025em}
+h2{font-weight:500}
+.mono,.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.sub{color:var(--muted);font-size:13px}
+.lbl{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+.demo-bar{background:#30E3CA;color:#10201E;font-size:13px;padding:6px 16px;text-align:center;border-bottom:1px solid var(--line)}
+.shell{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 34px)}
+.side{padding:20px 14px;display:flex;flex-direction:column;gap:20px;background:var(--side);color:var(--side-ink)}
+.side .sub{color:var(--side-muted)}
+.brand{padding:0 8px;display:flex;flex-direction:column;gap:2px}
+.brand b{font-family:var(--display);font-weight:600;font-size:18px;letter-spacing:-.02em;color:#30E3CA}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{all:unset;cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-items:center;padding:9px 10px;border-radius:8px;color:var(--side-muted);font-weight:500}
+.nav button:hover{background:var(--side-hover);color:var(--side-ink)}
+.nav button[aria-current="page"]{background:var(--side-active);color:var(--side-active-ink)}
+.nav button:focus-visible{outline:2px solid var(--side-active)}
+.nav .count{font-family:var(--mono);font-size:12px;color:inherit;opacity:.8}
+.side-foot{margin-top:auto;padding:12px 10px;border-radius:10px;background:var(--side-hover);font-size:13px;display:flex;flex-direction:column;gap:8px}
+.meter{height:6px;border-radius:3px;background:rgba(255,255,255,.15);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--lav)}
+
+main{padding:22px clamp(16px,3vw,34px) 48px;min-width:0}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.top h1{font-size:28px}
+.top p{margin:4px 0 0;color:var(--muted);max-width:62ch}
+.credit-chip{display:inline-flex;align-items:center;gap:10px;padding:8px 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);white-space:nowrap}
+.credit-chip .coin{width:18px;height:18px;border-radius:50%;background:var(--lav);box-shadow:inset 0 0 0 4px #11999E}
+.credit-chip b{font-family:var(--mono);font-size:17px}
+.credit-chip.pulse{animation:pulse .6s}
+@keyframes pulse{50%{transform:scale(1.07)}}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.field{display:flex;flex-direction:column;gap:4px;min-width:150px;flex:1 1 180px}
+select,input,textarea{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+textarea{resize:vertical;line-height:1.55}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{background:var(--sunk)}
+.btn.primary{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.sm{padding:4px 9px;font-size:13px}
+.btn[disabled]{opacity:.55;cursor:not-allowed}
+.cost{font-family:var(--mono);font-size:12px;padding:1px 6px;border-radius:999px;background:var(--gold-soft);color:var(--gold)}
+.btn.primary .cost{background:rgba(255,255,255,.2);color:inherit}
+.tag{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--sunk);color:var(--muted);white-space:nowrap;display:inline-block}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.tag.good{background:var(--good-soft);color:var(--good)}
+.tag.acc{background:var(--accent-soft);color:var(--good)}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:rot .7s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* setup */
+.steps{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.step{display:flex;gap:8px;align-items:center;padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:14px;color:var(--muted)}
+.step b{width:20px;height:20px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;font-size:12px;font-family:var(--mono)}
+.step[data-on="1"]{border-color:var(--accent);color:var(--ink)}
+.step[data-on="1"] b{background:var(--lav);color:#10201E}
+.step[data-done="1"] b{background:var(--good-soft);color:var(--good)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.readout{background:var(--sunk);border-radius:10px;padding:12px 14px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px;font-size:14px}
+.readout dt{color:var(--muted)}
+.readout dd{margin:0;overflow-wrap:anywhere}
+.est{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.est:first-child{border-top:0}
+
+/* autopilot */
+.funnel{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.funnel.f4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.fcell{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px}
+.fcell .n{font-family:var(--display);font-weight:500;font-size:26px;line-height:1.1;font-variant-numeric:tabular-nums}
+.fcell .t{font-size:13px;color:var(--muted)}
+.fcell.win{border-color:#40514E;background:#40514E;color:#E4F9F5}
+.fcell.win .t{color:#30E3CA}
+.fcell.win .fbar{background:rgba(255,255,255,.18)}
+.fcell.win .fbar i{background:#30E3CA}
+.fbar{height:4px;border-radius:2px;background:var(--line);margin-top:8px;overflow:hidden}
+.fbar i{display:block;height:100%;background:var(--accent)}
+.runbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.live{display:inline-flex;align-items:center;gap:7px;font-weight:600}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 60%,transparent);animation:ping 1.6s infinite}
+.dot.off{background:var(--muted);animation:none}
+@keyframes ping{70%{box-shadow:0 0 0 8px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.progress{flex:1 1 180px;height:8px;border-radius:4px;background:var(--sunk);overflow:hidden;min-width:140px}
+.progress i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.two{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px;align-items:start}
+.feed{display:flex;flex-direction:column;max-height:560px;overflow:auto}
+.ev{display:grid;grid-template-columns:60px 22px 1fr auto;gap:10px;padding:9px 0;border-top:1px solid var(--line);align-items:start;font-size:14px}
+.ev:first-child{border-top:0}
+.ev .when{color:var(--muted);font-family:var(--mono);font-size:12px}
+.ev .ic{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:11px;background:var(--sunk);color:var(--muted)}
+.ev .ic.good{background:var(--good-soft);color:var(--good)}
+.ev .ic.bad{background:var(--bad-soft);color:var(--bad)}
+.ev .ic.acc{background:var(--accent-soft);color:var(--accent)}
+.ev .cr{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.ev.fresh{animation:fade .5s}
+@keyframes fade{from{opacity:0;transform:translateY(-4px)}}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+td.amt{text-align:right;font-family:var(--mono);white-space:nowrap}
+tr.clickable:hover td{background:var(--sunk);cursor:pointer}
+
+/* inbox */
+.inbox{display:grid;grid-template-columns:280px minmax(0,1fr);gap:14px;align-items:start}
+.threads{display:flex;flex-direction:column;gap:2px;max-height:620px;overflow:auto}
+.thread{all:unset;cursor:pointer;padding:10px;border-radius:10px;display:flex;flex-direction:column;gap:3px}
+.thread:hover{background:var(--sunk)}
+.thread[aria-current="true"]{background:var(--accent-soft)}
+.thread:focus-visible{outline:2px solid var(--accent)}
+.thread .l1{display:flex;justify-content:space-between;gap:8px;font-weight:600;font-size:14px}
+.chat{display:flex;flex-direction:column;gap:10px;max-height:520px;overflow:auto;padding:4px 2px}
+.msg{max-width:min(520px,86%);padding:10px 12px;border-radius:14px;font-size:14px;white-space:pre-wrap}
+.msg .meta{font-size:11px;color:var(--muted);margin-top:6px;display:flex;gap:8px;align-items:center}
+.msg.out{align-self:flex-end;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);border-bottom-right-radius:4px}
+.msg.in{align-self:flex-start;background:var(--sunk);border-bottom-left-radius:4px}
+.msg.sys{align-self:center;background:transparent;border:1px dashed var(--line);color:var(--muted);font-size:13px;text-align:center;max-width:100%}
+.composer{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:8px}
+
+/* credits */
+.price-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.price{display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
+.price b{font-family:var(--mono)}
+.rules{margin:0;padding-left:18px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:4px}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.chk input{width:auto;margin-top:4px;accent-color:var(--accent)}
+.chk:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.hcard{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
+.alert{background:var(--sunk);border-radius:12px;padding:12px;font-size:13px;white-space:pre-wrap}
+@media (max-width:900px){.hcard{grid-template-columns:1fr}}
+.src{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.src:first-of-type{border-top:0}
+.srcdot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);padding:18px;width:min(620px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(10,20,17,.45)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--ground);padding:10px 16px;border-radius:10px;font-size:14px;box-shadow:var(--shadow);max-width:calc(100vw - 32px);z-index:10}
+
+@media (max-width:1100px){.funnel{grid-template-columns:repeat(3,minmax(0,1fr))}.two,.inbox,.grid2{grid-template-columns:1fr}}
+@media (max-width:760px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .side{min-width:0}
+  .side{padding:12px 16px;gap:10px}
+  .nav{flex-direction:row;overflow-x:auto}
+  .nav button{white-space:nowrap}
+  .side-foot{display:none}
+  .funnel,.funnel.f4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .top h1{font-size:23px}
+  .ev{grid-template-columns:52px 22px 1fr;grid-auto-rows:min-content}
+  .ev .cr{grid-column:3;justify-self:start}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="demo-bar">Clickable prototype · sample data only · name and prices not decided yet</div>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><b>Lead Autopilot</b><small class="sub">working name · Shree Interiors, Pune</small></div>
+    <nav class="nav" aria-label="Main">
+      <button data-view="setup">Setup</button>
+      <button data-view="run">Autopilot <span class="count" id="navRun"></span></button>
+      <button data-view="inbox">Conversations <span class="count" id="navInbox"></span></button>
+      <button data-view="hand">Handed to you <span class="count" id="navHand"></span></button>
+      <button data-view="sources">Sources &amp; channels</button>
+      <button data-view="credits">Credits <span class="count" id="navCredits"></span></button>
+    </nav>
+    <div class="side-foot">
+      <div><b>Credits left</b> <span class="num" id="sideBal"></span></div>
+      <div class="meter"><i id="sideMeter"></i></div>
+      <div class="sub" id="sideCap"></div>
+    </div>
+  </aside>
+  <main id="main"></main>
+</div>
+<dialog id="dlg"></dialog>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+/* ============ pricing (per action) ============ */
+const P={find:1,email:3,phone:8,li:2,first:1,follow:1,reply:2,hand:10,analyse:0};
+const PRICE_LIST=[
+ ["Lead found, checked against your business",P.find,"Charged once per lead. Duplicates and closed businesses are free."],
+ ["Verified email address",P.email,"Nothing charged if no valid email exists."],
+ ["WhatsApp number, verified and DND-checked",P.phone,"Messages go from our verified WhatsApp Business number."],
+ ["First message (email, WhatsApp or LinkedIn)",P.first,"Written by AI from your website summary. LinkedIn ones are sent by our team."],
+ ["Follow-up message",P.follow,"Up to 2 per lead, then the lead is closed."],
+ ["AI handles an incoming reply",P.reply,"Answers questions, sends prices, handles objections."],
+ ["LinkedIn profile of the decision-maker",P.li,"Nothing charged if we can't find the right person."],
+ ["Interested lead handed to you",P.hand,"Charged only when the lead says yes. Credits back if they deny it when you call."],
+ ["Website analysis of your own business",P.analyse,"Free on signup. 2 credits to run it again later."]
+];
+
+/* ============ sample customer + leads ============ */
+const BIZ={name:"Shree Interiors",city:"Pune",site:"shreeinteriors.example",
+ sells:"Interior design and turnkey fit-outs for homes, clinics, cafés and offices",
+ services:["Turnkey office and clinic fit-outs","Modular kitchens and wardrobes","Café and retail interiors","3D design and site supervision"],
+ proof:["11 years in business","140+ projects in Pune","In-house carpentry unit, 45-day delivery"],
+ ideal:"Newly opened or shifting businesses in Pune with 800–5,000 sq ft space",
+ tone:"Warm, practical, no jargon"};
+
+const L=[
+ {src:"Google Maps",id:1,name:"Physiofirst Rehab Centre",person:"Dr. Kavya Iyer",cat:"Physiotherapy clinic",area:"Aundh",ch:"email",why:"Opened 5 months ago, second branch announced"},
+ {src:"Google Maps",id:2,name:"Skyline Homes & Plots",person:"Amit Patil",cat:"Property broker",area:"Hinjewadi",ch:"wa",why:"New office listed on Google 3 weeks ago"},
+ {src:"Google Maps",id:3,name:"Brew & Bloom Café",person:"Ananya Dubey",cat:"Café",area:"Baner",ch:"wa",why:"'Opening soon' page, no fit-out contractor listed"},
+ {src:"LinkedIn",id:4,name:"GrowthGully",person:"Nikhil Joshi",cat:"Marketing agency",area:"Baner",ch:"li",why:"Hiring 12 people, likely shifting office"},
+ {src:"Google Maps",id:5,name:"Keystone Properties",person:"Meera Sawant",cat:"Real estate agency",area:"Kharadi",ch:"email",why:"Two new branches announced on Instagram"},
+ {src:"LinkedIn",id:6,name:"WebNest Solutions",person:"Rahul Tiwari",cat:"IT company",area:"Wakad",ch:"email",why:"Moved to a bigger floor last month"},
+ {src:"Google Maps",id:7,name:"GlowDerm Skin Clinic",person:"Dr. Sana Qureshi",cat:"Skin clinic",area:"Viman Nagar",ch:"wa",why:"New clinic registered in July"},
+ {src:"Google Maps",id:8,name:"UrbanKey Realty",person:"Karan Mehta",cat:"Property broker",area:"Kharadi",ch:"email",why:"Opened 2 months ago, no office photos yet"},
+ {src:"LinkedIn",id:9,name:"Nestway Coworking",person:"Priya Khandelwal",cat:"Coworking space",area:"Baner",ch:"email",why:"4,000 sq ft floor taken on lease"},
+ {src:"Apollo",id:10,name:"Aravali Buildcon",person:"Vikram Rathore",cat:"Builder",area:"Wakad",ch:"wa",why:"Sample flat under construction"}
+];
+const lead=id=>L.find(x=>x.id===id);
+
+/* ============ scripted run ============ */
+/* kinds: find, contact(email/phone), sent, deliv, open, reply, ai, follow, bounce, refund, meet, optout, sys, wait */
+const E=[];
+const ev=(d,t,id,kind,text,credits,note)=>E.push({d,t,id,kind,text,credits:credits||0,note});
+
+ev(1,"09:12",1,"find",null,P.find); ev(1,"09:12",1,"contact","Verified email found",P.email);
+ev(1,"09:14",2,"find",null,P.find); ev(1,"09:14",2,"contact","WhatsApp number verified · not on DND",P.phone);
+ev(1,"09:15",3,"find",null,P.find); ev(1,"09:15",3,"contact","WhatsApp number verified · not on DND",P.phone);
+ev(1,"09:16",4,"find",null,P.find); ev(1,"09:16",4,"contact","LinkedIn profile found · Founder, GrowthGully",P.li);
+ev(1,"09:17",5,"find",null,P.find); ev(1,"09:17",5,"contact","Verified email found",P.email);
+ev(1,"09:18",6,"find",null,P.find); ev(1,"09:18",6,"contact","Verified email found from LinkedIn profile + company site",P.email);
+ev(1,"09:19",7,"find",null,P.find); ev(1,"09:19",7,"contact","WhatsApp number verified · not on DND",P.phone);
+ev(1,"09:20",8,"find",null,P.find); ev(1,"09:20",8,"contact","Verified email found",P.email);
+ev(1,"09:21",9,"find",null,P.find); ev(1,"09:21",9,"contact","Verified email found",P.email);
+ev(1,"09:22",10,"find",null,P.find); ev(1,"09:22",10,"contact","WhatsApp number verified · not on DND",P.phone);
+
+ev(1,"09:40",1,"sent","Subject: Second branch in Baner?\n\nHi Dr. Iyer,\n\nI saw that Physiofirst is opening a second branch. I work with Shree Interiors in Pune — we do turnkey fit-outs for clinics, so treatment rooms, reception and storage come ready to use in about 45 days.\n\nA recent one: a 900 sq ft physio clinic in Kothrud, handed over in 6 weeks.\n\nWould a quick site visit help you plan the layout?\n\nNeha\nfor Shree Interiors",P.first);
+ev(1,"10:05",2,"sent","Namaste Amit ji, Main Neha, Shree Interiors ki taraf se likh rahi hoon. Aapka naya Hinjewadi office Google pe dikha — badhai! Hum property offices ka turnkey interior karte hain: reception, meeting cabin, storage, sab 45 din mein ready. Kya aap layout dekhna chahenge?",P.first);
+ev(1,"10:06",2,"deliv","Delivered on WhatsApp");
+ev(1,"10:20",3,"sent","Namaste Ananya ji, Main Neha, Shree Interiors ki taraf se likh rahi hoon. Aapka 'Brew & Bloom opening soon' page dekha. Hum cafés ka interior karte hain — seating, counter, lighting, sab ek hi team se. Baner mein 2 cafés recently complete kiye hain. Photos bhejun?",P.first);
+ev(1,"10:21",3,"deliv","Delivered on WhatsApp");
+ev(1,"10:35",4,"li","Hi Nikhil, saw GrowthGully is hiring 12 people, congrats. I work with Shree Interiors, who fit out offices in Pune. Would be glad to connect.",P.first);
+ev(1,"10:36",4,"sys","Connection request queued. Arjun from our team sends it by hand from LinkedIn.");
+ev(1,"10:50",5,"bounce","Email bounced: mailbox does not exist");
+ev(1,"10:51",5,"refund","Refund for the bad email address",-P.email);
+ev(1,"10:52",5,"sys","Switching this lead to WhatsApp");
+ev(1,"10:53",5,"contact","WhatsApp number verified · not on DND",P.phone);
+ev(1,"11:00",5,"sent","Namaste Meera ji, Main Neha, Shree Interiors ki taraf se likh rahi hoon. Aapke do naye branches ke baare mein Instagram pe padha. Hum real estate offices ka turnkey interior karte hain — dono branches ek jaise design mein, 45 din mein. Kya main ek sample layout bhejun?",P.first);
+ev(1,"11:01",5,"deliv","Delivered on WhatsApp");
+ev(1,"11:05",1,"open","Email opened");
+ev(1,"11:15",6,"sent","Subject: New floor at WebNest?\n\nHi Rahul,\n\nCongratulations on the bigger office. We fit out IT floors in Pune — workstations, meeting rooms, acoustics and cabling, done as one contract.\n\nWould you like our catalogue and a few recent floors we've done?\n\nNeha\nfor Shree Interiors",P.first);
+ev(1,"11:30",7,"sent","Namaste Dr. Qureshi, Main Neha, Shree Interiors ki taraf se likh rahi hoon. Aapka naya skin clinic Viman Nagar mein register hua dekha. Hum clinics ka turnkey interior karte hain. Kya aap design options dekhna chahenge?",P.first);
+ev(1,"11:31",7,"deliv","Delivered on WhatsApp");
+ev(1,"11:45",8,"sent","Subject: Office interiors for UrbanKey\n\nHi Karan,\n\nUrbanKey opened a couple of months ago and there are no office photos on your Google profile yet. A tidy reception and a closed meeting cabin change how walk-in clients judge a property office.\n\nWe do this as a fixed-cost, 45-day job. Want to see two layouts?\n\nNeha\nfor Shree Interiors",P.first);
+ev(1,"12:00",9,"sent","Subject: 4,000 sq ft in Baner\n\nHi Priya,\n\nHeard Nestway has taken a 4,000 sq ft floor in Baner. We do coworking fit-outs — cabins, phone booths, pantry and acoustics — as one turnkey contract.\n\nOur last coworking floor was 3,800 sq ft, handed over in 52 days.\n\nShall I send the layout and costing format?\n\nNeha\nfor Shree Interiors",P.first);
+ev(1,"12:10",10,"sent","Namaste Vikram ji, Main Neha, Shree Interiors ki taraf se likh rahi hoon. Aapka sample flat under construction dekha. Hum sample flats ka complete interior karte hain — furniture, lighting, styling. 3 recent sample flats ke photos bhej sakta hoon. Theek rahega?",P.first);
+ev(1,"12:11",10,"deliv","Delivered on WhatsApp");
+ev(1,"12:30",2,"reply","Office 1200 sqft ka hai. Budget kitna aayega approx?");
+ev(1,"12:31",2,"ai","Amit ji, 1200 sq ft property office ke liye hamara turnkey range ₹14–22 lakh rehta hai — isme reception, 2 cabin, open seating, storage, lighting aur electrical sab included hai. Exact number layout dekhne ke baad milta hai. Kya main Thursday ya Friday site visit ke liye time le lun?",P.reply);
+ev(1,"14:05",8,"open","Email opened");
+ev(1,"16:20",1,"reply","We are opening the second branch in Baner next month, around 900 sq ft. What would a clinic that size cost roughly, and how long does it take?");
+ev(1,"16:21",1,"ai","Hi Dr. Iyer,\n\nFor a 900 sq ft physio clinic we usually land between ₹12 and ₹18 lakh, depending on how much cabinetry and flooring you want. That covers reception, 3–4 treatment cabins, storage and lighting, done as one contract.\n\nTimeline is 45 days from design sign-off, and we work around your existing branch's schedule.\n\nWould Thursday 4 pm suit you for a site visit? Our designer can bring the layout options.",P.reply);
+ev(1,"17:40",3,"reply","Hum October first week mein open kar rahe hain. Seating aur counter design chahiye. Photos bhejiye.");
+ev(1,"17:41",3,"ai","Bilkul Ananya ji, 3 recent café projects ke photos bhej raha hoon (Baner aur Aundh). 1,100 sq ft tak ke café ka turnkey range ₹9–15 lakh rehta hai, 40–45 din mein handover. Aap opening October first week rakh rahe hain to design abhi lock karna hoga. Kya Saturday 11 baje site pe mil sakte hain?",P.reply);
+ev(1,"18:30",7,"reply","Not interested. Please do not message again. STOP");
+ev(1,"18:31",7,"optout","Lead marked do-not-contact. All future messages stopped. Nothing charged.");
+
+ev(2,"09:15",2,"reply","Photos bhej raha hoon office ka. Thursday 4 baje theek hai.");
+ev(2,"09:16",2,"ai","Perfect Amit ji, photos mil gaye. Main aapko Shree Interiors ke lead designer Rohit se connect kar rahi hoon. Woh aaj 6 baje tak call karke Thursday ki site visit fix kar lenge. Unka number: +91 90000 00099.",P.reply);
+ev(2,"09:17",2,"hand","Handed to Shree Interiors · Rohit to call today by 6 pm",P.hand);
+ev(2,"10:02",1,"reply","Thursday 4 pm works. Please share the designer's number.");
+ev(2,"10:03",1,"ai","Thank you, Dr. Iyer. I'm passing you to Rohit, the lead designer at Shree Interiors. He'll call you today before 6 pm to confirm Thursday 4 pm and bring two clinic layouts.\n\nHis number is +91 90000 00099.",P.reply);
+ev(2,"10:04",1,"hand","Handed to Shree Interiors · Rohit to call today by 6 pm",P.hand);
+ev(2,"11:20",6,"open","Email opened");
+ev(2,"11:45",6,"reply","Send the catalogue and some of your past IT office work.");
+ev(2,"11:46",6,"ai","Hi Rahul,\n\nAttached is our catalogue, plus three IT floors we finished this year in Hinjewadi, Baner and Kharadi (2,400–6,000 sq ft).\n\nIf you tell me the carpet area and how many seats you need, I'll send an indicative cost by tomorrow. Would that help?",P.reply);
+ev(2,"12:00",9,"open","Email opened");
+ev(2,"15:10",9,"reply","What's your timeline for 4,000 sq ft, and do you handle the fire NOC drawings?");
+ev(2,"15:11",9,"ai","Hi Priya,\n\n4,000 sq ft coworking takes us about 50–55 days from design sign-off, working in two shifts if you need it faster.\n\nYes — we prepare the fire NOC drawings and coordinate the consultant, though the application stays in the building owner's name.\n\nCould we meet Wednesday at your Baner floor to measure and take you through the layout?",P.reply);
+ev(2,"16:40",5,"reply","Layout bhejiye. Dono branch same design chahiye.");
+ev(2,"16:41",5,"ai","Zaroor Meera ji. Dono branches ke liye ek hi design language rakhenge — same flooring, branding wall aur reception unit, size ke hisab se adjust hoga. Ek sample layout aur ₹ per sq ft range bhej raha hoon. Kya Friday 12 baje ek branch pe measurement le sakte hain?",P.reply);
+
+ev(2,"09:40",4,"deliv","Connection accepted on LinkedIn");
+ev(2,"09:45",4,"li","Thanks for connecting, Nikhil. If the hiring means a bigger office, Shree Interiors does turnkey fit-outs (workstations, cabins, cabling) in about 45 days. Happy to send a layout and rough cost whenever you're ready.",P.first);
+ev(3,"10:15",8,"follow","Subject: Re: Office interiors for UrbanKey\n\nHi Karan, following up once. Even a reception refresh takes about 3 weeks and under ₹3 lakh. Want me to send that smaller option instead?\n\nNeha, for Shree Interiors",P.follow);
+ev(3,"11:00",10,"follow","Vikram ji, ek baar aur follow up kar raha hoon. Sample flat ke 3 recent photos aur ek 2BHK ka costing format bhej dun?",P.follow);
+ev(3,"12:20",9,"reply","Wednesday 11 am works. Come to the Baner floor.");
+ev(3,"12:21",9,"ai","Great, Priya. I've passed your details to Rohit, the lead designer at Shree Interiors. He'll call you this afternoon to confirm Wednesday 11 am at your Baner floor, and bring the measuring kit and sample boards.",P.reply);
+ev(3,"12:22",9,"hand","Handed to Shree Interiors · Rohit to call this afternoon",P.hand);
+ev(3,"14:00",3,"reply","Saturday 11 am ok. Address bhej dijiye.");
+ev(3,"14:01",3,"ai","Perfect Ananya ji. Shree Interiors ke Rohit aapko aaj shaam call karenge aur Saturday 11 baje ki site visit confirm karenge. Material samples bhi saath laayenge.",P.reply);
+ev(3,"14:02",3,"hand","Handed to Shree Interiors · Rohit to call this evening",P.hand);
+ev(3,"16:30",10,"reply","Abhi structure chal raha hai. 2 mahine baad baat karte hain.");
+ev(3,"16:31",10,"ai","Bilkul Vikram ji, koi jaldi nahi. Main November mein ek baar check kar lunga. Tab tak 2 sample flat ke photos bhej raha hoon, reference ke liye rakhiye.",P.reply);
+ev(3,"16:32",10,"sys","Lead moved to 'Follow up later' · reminder set for 18 Nov");
+
+ev(4,"09:10",6,"reply","4,200 sq ft, 60 seats. Send the indicative cost.");
+ev(4,"09:11",6,"ai","Thanks Rahul. For 4,200 sq ft and 60 seats, an indicative turnkey range is ₹58–76 lakh, depending on cabin count, acoustics and furniture grade. Detailed BOQ comes after a site measurement.\n\nCan our team visit this week to measure? Tuesday or Thursday, whichever suits.",P.reply);
+ev(4,"11:30",4,"reply","Thanks. Not right now, we're moving in January. Ping me in December.");
+ev(4,"11:31",4,"ai","Makes sense, Nikhil. I'll check back in early December with a planning checklist so the move timeline is sorted. All the best with the hiring!",P.reply);
+ev(4,"11:32",4,"sys","Lead moved to 'Follow up later' · reminder set for 1 Dec");
+ev(4,"15:00",8,"sys","No reply after 1 follow-up. One more follow-up scheduled for 22 Sep.");
+ev(4,"15:30",5,"reply","Friday 12 theek hai.");
+ev(4,"15:31",5,"ai","Dhanyavaad Meera ji. Shree Interiors ke Rohit aapko kal subah call karke Friday 12 baje Kharadi branch ka measurement confirm karenge.",P.reply);
+ev(4,"15:32",5,"hand","Handed to Shree Interiors · Rohit to call tomorrow morning",P.hand);
+
+const HAND={
+ 1:{need:"Clinic fit-out for a second branch, about 900 sq ft in Baner",budget:"₹12–18 lakh range shared, no pushback",when:"Wants the site visit Thu 24 Sep, 4 pm. Opening next month.",phone:"+91 90000 00001"},
+ 2:{need:"Property office interior, 1,200 sq ft in Hinjewadi",budget:"₹14–22 lakh range shared. Asked about budget first, so price-sensitive.",when:"Wants a site visit Thursday 4 pm. Sent office photos.",phone:"+91 90000 00002"},
+ 3:{need:"Café seating, counter and lighting, about 1,100 sq ft in Baner",budget:"₹9–15 lakh range shared",when:"Opening first week of October, urgent. Site meeting Saturday 11 am.",phone:"+91 90000 00003"},
+ 5:{need:"Two new real estate branches with the same design",budget:"Asked for a layout and ₹ per sq ft",when:"Measurement Friday 12 pm at Kharadi",phone:"+91 90000 00005"},
+ 9:{need:"Coworking fit-out, 4,000 sq ft in Baner, plus fire NOC drawings",budget:"Not discussed yet",when:"Measurement Wed 23 Sep, 11 am. Accepted a 50–55 day timeline.",phone:"+91 90000 00009"}
+};
+const DAYS=[...new Set(E.map(e=>e.d))];
+const STAGE_ORDER=["Opted out","Closed","Follow up later","Found","Contacted","Opened","Replied","In conversation","Handed over"];
+const STAGE_TAG={"Handed over":"good","Opted out":"bad","Closed":"","Replied":"acc","In conversation":"acc","Follow up later":"warn"};
+
+/* ============ state ============ */
+const S={view:"run",cursor:0,playing:false,speed:1,thread:1,step:3,analysing:false,analysed:true,
+  target:{niche:"New & shifting businesses",city:"Pune",radius:"15 km",count:10,chs:{email:true,wa:true,li:true},srcs:{places:true,li:true,apollo:false,own:false},apiKey:""},
+  takeover:{}, granted:500, handStatus:{}};
+// land on a realistic half-finished run
+S.cursor=E.findIndex(e=>e.d===2&&e.t==="11:20");
+
+const applied=()=>E.slice(0,S.cursor);
+function spent(){return applied().reduce((a,e)=>a+e.credits,0)}
+const balance=()=>S.granted-spent();
+function stageOf(id){
+  let st="Found";
+  for(const e of applied()){ if(e.id!==id) continue;
+    if(e.kind==="find")st="Found";
+    else if(["contact","sent","deliv","follow","li"].includes(e.kind))st=(st==="Replied"||st==="In conversation"||st==="Handed over")?st:"Contacted";
+    else if(e.kind==="open")st="Opened";
+    else if(e.kind==="reply")st=st==="Handed over"?st:"Replied";
+    else if(e.kind==="ai")st=st==="Handed over"?st:"In conversation";
+    else if(e.kind==="hand")st="Handed over";
+    else if(e.kind==="optout")st="Opted out";
+    else if(e.kind==="sys"&&/closed/i.test(e.text||""))st="Closed";
+    else if(e.kind==="sys"&&/Follow up later/i.test(e.text||""))st="Follow up later";
+  }
+  return st;
+}
+function msgsOf(id){
+  const out=[];
+  for(const e of applied()){ if(e.id!==id)continue;
+    if(e.kind==="sent"||e.kind==="follow")out.push({side:"out",who:"AI",text:e.text,t:`Day ${e.d} · ${e.t}`,cr:e.credits});
+    else if(e.kind==="li")out.push({side:"out",who:"LI",text:e.text,t:`Day ${e.d} · ${e.t}`,cr:e.credits});
+    else if(e.kind==="ai")out.push({side:"out",who:"AI",text:e.text,t:`Day ${e.d} · ${e.t}`,cr:e.credits});
+    else if(e.kind==="reply")out.push({side:"in",who:lead(id).person,text:e.text,t:`Day ${e.d} · ${e.t}`});
+    else if(e.kind==="hand")out.push({side:"sys",text:"✓ "+e.text,t:"",cr:e.credits});
+    else if(e.kind==="optout")out.push({side:"sys",text:"⛔ "+e.text,t:""});
+    else if(e.kind==="bounce")out.push({side:"sys",text:"⚠ "+e.text,t:""});
+    else if(e.kind==="sys")out.push({side:"sys",text:e.text,t:""});
+  }
+  return out;
+}
+const contactedIds=()=>[...new Set(applied().filter(e=>["sent","follow","li"].includes(e.kind)).map(e=>e.id))];
+const stats=()=>{
+  const st=L.map(l=>stageOf(l.id));
+  const found=[...new Set(applied().filter(e=>e.kind==="find").map(e=>e.id))].length;
+  return {found,contacted:contactedIds().length,
+    opened:L.filter(l=>applied().some(e=>e.id===l.id&&(e.kind==="open"||e.kind==="deliv"))).length,
+    replied:L.filter(l=>applied().some(e=>e.id===l.id&&e.kind==="reply")).length,
+    convo:st.filter(s=>s==="In conversation"||s==="Replied").length,
+    meetings:L.filter(l=>applied().some(e=>e.id===l.id&&e.kind==="hand")).length};
+};
+
+/* ============ helpers ============ */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let toastT;function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600)}
+function pulse(){const c=document.querySelector(".credit-chip");if(c){c.classList.remove("pulse");void c.offsetWidth;c.classList.add("pulse")}}
+const chName=c=>({wa:"WhatsApp",email:"Email",li:"LinkedIn"}[c]);
+const chip=()=>`<div class="credit-chip"><span class="coin"></span><b>${balance()}</b><span class="sub">credits</span><button class="btn sm" data-act="buy">Get more</button></div>`;
+const EVICON={find:["·","" ],contact:["✓",""],sent:["→","acc"],follow:["↻",""],deliv:["✓",""],open:["👁",""],reply:["←","acc"],ai:["AI","acc"],hand:["★","good"],li:["in","acc"],bounce:["!","bad"],refund:["₹","good"],optout:["⛔","bad"],sys:["i",""]};
+function evLine(e){
+  const l=lead(e.id)||{name:"System"};
+  const T={find:`Found <b>${esc(l.name)}</b> · ${esc(l.cat)}, ${esc(l.area)} · <span class="tag">via ${esc(l.src)}</span>`,
+    contact:`${esc(e.text)} · ${esc(l.name)}`,
+    sent:`AI sent the first ${lead(e.id).ch==="wa"?"WhatsApp message from our number":"email"} to ${esc(l.person)}`,
+    li:`LinkedIn message drafted by AI for ${esc(l.person)} · our team sends it`,
+    follow:`Follow-up sent to ${esc(l.person)}`,
+    deliv:`${esc(e.text)} · ${esc(l.name)}`,
+    open:`${esc(l.person)} opened the email`,
+    reply:`<b>${esc(l.person)} replied</b>: "${esc((e.text||"").slice(0,70))}${(e.text||"").length>70?"…":""}"`,
+    ai:`AI answered ${esc(l.person)}`,
+    hand:`<b>${esc(l.person)} is interested</b> · ${esc(e.text)}`,
+    bounce:`${esc(e.text)} · ${esc(l.name)}`,
+    refund:`${esc(e.text)} · ${esc(l.name)}`,
+    optout:`${esc(e.text)} · ${esc(l.name)}`,
+    sys:`${esc(e.text)} · ${esc(l.name)}`}[e.kind];
+  return T;
+}
+
+/* ============ views ============ */
+function vSetup(){
+  const t=S.target;
+  const CH=[["email","Email","Sent automatically from our sending domain, signed on your behalf",P.email],["wa","WhatsApp","Sent automatically from our WhatsApp Business number",P.phone],["li","LinkedIn","AI writes the message, our team sends it by hand (about 20 a day)",P.li]];
+  const on=CH.filter(c=>t.chs[c[0]]);
+  const avgContact=on.length?Math.round(on.reduce((a,c)=>a+c[3],0)/on.length):0;
+  const est=t.count*(P.find+avgContact+P.first+P.follow);
+  const step=S.step;
+  return `<div class="top"><div><h1>Setup</h1><p>Three steps, once. After this the system finds leads and talks to them for you.</p></div>${chip()}</div>
+  <div class="steps">
+    ${["Your business","Website analysis","Who to target"].map((s,i)=>`<div class="step" data-on="${step===i+1?1:0}" data-done="${step>i+1?1:0}"><b>${step>i+1?"✓":i+1}</b>${s}</div>`).join("")}
+  </div>
+  ${step===1?`<section class="panel stack">
+    <h2 style="font-size:19px">Tell us about your business</h2>
+    <div class="grid2">
+      <div class="field"><label class="lbl" for="bName">Business name</label><input id="bName" value="${esc(BIZ.name)}"></div>
+      <div class="field"><label class="lbl" for="bCity">City</label><input id="bCity" value="${esc(BIZ.city)}"></div>
+      <div class="field"><label class="lbl" for="bPhone">Your WhatsApp, for lead alerts</label><input id="bPhone" value="+91 90000 00099"></div>
+      <div class="field"><label class="lbl" for="bMail">Email you send from</label><input id="bMail" value="rohit@shreeinteriors.example"></div>
+    </div>
+    <div class="field"><label class="lbl" for="bSite">Website (optional)</label><input id="bSite" value="${esc(BIZ.site)}"></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn primary" data-act="step" data-v="2">Next: analyse my website</button></div>
+  </section>`
+  :step===2?`<section class="panel stack">
+    <h2 style="font-size:19px">What we learned from your website</h2>
+    <p class="sub" style="margin:0">Every message the AI writes is based on this. Fix anything that's wrong — it takes effect immediately.</p>
+    ${S.analysing?`<div class="row"><span class="spin"></span> Reading ${esc(BIZ.site)} …</div>`
+    :`<dl class="readout">
+      <dt>You sell</dt><dd>${esc(BIZ.sells)}</dd>
+      <dt>Services</dt><dd>${BIZ.services.map(s=>`<span class="tag">${esc(s)}</span>`).join(" ")}</dd>
+      <dt>Proof we can use</dt><dd>${BIZ.proof.map(s=>`<span class="tag good">${esc(s)}</span>`).join(" ")}</dd>
+      <dt>Ideal customer</dt><dd>${esc(BIZ.ideal)}</dd>
+      <dt>Tone</dt><dd>${esc(BIZ.tone)}</dd>
+    </dl>
+    <div class="field"><label class="lbl" for="bEdit">Anything to add or correct</label><textarea id="bEdit" rows="3" placeholder="e.g. we don't take projects under ₹5 lakh, and we don't do civil work">We don't take projects under ₹5 lakh.</textarea></div>`}
+    <div class="row" style="justify-content:space-between">
+      <button class="btn" data-act="reanalyse">Run analysis again <span class="cost">2</span></button>
+      <span class="row"><button class="btn" data-act="step" data-v="1">Back</button><button class="btn primary" data-act="step" data-v="3" ${S.analysing?"disabled":""}>Next: choose leads</button></span>
+    </div>
+  </section>`
+  :`<section class="panel stack">
+    <h2 style="font-size:19px">Who should we go after?</h2>
+    <div class="grid2">
+      <div class="field"><label class="lbl" for="tNiche">Type of business</label><select id="tNiche">${["New & shifting businesses","Clinics","Cafés & restaurants","Real estate offices","Coworking & IT offices"].map(o=>`<option ${o===t.niche?"selected":""}>${o}</option>`).join("")}</select></div>
+      <div class="field"><label class="lbl" for="tCity">City</label><select id="tCity">${["Pune","Mumbai","Jaipur","Indore"].map(o=>`<option ${o===t.city?"selected":""}>${o}</option>`).join("")}</select></div>
+      <div class="field"><label class="lbl" for="tRadius">Distance from you</label><select id="tRadius">${["5 km","15 km","30 km","Whole city"].map(o=>`<option ${o===t.radius?"selected":""}>${o}</option>`).join("")}</select></div>
+      <div class="field"><label class="lbl" for="tCount">How many leads to start with</label><select id="tCount">${[10,25,50,100].map(o=>`<option value="${o}" ${o===t.count?"selected":""}>${o} leads</option>`).join("")}</select></div>
+    </div>
+    <div>
+      <div class="lbl" style="margin-bottom:6px">How should we talk to them? Pick one or more</div>
+      <div class="stack" style="gap:8px">${CH.map(([v,lb,d,c])=>`<label class="chk"><input type="checkbox" id="ch_${v}" data-ch="${v}" ${t.chs[v]?"checked":""}><span><b>${lb}</b> <span class="cost">${c}</span><div class="sub">${d}</div></span></label>`).join("")}</div>
+      <p class="sub" style="margin:8px 0 0">We talk to the lead on our channels, for your business. You're never messaged until a lead says they're interested. Then you get their details on WhatsApp and here.</p>
+    </div>
+    <div>
+      <div class="lbl" style="margin-bottom:6px">Where should we look? Pick one or more</div>
+      <div class="stack" style="gap:8px">${[["places","Google Maps","Local businesses: name, phone, rating, website"],["li","LinkedIn","Decision-makers: name, role, company, city"],["apollo","Apollo (ours)","Company emails and roles · needs a licence before launch"],["own","My own Apollo key","We pull under your account · finding leads costs 0 credits"]].map(([v,lb,d])=>`<label class="chk"><input type="checkbox" id="src_${v}" data-src="${v}" ${t.srcs[v]?"checked":""}><span><b>${lb}</b><div class="sub">${d}</div></span></label>`).join("")}</div>
+      ${t.srcs.own?`<div class="field" style="margin-top:8px"><label class="lbl" for="tKey">Your Apollo API key</label><input id="tKey" placeholder="paste your key" value="${esc(t.apiKey)}"></div>`:""}
+    </div>
+    <div class="panel" style="background:var(--sunk);border:0">
+      <div class="lbl" style="margin-bottom:8px">What this first batch will cost</div>
+      ${[["Finding and checking "+t.count+" leads",t.count*P.find],
+         ["Contact details ("+(on.map(c=>c[1]).join(" / ")||"pick a channel")+", about "+avgContact+" each)",t.count*avgContact],
+         ["First message to each",t.count*P.first],
+         ["One follow-up each",t.count*P.follow]].map(([k,v])=>`<div class="est"><span>${k}</span><span class="num">${v}</span></div>`).join("")}
+      <div class="est" style="font-weight:600"><span>Estimated total</span><span class="num">${est} credits</span></div>
+      <p class="sub" style="margin:8px 0 0">Replies and bookings are charged only when they happen: ${P.reply} credits per reply handled, ${P.hand} when an interested lead is handed to you. Your balance is ${balance()}.</p>
+    </div>
+    <div class="row" style="justify-content:space-between">
+      <button class="btn" data-act="step" data-v="2">Back</button>
+      <button class="btn primary" data-act="start" ${on.length&&Object.values(t.srcs).some(Boolean)?"":"disabled"}>Start autopilot</button>
+    </div>
+  </section>`}`;
+}
+
+function vRun(){
+  const s=stats(),cur=E[S.cursor],done=S.cursor>=E.length;
+  const day=cur?cur.d:DAYS[DAYS.length-1];
+  const feed=applied().slice(-40).reverse();
+  return `<div class="top"><div><h1>Autopilot</h1><p>We find the leads and talk to them over our WhatsApp, email and LinkedIn. You only get the ones who are interested.</p></div>${chip()}</div>
+  <div class="runbar">
+    <span class="live"><span class="dot ${S.playing?"":"off"}"></span>${done?"Batch finished":S.playing?"Running · day "+day:"Paused · day "+day}</span>
+    <span class="progress" title="Progress through this batch"><i style="width:${Math.round(S.cursor/E.length*100)}%"></i></span>
+    <span class="sub num">${S.cursor}/${E.length} steps</span>
+    <button class="btn primary" data-act="play" ${done?"disabled":""}>${S.playing?"Pause":"▶ Play"}</button>
+    <button class="btn" data-act="skipday" ${done?"disabled":""}>Skip to next day</button>
+    <button class="btn" data-act="reset">Restart demo</button>
+  </div>
+  <div class="funnel">
+    ${[["Leads found",s.found,10],["Contacted",s.contacted,10],["Opened / delivered",s.opened,10],["Replied",s.replied,10],["In conversation",s.convo,10],["Handed to you",s.meetings,10]]
+      .map(([t,n,max],i)=>`<div class="fcell ${i===5?"win":""}"><div class="n">${n}</div><div class="t">${t}</div><div class="fbar"><i style="width:${n/max*100}%"></i></div></div>`).join("")}
+  </div>
+  <div class="two">
+    <section class="panel">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px"><h2 style="font-size:19px">What the system did</h2><span class="sub">newest first</span></div>
+      <div class="feed" id="feed">
+        ${feed.map((e,i)=>{const[ic,cl]=EVICON[e.kind]||["·",""];return `<div class="ev ${i===0&&S.playing?"fresh":""}"><span class="when">D${e.d} ${e.t}</span><span class="ic ${cl}">${ic}</span><span>${evLine(e)}</span><span class="cr">${e.credits>0?"−"+e.credits:e.credits<0?"+"+(-e.credits):""}</span></div>`}).join("")||`<p class="sub">Nothing yet. Press Play.</p>`}
+      </div>
+    </section>
+    <section class="panel">
+      <h2 style="font-size:19px;margin-bottom:6px">Leads in this batch</h2>
+      <div class="tbl-wrap"><table><thead><tr><th>Lead</th><th>Channel</th><th>Stage</th></tr></thead><tbody>
+      ${L.map(l=>{const st=stageOf(l.id);return `<tr class="clickable" data-act="open-thread" data-id="${l.id}"><td><b>${esc(l.name)}</b><div class="sub">${esc(l.person)} · ${esc(l.area)}</div></td><td class="sub">${chName(l.ch)}</td><td><span class="tag ${STAGE_TAG[st]||""}">${st}</span></td></tr>`}).join("")}
+      </tbody></table></div>
+      <p class="sub" style="margin:10px 0 0">Why these leads: ${esc(S.target.niche.toLowerCase())} in ${esc(S.target.city)}, within ${esc(S.target.radius)}.</p>
+    </section>
+  </div>`;
+}
+
+function vInbox(){
+  const id=S.thread,l=lead(id),ms=msgsOf(id),st=stageOf(id),to=S.takeover[id];
+  const ordered=[...L].sort((a,b)=>STAGE_ORDER.indexOf(stageOf(b.id))-STAGE_ORDER.indexOf(stageOf(a.id)));
+  return `<div class="top"><div><h1>Conversations</h1><p>Every conversation our AI had for you. Once a lead is interested, it moves to Handed to you.</p></div>${chip()}</div>
+  <div class="inbox">
+    <section class="panel"><div class="threads">
+      ${ordered.map(x=>{const s=stageOf(x.id),m=msgsOf(x.id),last=m[m.length-1];
+        return `<button class="thread" data-act="thread" data-id="${x.id}" aria-current="${x.id===id}">
+          <span class="l1"><span>${esc(x.person)}</span><span class="tag ${STAGE_TAG[s]||""}">${s}</span></span>
+          <span class="sub">${esc(x.name)} · ${chName(x.ch)}</span>
+          <span class="sub" style="opacity:.8">${esc((last?last.text:"No messages yet").replace(/\s+/g," ").slice(0,52))}…</span></button>`}).join("")}
+    </div></section>
+    <section class="panel stack">
+      <div class="row" style="justify-content:space-between">
+        <div><h2 style="font-size:19px">${esc(l.person)}</h2><div class="sub">${esc(l.name)} · ${esc(l.cat)}, ${esc(l.area)} · ${chName(l.ch)}</div></div>
+        <div class="row"><span class="tag ${STAGE_TAG[st]||""}">${st}</span><button class="btn sm" data-act="takeover">${to?"Give back to AI":"I'll take over"}</button></div>
+      </div>
+      <div class="sub" style="margin-top:-6px">Found on ${esc(l.src)} · why we picked them: ${esc(l.why)}</div>
+      <div class="chat" id="chat">
+        ${ms.map(m=>m.side==="sys"
+          ?`<div class="msg sys">${esc(m.text)}${m.cr?` <span class="cost">${m.cr}</span>`:""}</div>`
+          :`<div class="msg ${m.side}">${esc(m.text)}<div class="meta"><span>${m.side==="out"?(m.who==="LI"?"Drafted by AI · sent by our team on LinkedIn":"Sent by our AI for Shree Interiors"):esc(m.who)}</span><span>${esc(m.t)}</span>${m.cr?`<span class="cost">${m.cr}</span>`:""}</div></div>`).join("")||`<p class="sub">No messages yet in this thread.</p>`}
+        ${to?`<div class="msg sys">You've taken over. The AI won't send anything here until you hand it back.</div>`:""}
+      </div>
+      <div class="composer">
+        <textarea id="reply" rows="3" placeholder="${to?"Type your reply…":"The AI is handling this thread. Type here to send something yourself."}"></textarea>
+        <div class="row" style="justify-content:space-between">
+          <span class="sub">${st==="Opted out"?"This lead opted out. Sending is blocked.":"Replies the AI handles cost "+P.reply+" credits. Your own replies are free."}</span>
+          <button class="btn primary" data-act="send" ${st==="Opted out"?"disabled":""}>Send myself</button>
+        </div>
+      </div>
+    </section>
+  </div>`;
+}
+
+function vHand(){
+  const hs=applied().filter(e=>e.kind==="hand").reverse();
+  const st=S.handStatus;
+  const cnt=k=>hs.filter(e=>(st[e.id]||"new")===k).length;
+  return `<div class="top"><div><h1>Handed to you</h1><p>Leads who told us they're interested. Call them while it's warm. We've told each one to expect you.</p></div>${chip()}</div>
+  <div class="funnel f4">
+    <div class="fcell win"><div class="n">${cnt("new")}</div><div class="t">New, call now</div></div>
+    <div class="fcell"><div class="n">${cnt("called")}</div><div class="t">Called</div></div>
+    <div class="fcell"><div class="n">${cnt("won")}</div><div class="t">Became customers</div></div>
+    <div class="fcell"><div class="n">${cnt("no")}</div><div class="t">Not interested · refunded</div></div>
+  </div>
+  <div class="stack">
+  ${hs.length?hs.map(e=>{const l=lead(e.id),h=HAND[e.id],s=st[e.id]||"new";
+    const tagc={new:"acc",called:"warn",won:"good",no:"bad"}[s],tagt={new:"New",called:"Called",won:"Customer",no:"Not interested"}[s];
+    const lastIn=msgsOf(e.id).filter(m=>m.side==="in").slice(-1)[0];
+    return `<article class="panel hcard">
+      <div class="stack" style="gap:10px">
+        <div class="row" style="justify-content:space-between"><div><h2 style="font-size:19px">${esc(l.person)}</h2><div class="sub">${esc(l.name)} · ${esc(l.cat)}, ${esc(l.area)}</div></div><span class="tag ${tagc}">${tagt}</span></div>
+        <dl class="readout">
+          <dt>Phone</dt><dd class="mono">${h.phone}</dd>
+          <dt>Needs</dt><dd>${esc(h.need)}</dd>
+          <dt>Budget</dt><dd>${esc(h.budget)}</dd>
+          <dt>Timing</dt><dd>${esc(h.when)}</dd>
+          <dt>We told them</dt><dd>${esc(e.text.split(" · ")[1]||"")}</dd>
+          <dt>Came from</dt><dd>Found on ${esc(l.src)} · talked on ${chName(l.ch)}${e.id===5?" (email bounced, moved to WhatsApp)":""} · Day ${e.d}, ${e.t}</dd>
+        </dl>
+        ${lastIn?`<div class="sub">Their last message: "${esc(lastIn.text)}"</div>`:""}
+        <div class="row">
+          <button class="btn primary" data-act="hs" data-id="${e.id}" data-v="called">Mark called</button>
+          <button class="btn" data-act="hs" data-id="${e.id}" data-v="won">Became a customer</button>
+          <button class="btn" data-act="hs" data-id="${e.id}" data-v="no" ${s==="no"?"disabled":""}>Not interested · refund ${P.hand}</button>
+          <button class="btn" data-act="open-thread" data-id="${e.id}">Read full chat</button>
+        </div>
+      </div>
+      <div><div class="lbl" style="margin-bottom:6px">WhatsApp alert you received</div>
+        <div class="alert">🔔 New interested lead for Shree Interiors
+
+${esc(l.person)}, ${esc(l.name)} (${esc(l.area)})
+${esc(h.need)}
+Budget: ${esc(h.budget)}
+${esc(h.when)}
+Call: ${h.phone}
+
+They're expecting your call. Full chat in your dashboard.</div></div>
+    </article>`}).join("")
+  :`<div class="panel" style="text-align:center;padding:32px"><p class="sub">No interested leads yet. They appear here the moment a lead says yes. Go to Autopilot and press Play.</p></div>`}
+  </div>`;
+}
+
+function vSources(){
+  return `<div class="top"><div><h1>Sources &amp; channels</h1><p>Where leads come from, how we reach them, and the rules we follow.</p></div>${chip()}</div>
+  <section class="panel stack">
+    ${[["Google Maps (Places API)","Live","Business name, category, area, phone, rating and website. The official API, used within its terms. This is the main source for local businesses.","On"],
+       ["Company website crawl","Live","We read the lead's own public website for a contact email, services and signs they're expanding. Free — it's part of finding the lead.","On"],
+       ["Email verification","Live","Every email is checked before the first message. If it can't be verified, nothing is charged and we try WhatsApp instead.","On"],
+       ["Apollo (our licence)","Planned","Decision-maker names and work emails for companies. Their terms restrict reselling data, so this needs a written agreement before launch.","Blocked until licensed"],
+       ["Apollo (your own key)","Live","You paste your Apollo key and we pull leads under your account. Finding a lead then costs you 0 credits.","On"],
+       ["Our WhatsApp Business number","Live","All WhatsApp conversations run from our own verified number, for every client. The first message is a Meta-approved template. Capped at 250 new chats a day and paused on complaints, because a block would stop every client at once.","On"],
+       ["LinkedIn, sent by our team","Live","AI finds the decision-maker's profile and writes the connection note and messages. A person on our team sends them from a normal account, about 20 a day, so accounts stay within LinkedIn's rules.","On"],
+       ["LinkedIn profile scraping","Live · risk","Public profiles of decision-makers: name, role, company and city. Against LinkedIn's terms, so it runs on accounts kept separate from the ones our team messages from, at low daily volumes. Plan B: a licensed provider that already has this data.","On"]
+      ].map(([n,badge,d,state])=>`<div class="src"><span class="srcdot" style="background:${state==="On"?"var(--accent)":state==="Off"?"var(--bad)":"var(--gold)"}"></span>
+        <span><b>${n}</b> <span class="tag ${badge==="Live"?"good":badge==="Live · risk"?"warn":badge==="Planned"?"warn":"bad"}">${badge}</span><div class="sub">${d}</div></span>
+        <span class="sub">${state}</span></div>`).join("")}
+  </section>
+  <section class="panel stack" style="margin-top:14px">
+    <h2 style="font-size:19px">Rules the system follows on its own</h2>
+    <ul class="rules">
+      <li>Indian phone numbers are checked against the DND list before any WhatsApp message.</li>
+      <li>Our messages say who we are and which business we're writing for. We never pretend to be the client.</li>
+      <li>When a lead says yes, we tell them who will call and when, then pass them to the client with the full chat.</li>
+      <li>"STOP", "not interested" or an unsubscribe click stops every future message for that lead, instantly.</li>
+      <li>Every email carries your business name, address and a one-click unsubscribe.</li>
+      <li>A lead gets at most 2 follow-ups. After that it closes itself.</li>
+      <li>A lead can be contacted by only one customer of ours at a time in the same city and category.</li>
+      <li>Any lead can ask for their data to be deleted, and it's removed within 7 days (DPDP Act).</li>
+    </ul>
+  </section>`;
+}
+
+function vCredits(){
+  const led=applied().filter(e=>e.credits!==0);
+  const used=led.filter(e=>e.credits>0).reduce((a,e)=>a+e.credits,0);
+  const back=led.filter(e=>e.credits<0).reduce((a,e)=>a-e.credits,0);
+  const meets=applied().filter(e=>e.kind==="hand").length;
+  return `<div class="top"><div><h1>Credits</h1><p>You're charged per action, and only when the action works.</p></div>${chip()}</div>
+  <div class="funnel f4">
+    <div class="fcell"><div class="n">${balance()}</div><div class="t">Credits left</div></div>
+    <div class="fcell"><div class="n">${used}</div><div class="t">Used so far</div></div>
+    <div class="fcell"><div class="n">${back}</div><div class="t">Refunded</div></div>
+    <div class="fcell win"><div class="n">${meets?Math.round(used/meets):"—"}</div><div class="t">Credits per interested lead</div></div>
+  </div>
+  <div class="two">
+    <section class="panel">
+      <h2 style="font-size:19px;margin-bottom:8px">Every charge</h2>
+      <div class="tbl-wrap" style="max-height:460px;overflow:auto"><table><thead><tr><th>When</th><th>What</th><th style="text-align:right">Credits</th></tr></thead><tbody>
+      ${[...led].reverse().map(e=>`<tr><td class="num sub">D${e.d} ${e.t}</td><td>${evLine(e)}</td><td class="amt" style="color:${e.credits<0?"var(--good)":"inherit"}">${e.credits<0?"+"+(-e.credits):"−"+e.credits}</td></tr>`).join("")}
+      <tr><td class="num sub">D1 09:00</td><td>Credits added to your account</td><td class="amt" style="color:var(--good)">+${S.granted}</td></tr>
+      </tbody></table></div>
+    </section>
+    <section class="panel stack">
+      <h2 style="font-size:19px">What each action costs</h2>
+      <div class="price-grid" style="grid-template-columns:1fr">
+        ${PRICE_LIST.map(([n,c,d])=>`<div class="price"><span>${n}<div class="sub">${d}</div></span><b>${c===0?"Free":c}</b></div>`).join("")}
+      </div>
+      <p class="sub" style="margin:0">Credit prices in rupees aren't decided yet.</p>
+      <div>
+        <div class="lbl" style="margin-bottom:6px">Spending guards</div>
+        <ul class="rules">
+          <li>Daily cap: 120 credits. The system pauses itself when it's hit.</li>
+          <li>Nothing is charged for a message that fails to send.</li>
+          <li>Bad contact detail? Credits come back automatically, as with Keystone Properties on day 1.</li><li>A handed-over lead says they aren't interested when you call? Mark it within 7 days and the 10 credits come back.</li>
+          <li>When your balance hits zero, running conversations finish but no new leads are contacted.</li>
+        </ul>
+      </div>
+      <button class="btn primary" data-act="buy" style="align-self:flex-start">Add credits</button>
+    </section>
+  </div>`;
+}
+
+/* ============ engine ============ */
+let timer=null;
+function tick(){
+  if(S.cursor>=E.length){stop();toast("Batch finished. 5 interested leads handed to you from 10.");return}
+  const e=E[S.cursor++];
+  render();
+  if(e.kind==="hand")toast("New interested lead handed to you · "+lead(e.id).name);
+  if(e.credits)pulse();
+}
+function play(){if(S.cursor>=E.length)return;S.playing=true;timer=setInterval(tick,1100);render()}
+function stop(){S.playing=false;clearInterval(timer);timer=null;render()}
+function skipDay(){const cur=E[S.cursor];if(!cur)return;const d=cur.d;while(S.cursor<E.length&&E[S.cursor].d===d)S.cursor++;render();toast("Skipped to day "+(E[S.cursor]?E[S.cursor].d:d))}
+
+function render(){
+  const V={setup:vSetup,run:vRun,inbox:vInbox,hand:vHand,sources:vSources,credits:vCredits}[S.view];
+  const a=document.activeElement,aid=a&&a.id,pos=aid&&a.selectionStart;
+  $("#main").innerHTML=V();
+  document.querySelectorAll(".nav button").forEach(b=>b.setAttribute("aria-current",b.dataset.view===S.view?"page":"false"));
+  const s=stats();
+  $("#navRun").textContent="";$("#navHand").textContent=s.meetings||"";
+  $("#navInbox").textContent=s.replied||"";
+  $("#navCredits").textContent=balance();
+  $("#sideBal").textContent=balance();
+  $("#sideMeter").style.width=Math.max(0,balance()/S.granted*100)+"%";
+  $("#sideCap").textContent=`Daily cap 120 · ${applied().filter(e=>e.d===(E[S.cursor]?E[S.cursor].d:4)).reduce((x,e)=>x+Math.max(0,e.credits),0)} used today`;
+  if(aid){const el=document.getElementById(aid);if(el){el.focus();if(pos!=null&&el.setSelectionRange)try{el.setSelectionRange(pos,pos)}catch(_){}}}
+  const c=$("#chat");if(c)c.scrollTop=c.scrollHeight;
+}
+function go(v){S.view=v;render();window.scrollTo(0,0)}
+document.querySelector(".nav").addEventListener("click",e=>{const b=e.target.closest("button");if(b)go(b.dataset.view)});
+
+$("#main").addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]");if(!b)return;
+  const act=b.dataset.act,v=b.dataset.v,id=+b.dataset.id;
+  switch(act){
+    case "step":S.step=+v;render();break;
+    case "reanalyse":S.analysing=true;S.step=2;render();setTimeout(()=>{S.analysing=false;render();toast("Website read again · 2 credits used")},1400);break;
+    case "hs":{const prev=S.handStatus[id];S.handStatus[id]=v;
+      if(v==="no"&&prev!=="no"){S.granted+=P.hand;toast(P.hand+" credits back. Thanks for telling us, it trains the AI on who's really interested.");setTimeout(pulse,10)}
+      else toast(v==="won"?"Marked as customer 🎉":"Marked as called");render();break}
+    case "start":S.view="run";if(!S.playing)play();toast("Autopilot started. It keeps going when you close the tab.");break;
+    case "play":S.playing?stop():play();break;
+    case "skipday":stop();skipDay();break;
+    case "reset":stop();S.cursor=0;S.takeover={};render();toast("Demo reset. Press Play to watch it run.");break;
+    case "open-thread":S.thread=id;go("inbox");break;
+    case "thread":S.thread=id;render();break;
+    case "takeover":S.takeover[S.thread]=!S.takeover[S.thread];render();toast(S.takeover[S.thread]?"AI paused on this thread":"AI is handling this thread again");break;
+    case "send":{const t=$("#reply");if(!t.value.trim()){toast("Type a message first");break}t.value="";toast("Sent from your account · no credits used");break}
+    case "buy":toast("Plans and top-ups aren't priced yet. This will open checkout with UPI and a GST invoice.");break;
+  }
+});
+$("#main").addEventListener("change",e=>{
+  const t=e.target;
+  if(t.dataset.ch){S.target.chs[t.dataset.ch]=t.checked;render();return}
+  if(t.dataset.src){S.target.srcs[t.dataset.src]=t.checked;render();return}
+  if(t.id==="tNiche")S.target.niche=t.value;else if(t.id==="tCity")S.target.city=t.value;
+  else if(t.id==="tRadius")S.target.radius=t.value;else if(t.id==="tCount")S.target.count=+t.value;
+  else if(t.id==="tKey")S.target.apiKey=t.value;else return;
+  render();
+});
+render();
+</script>
+</body></html>

@@ -1,0 +1,17 @@
+# Google Maps scraper for LOCAL TESTING ONLY (gosom/google-maps-scraper, MIT licence).
+# It reads the Google Maps website directly, which is against Google's terms.
+# The live app ignores it and uses the official Places API instead.
+#
+# Start:  docker compose up -d        (in this folder)
+# Then:   GMAPS_SCRAPER_URL=http://localhost:8090  in ../.env.local
+# Stop:   docker compose down
+services:
+  gmaps-scraper:
+    image: gosom/google-maps-scraper:latest
+    container_name: lead-autopilot-gmaps
+    command: ["-data-folder", "/gmapsdata"]
+    ports:
+      - "127.0.0.1:8090:8080"   # only your own computer can reach it
+    volumes:
+      - ./gmapsdata:/gmapsdata
+    # No "restart: always": it only runs while you're testing.
