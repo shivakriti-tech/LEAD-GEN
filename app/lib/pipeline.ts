@@ -2,7 +2,7 @@ import { categoryByKey } from "./categories";
 import { mergePlaces } from "./dedupe";
 import { auditWebsite } from "./enrich/crawl";
 import { discoverWebsite, verifyCandidate, type SearchHit } from "./enrich/discover";
-import { providersFromEnv, searchChain } from "./enrich/searchProviders";
+import { exactSearchChain, providersFromEnv, searchChain } from "./enrich/searchProviders";
 import { pageSpeedMobile } from "./enrich/pagespeed";
 import { scoreWebsiteDev } from "./score/websiteDev";
 import { apolloEnrichDomain } from "./sources/apollo";
@@ -36,12 +36,14 @@ export interface Deps {
   webSearch?: (q: string) => Promise<SearchHit[]>;
   /** Builds a per-search web search that can report when it switches provider. Wins over webSearch. */
   makeWebSearch?: (onSwitch: (msg: string) => void) => (q: string) => Promise<SearchHit[]>;
+  /** Search for phone numbers: only providers that match exact numbers. Undefined when none is set up. */
+  makeNumberSearch?: (onSwitch: (msg: string) => void) => ((q: string) => Promise<SearchHit[]>) | undefined;
   pageSpeed: typeof pageSpeedMobile;
   apollo: typeof apolloEnrichDomain;
   /** Does this email domain accept mail? Leave out to skip the check (tests). */
   mx?: typeof domainAcceptsMail;
   cacheStats?: CacheStats;
-  keys: { gmapsScraper?: string; google?: string; pageSpeed?: string; apollo?: string; brave?: string; metaToken?: string; igUserId?: string; fbPageSearch?: boolean };
+  keys: { gmapsScraper?: string; google?: string; pageSpeed?: string; apollo?: string; brave?: string; metaToken?: string; igUserId?: string; fbPageSearch?: boolean; phoneSearch?: "auto" | "on" | "off" };
   store: Store;
   now?: () => Date;
 }
@@ -64,6 +66,10 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     const rawSearch = deps.makeWebSearch ? deps.makeWebSearch((m) => log(m, "warn")) : deps.webSearch;
     // Businesses are checked many at a time; web searches still go out at most 3 at once.
     const webSearch = rawSearch ? limited(rawSearch, 3) : undefined;
+    // Phone numbers: only to providers that match exact numbers ("auto"), to any provider ("on"), or never.
+    const phoneMode = deps.keys.phoneSearch ?? "auto";
+    const rawNumber = phoneMode === "off" ? undefined : deps.makeNumberSearch?.((m) => log(m, "warn")) ?? (phoneMode === "on" ? rawSearch : undefined);
+    const numberSearch = rawNumber ? limited(rawNumber, 3) : undefined;
     const cats = params.categories.map(categoryByKey).filter((c): c is NonNullable<typeof c> => !!c);
     if (!cats.length) throw new Error("Pick at least one business type.");
 
@@ -202,7 +208,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
 
     const needSite = params.verifyWebsites ? leads.filter((l) => !l.chain && (!l.website || isSocialHost(domainOf(l.website)))).length : 0;
     const siteSearch = params.verifyWebsites && params.webSearch ? webSearch : undefined;
-    if (needSite) log(`Checking ${leads.length} businesses. ${needSite} have no website listed: looking for one (likely web addresses${siteSearch ? ", web search and their phone number" : ""}).`);
+    if (needSite) log(`Checking ${leads.length} businesses. ${needSite} have no website listed: looking for one (likely web addresses${siteSearch ? ", web search" : ""}${siteSearch && numberSearch ? " and their phone number" : ""}).`);
     const state = { searchBroken: false };
     let checked = 0;
     emit({ type: "stage", stage: "enrich", done: 0, total: leads.length });
@@ -210,7 +216,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     const order = [...leads].sort((a, b) => Number(!!b.phone) - Number(!!a.phone));
     await mapLimit(order, 8, async (l) => {
       try {
-        await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: siteSearch, state }, deps);
+        await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: siteSearch, numberSearch: siteSearch ? numberSearch : undefined, state }, deps);
       } catch (e) {
         l.websiteCheck?.tried.push(`check failed: ${msg(e)}`);
       }
@@ -381,13 +387,13 @@ const logTo = (emit: Emit) => (message: string, level: "info" | "warn" | "error"
  */
 export async function qualifyLead(
   l: Lead,
-  opts: { area?: string; verify: boolean; search?: (q: string) => Promise<SearchHit[]>; state?: { searchBroken: boolean } },
+  opts: { area?: string; verify: boolean; search?: (q: string) => Promise<SearchHit[]>; numberSearch?: (q: string) => Promise<SearchHit[]>; state?: { searchBroken: boolean } },
   deps: Pick<Deps, "discover" | "audit" | "mx">,
 ): Promise<void> {
   const state = opts.state ?? { searchBroken: false };
   l.websiteCheck ??= { via: l.website && !isSocialHost(domainOf(l.website)) ? "source" : "none_found", tried: [l.sources.map((x) => SOURCE_LABEL[x]).join(" + ")] };
   if (opts.verify && !l.chain && (!l.website || isSocialHost(domainOf(l.website)))) {
-    const r = await deps.discover(l, opts.area, { search: state.searchBroken ? undefined : opts.search });
+    const r = await deps.discover(l, opts.area, { search: state.searchBroken ? undefined : opts.search, numberSearch: opts.numberSearch });
     l.websiteCheck.tried.push(...r.tried);
     if (r.tried.some((t) => /No web search available|captcha/i.test(t))) state.searchBroken = true;
     if (r.website) {
@@ -475,7 +481,7 @@ function withCache(stats: CacheStats) {
     audit: cached("audit", auditWebsite, (w?: string) => (w ?? "").trim().toLowerCase(), (a: WebsiteAudit) => (a.status === "ok" || a.status === "social_only" ? 7 * DAY : a.status === "down" ? DAY : 0), stats),
     // discovery depends on whether web search was allowed, so that's part of the key
     discover: ((l, area, d) =>
-      cached("discover", (_l: Lead) => discoverWebsite(l, area, d), () => `${leadKey(l, area)}|${d?.search ? "search" : "guess"}`, (r) => (r.website ? 7 * DAY : r.tried.some((t) => /failed|captcha|No web search/i.test(t)) ? 0 : 3 * DAY), stats)(l)) as typeof discoverWebsite,
+      cached("discover", (_l: Lead) => discoverWebsite(l, area, d), () => `${leadKey(l, area)}|${d?.search ? "search" : "guess"}${d?.numberSearch ? "+phone" : ""}`, (r) => (r.website ? 7 * DAY : r.tried.some((t) => /failed|captcha|No web search/i.test(t)) ? 0 : 3 * DAY), stats)(l)) as typeof discoverWebsite,
     search,
   };
 }
@@ -487,6 +493,10 @@ export function defaultDeps(store: Store): Deps {
     makeWebSearch: (onSwitch) => {
       const s = searchChain(providersFromEnv(), onSwitch);
       return c ? c.search(s) : s;
+    },
+    makeNumberSearch: (onSwitch) => {
+      const s = exactSearchChain(providersFromEnv(), onSwitch);
+      return s && c ? c.search(s) : s;
     },
     google: googleTextSearch,
     osm: osmSearch,
@@ -512,6 +522,7 @@ export function defaultDeps(store: Store): Deps {
       metaToken: process.env.META_ACCESS_TOKEN || undefined,
       igUserId: process.env.IG_BUSINESS_ACCOUNT_ID || undefined,
       fbPageSearch: /^(on|true|1|yes)$/i.test(process.env.FB_PAGE_SEARCH || ""),
+      phoneSearch: /^(on|true|1|yes)$/i.test(process.env.PHONE_SEARCH || "") ? "on" : /^(off|false|0|no)$/i.test(process.env.PHONE_SEARCH || "") ? "off" : "auto",
     },
     store,
   };

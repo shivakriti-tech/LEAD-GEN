@@ -306,10 +306,12 @@ export function dnsResolves(domain: string): Promise<boolean> {
 export interface DiscoverDeps {
   fetchHtml?: typeof fetchHtml;
   /**
-   * Also search the business's phone number. Off by default: in the Vadodara benchmark the free engines
-   * behind SearXNG returned unrelated pages for every number. Turn on (PHONE_SEARCH=on) with a search
-   * provider that matches exact numbers.
+   * Search used for the business's phone number. Only providers that match exact numbers
+   * (Google via Programmable Search or Serper, Brave) are any good at it: the free engines behind
+   * SearXNG returned unrelated pages for every number in the Vadodara benchmark. Undefined = skip.
    */
+  numberSearch?: (q: string) => Promise<SearchHit[]>;
+  /** Tests: use `search` for phone numbers too. */
   phoneSearch?: boolean;
   /** Does this domain exist? Default: a DNS lookup, only when fetchHtml isn't replaced (tests). */
   resolves?: (domain: string) => Promise<boolean>;
@@ -464,7 +466,8 @@ export async function discoverWebsite(lead: Lead, area: string | undefined, deps
 
     // 3. search the phone number. A business's own site is usually one of the few pages with its exact
     // number, and this finds sites whose address has nothing to do with the name (sdcclinic.in).
-    const byPhone = (deps.phoneSearch ?? /^(on|true|1|yes)$/i.test(process.env.PHONE_SEARCH || "")) ? await phoneSearch(lead, area, deps.search, get) : { tried: [] as string[] };
+    const numberSearch = deps.numberSearch ?? (deps.phoneSearch ? deps.search : undefined);
+    const byPhone = numberSearch ? await phoneSearch(lead, area, numberSearch, get) : { tried: [] as string[] };
     tried.push(...byPhone.tried);
     if (byPhone.website) return { website: byPhone.website, via: "web_search", evidence: byPhone.evidence, tried, chainHint: byPhone.html ? chainHint(byPhone.html) : undefined };
     if (social) return { social, tried };

@@ -5,7 +5,7 @@ import { CATEGORIES } from "@/lib/categories";
 import type { Lead, ProgressEvent, SearchRecord, Tier } from "@/lib/types";
 import { EMAIL_KIND_LABEL } from "@/lib/enrich/email";
 
-type Config = { google: boolean; pageSpeedKey: boolean; apollo: boolean; store: "local" | "supabase"; contact: boolean; brave: boolean; meta: boolean; fbPageSearch: boolean; searchProviders: string[]; gmapsScraper: boolean };
+type Config = { google: boolean; pageSpeedKey: boolean; apollo: boolean; store: "local" | "supabase"; contact: boolean; brave: boolean; meta: boolean; fbPageSearch: boolean; searchProviders: string[]; gmapsScraper: boolean; searchUsage?: Array<{ id: string; label: string; exact: boolean; today: number; month: number; limit: { n: number; per: "day" | "month" } | null }> };
 type LogLine = { level: "info" | "warn" | "error"; message: string };
 
 const STAGE_LABEL: Record<string, string> = {
@@ -217,6 +217,10 @@ export default function LeadFinder() {
           <div><span className={`dot ${config?.pageSpeedKey ? "on" : ""}`} />PageSpeed {config?.pageSpeedKey ? "key set" : "no key"}</div>
           <div><span className={`dot ${config?.meta ? "on" : ""}`} />Instagram API {config?.meta ? "connected" : "not set"}</div>
           <div><span className={`dot ${config?.store === "supabase" ? "on" : ""}`} />{config?.store === "supabase" ? "Saving to Supabase" : "Saving locally"}</div>
+          {config?.searchUsage?.filter((u) => u.limit).map((u) => {
+            const used = u.limit!.per === "day" ? u.today : u.month;
+            return <div key={u.id} title="Free allowance; the app stops using it at the limit"><span className={`dot ${used < u.limit!.n ? "on" : ""}`} />{u.label} {used}/{u.limit!.n} {u.limit!.per === "day" ? "today" : "this month"}</div>;
+          })}
         </div>
       </aside>
 

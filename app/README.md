@@ -22,7 +22,9 @@ With no keys at all it already works: leads come from OpenStreetMap (free) and e
 |---|---|---|
 | `GOOGLE_PLACES_API_KEY` | Google Maps businesses with phone, website, rating, reviews. 1,000 free requests a month, about 20 businesses each | Google Cloud Console → new project → turn on billing → APIs & Services → enable **Places API (New)** → Credentials → Create API key. Restrict the key to Places API. Set a budget alert. |
 | `PAGESPEED_API_KEY` | Mobile speed check for every website (turns on automatically when set) | Same project → enable **PageSpeed Insights API**. If you reuse the Places key and restricted it, add PageSpeed Insights API to the key's allowed APIs, or Google rejects it (the app now shows this error). |
-| `SEARXNG_URL` | Free, unlimited web search running on your own computer. Used to find missing websites and Instagram/Facebook profiles | See **Free web search** below |
+| `GOOGLE_CSE_KEY`, `GOOGLE_CSE_CX` | Google-quality web search, about 100 free a day. Finds far more websites than the free engines, and turns on phone-number search | See **Web search** below |
+| `SERPER_API_KEY` | Google results through Serper: free starter credits, then paid | https://serper.dev |
+| `SEARXNG_URL` | Free, unlimited web search running on your own computer. Used to find missing websites and Instagram/Facebook profiles | See **Web search** below |
 | `TAVILY_API_KEY` | 1,000 free web searches a month, no credit card | https://app.tavily.com → sign up → copy the API key |
 | `BRAVE_SEARCH_API_KEY` | Another search option. Needs a card on file | https://brave.com/search/api/ |
 | `META_ACCESS_TOKEN`, `IG_BUSINESS_ACCOUNT_ID` | Instagram followers, last post and bio website for each business profile, through Meta's official API | See **Instagram setup** below |
@@ -49,9 +51,16 @@ Restart `npm run dev` after changing `.env.local`.
 10. Scores each lead for **website development** and writes the "why now" line.
 11. Saves the search. Export to CSV from the results.
 
-## Free web search
+## Web search
 
-The app searches the web to find websites the map missed and to find Instagram/Facebook profiles. It uses the first option you've set up, and moves to the next one if it fails or runs out:
+The app searches the web to find websites the map missed and to find Instagram/Facebook profiles. It uses the best option you've set up first. Each one stops at its free limit (counted per day/month in `.data/usage.json` and shown in the app's side panel), and the next one takes over, so nothing is ever billed by surprise.
+
+**Google-quality (best results, free allowances).** These match exact business names and phone numbers, which the free engines below don't. Setting up either one also turns on the phone-number search:
+
+- **Google Programmable Search**: about 100 free searches a day, if Google still offers it on your account. Create a search engine at https://programmablesearchengine.google.com (search the entire web) and copy its id into `GOOGLE_CSE_CX`; enable "Custom Search API" in Google Cloud and put the key in `GOOGLE_CSE_KEY`.
+- **Serper**: Google results through https://serper.dev, with free starter credits and then paid. Key in `SERPER_API_KEY`. Set `SEARCH_LIMITS=serper=<your credits>/month` to stop at your free credits.
+
+**Free, unlimited or large allowances:**
 
 1. **SearXNG** (free, unlimited, no signup): a search engine that runs on your own computer.
    - Install Docker Desktop: https://www.docker.com/products/docker-desktop/
@@ -64,7 +73,23 @@ The app searches the web to find websites the map missed and to find Instagram/F
 3. **Brave**: optional, needs a card.
 4. **DuckDuckGo**: always the last fallback. Free, but it blocks after a few dozen searches.
 
-A typical search uses about 1 web search per business without a website, plus 2 per business type for the search-engine source, 1 for Instagram and 1 for Facebook.
+A typical search uses about 1 web search per business without a website (2 when phone search is on), plus 2 per business type for the search-engine source, 1 for Instagram and 1 for Facebook.
+
+Change the order with `SEARCH_ORDER` (e.g. `searxng,google_cse` to save Google's allowance for last) and the limits with `SEARCH_LIMITS` (e.g. `google_cse=100/day,serper=2500/month`).
+
+## Moving to paid tools later
+
+Every outside service is a plug, so upgrading means adding a key, not changing the lead engine:
+
+| What | Free now | Paid later | Where |
+|---|---|---|---|
+| Businesses (the lead list) | OpenStreetMap; Google Maps scraper (local testing only) | Google Places API (`GOOGLE_PLACES_API_KEY`): official, lists the website for most businesses | `lib/sources/` |
+| Web search (finding websites, phone search) | SearXNG, Tavily free, DuckDuckGo; Google Programmable Search / Serper free allowances | Serper or Brave with a paid plan: raise `SEARCH_LIMITS` | `lib/enrich/searchProviders.ts` |
+| Mobile speed | PageSpeed without a key (few checks) | PageSpeed key (free quota is large) | `lib/enrich/pagespeed.ts` |
+| Instagram details | – | Meta official API token | `lib/sources/meta.ts` |
+| Company data | – | Apollo (client's own key) | `lib/sources/apollo.ts` |
+
+Run `npm run bench` before and after adding a service to see what it actually changes.
 
 ## Google Maps scraper (local testing only)
 
@@ -166,7 +191,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 147 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 156 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

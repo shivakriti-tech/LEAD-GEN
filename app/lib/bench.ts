@@ -218,7 +218,7 @@ export function labelsFromRows(rows: Record<string, string>[]): Record<string, B
 export async function runCases(
   cases: BenchCase[],
   deps: Pick<Deps, "discover" | "audit" | "mx">,
-  opts: { search?: (q: string) => Promise<SearchHit[]>; concurrency?: number; onDone?: (done: number, total: number) => void } = {},
+  opts: { search?: (q: string) => Promise<SearchHit[]>; numberSearch?: (q: string) => Promise<SearchHit[]>; concurrency?: number; onDone?: (done: number, total: number) => void } = {},
 ): Promise<BenchOutcome[]> {
   let done = 0;
   return mapLimit(cases, opts.concurrency ?? 4, async (c) => {
@@ -226,7 +226,7 @@ export async function runCases(
     const chain = chainReason(lead);
     if (chain) lead.chain = { outlets: 1, reason: chain };
     const t = Date.now();
-    await qualifyLead(lead, { verify: true, search: opts.search }, deps);
+    await qualifyLead(lead, { verify: true, search: opts.search, numberSearch: opts.search ? opts.numberSearch : undefined }, deps);
     Object.assign(lead, scoreWebsiteDev(lead));
     const ms = Date.now() - t;
     opts.onDone?.(++done, cases.length);

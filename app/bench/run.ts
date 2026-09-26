@@ -30,7 +30,7 @@ async function main() {
   const { defaultDeps } = await import("../lib/pipeline");
   const { getStore } = await import("../lib/store");
   const { parseCsv } = await import("../lib/sources/gmapsScraper");
-  const { providersFromEnv } = await import("../lib/enrich/searchProviders");
+  const { providersFromEnv, searchUsage } = await import("../lib/enrich/searchProviders");
 
   const casesFile = path.join(dir, "vadodara.cases.json");
   if (!existsSync(casesFile)) throw new Error("No benchmark yet. Run: npm run bench:build");
@@ -43,11 +43,16 @@ async function main() {
   const deps = defaultDeps(getStore());
   const useSearch = !args.includes("--no-search");
   const search = useSearch ? deps.makeWebSearch!((m) => console.warn(`  ${m}`)) : undefined;
-  console.log(`Vadodara benchmark: ${cases.length} businesses, ${Object.keys(labels).length} hand-checked, web search: ${useSearch ? providersFromEnv().map((p) => p.label).join(" → ") : "off"}, cache: ${{ off: "off", search: "web searches only", all: "everything" }[process.env.LEAD_CACHE!]}\n`);
+  // phone numbers go to providers that match exact numbers only (same as the app); PHONE_SEARCH=on/off overrides
+  const mode = deps.keys.phoneSearch ?? "auto";
+  const numberSearch = !useSearch || mode === "off" ? undefined : deps.makeNumberSearch?.((m) => console.warn(`  ${m}`)) ?? (mode === "on" ? search : undefined);
+  const providers = providersFromEnv();
+  console.log(`Vadodara benchmark: ${cases.length} businesses, ${Object.keys(labels).length} hand-checked, web search: ${useSearch ? providers.map((p) => p.label).join(" → ") : "off"}, phone search: ${numberSearch ? providers.filter((p) => p.exact).map((p) => p.label).join(" → ") || "all providers" : "off"}, cache: ${{ off: "off", search: "web searches only", all: "everything" }[process.env.LEAD_CACHE!]}\n`);
 
   const started = Date.now();
   const outcomes = await runCases(cases, deps, {
     search,
+    numberSearch,
     onDone: (d, t) => process.stdout.write(`\r  ${d}/${t} checked`),
   });
   const totalSec = Math.round((Date.now() - started) / 1000);
@@ -92,6 +97,9 @@ async function main() {
   }
   const missed = report.rows.filter((r) => r.verdict === "missed");
   if (missed.length) console.log(`\nMissed ${missed.length} known websites, e.g. ${missed.slice(0, 5).map((r) => `${r.name} (${r.truth})`).join(", ")}`);
+
+  const usage = searchUsage().filter((u) => u.today);
+  if (usage.length) console.log(`\nSearches used today: ${usage.map((u) => `${u.label} ${u.limit?.per === "month" ? `${u.month} this month` : u.today}${u.limit ? ` of ${u.limit.n} a ${u.limit.per}` : ""}`).join(", ")}`);
 
   const file = path.join(resultsDir, `vadodara-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
   const perBusiness = outcomes.map((o) => ({

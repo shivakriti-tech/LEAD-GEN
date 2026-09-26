@@ -1,6 +1,6 @@
 import { getStore } from "@/lib/store";
 import { crawlerContact } from "@/lib/util";
-import { providersFromEnv } from "@/lib/enrich/searchProviders";
+import { providersFromEnv, searchUsage } from "@/lib/enrich/searchProviders";
 import { gmapsScraperUrl } from "@/lib/sources/gmapsScraper";
 
 export const runtime = "nodejs";
@@ -16,6 +16,7 @@ export async function GET() {
     contact: !!crawlerContact(),
     brave: !!process.env.BRAVE_SEARCH_API_KEY,
     searchProviders: providersFromEnv().map((p) => p.label),
+    searchUsage: searchUsage(), // per provider: searches today / this month and its free limit (no keys)
     gmapsScraper: !!gmapsScraperUrl(),
     meta: !!process.env.META_ACCESS_TOKEN && !!process.env.IG_BUSINESS_ACCOUNT_ID,
     fbPageSearch: /^(on|true|1|yes)$/i.test(process.env.FB_PAGE_SEARCH || "") && !!process.env.META_ACCESS_TOKEN,
