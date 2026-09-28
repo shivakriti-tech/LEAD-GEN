@@ -31,6 +31,7 @@ const COLS: Array<[string, (l: Lead) => unknown]> = [
   ["Facebook", (l) => l.social?.facebook?.url ?? l.audit?.socials.facebook],
   ["Google Maps", (l) => l.mapsUrl],
   ["Sources", (l) => l.sources.join(" + ")],
+  ["Checked", (l) => (l.pending ? "no (search stopped before this one was checked)" : "yes")],
 ];
 
 const cell = (v: unknown) => {

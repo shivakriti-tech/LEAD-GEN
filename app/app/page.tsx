@@ -21,6 +21,8 @@ const STAGE_LABEL: Record<string, string> = {
 
 const groups = [...new Set(CATEGORIES.map((c) => c.group))];
 
+
+
 export default function LeadFinder() {
   const [config, setConfig] = useState<Config | null>(null);
   const [cats, setCats] = useState<string[]>(["dentist", "salon", "cafe"]);
@@ -43,6 +45,9 @@ export default function LeadFinder() {
   const [stage, setStage] = useState<{ stage: string; done: number; total: number } | null>(null);
   const [log, setLog] = useState<LogLine[]>([]);
   const [search, setSearch] = useState<SearchRecord | null>(null);
+  // the search on screen: set as soon as a search starts or is opened, so its leads can be exported any time
+  const [searchId, setSearchId] = useState<string | null>(null);
+  const [stopping, setStopping] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [history, setHistory] = useState<SearchRecord[]>([]);
   const [error, setError] = useState("");
@@ -78,10 +83,21 @@ export default function LeadFinder() {
     if (!r.ok) return;
     const d = await r.json();
     setSearch(d.search);
+    setSearchId(d.search.id);
     setLeads(d.leads);
-    setLog([]);
-    setStage(null);
+    setLog(d.live?.logs ?? []);
+    setStage(d.live?.stage ?? null);
+    setStopping(!!d.live?.stopping);
     setOpen(null);
+  }
+
+  /** Stop the search on screen. What's checked so far is kept and can be exported. */
+  async function stopSearch() {
+    if (!searchId) return;
+    setStopping(true);
+    const r = await fetch(`/api/searches/${searchId}/stop`, { method: "POST" }).catch(() => null);
+    const d = await r?.json().catch(() => null);
+    if (d?.search) { setSearch(d.search); setStopping(false); loadHistory(); } // it wasn't running any more
   }
 
   async function run() {
@@ -90,6 +106,8 @@ export default function LeadFinder() {
     setLog([]);
     setLeads([]);
     setSearch(null);
+    setSearchId(null);
+    setStopping(false);
     setOpen(null);
     try {
       const res = await fetch("/api/search", {
@@ -126,7 +144,8 @@ export default function LeadFinder() {
           buf = buf.slice(nl + 1);
           if (!line.trim()) continue;
           const ev = JSON.parse(line) as ProgressEvent;
-          if (ev.type === "log") {
+          if (ev.type === "start") setSearchId(ev.searchId);
+          else if (ev.type === "log") {
             setLog((l) => [...l, { level: ev.level, message: ev.message }]);
             if (ev.level === "error") lastError = ev.message;
           }
@@ -139,6 +158,7 @@ export default function LeadFinder() {
             setSearch(ev.search);
             setLeads(ev.leads);
             if (ev.search.status === "failed") setError(ev.search.error || "Search failed");
+            setStopping(false);
           }
         }
       }
@@ -173,13 +193,23 @@ export default function LeadFinder() {
       if (!r?.ok) return;
       const d = await r.json();
       setLeads(d.leads);
-      if (d.search.status !== "running") setSearch(d.search);
+      if (d.live) {
+        setLog(d.live.logs);
+        setStage(d.live.stage ?? null);
+      }
+      if (d.search.status !== "running") {
+        setSearch(d.search);
+        setStopping(false);
+        loadHistory();
+      }
     }, 5000);
     return () => clearInterval(t);
   }, [running, search]);
 
   const toggleCat = (k: string) => setCats((c) => (c.includes(k) ? c.filter((x) => x !== k) : c.length >= 8 ? c : [...c, k]));
   const googleReady = !!config?.google;
+  // running in this tab, or a running search opened from Recent searches
+  const searchRunning = running || search?.status === "running";
   const pct = stage && stage.total ? Math.round((stage.done / stage.total) * 100) : 0;
 
   return (
@@ -202,12 +232,15 @@ export default function LeadFinder() {
           <div className="history">
             {history.length === 0 && <span className="sub" style={{ color: "#B3C7C3", padding: "0 10px" }}>None yet</span>}
             {history.slice(0, 8).map((h) => (
-              <button key={h.id} onClick={() => openSearch(h.id)}>
-                <span>{h.params.area ? `${h.params.area}, ` : ""}{h.params.city}</span>
-                <span style={{ fontSize: 12, opacity: 0.75 }}>
-                  {h.status === "done" ? `${h.counts.hot} hot · ${h.counts.afterDedupe} leads` : h.status} · {new Date(h.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                </span>
-              </button>
+              <div key={h.id} className="history-row">
+                <button onClick={() => openSearch(h.id)}>
+                  <span>{h.params.area ? `${h.params.area}, ` : ""}{h.params.city}</span>
+                  <span style={{ fontSize: 12, opacity: 0.75 }}>
+                    {h.status === "done" ? `${h.counts.hot} hot · ${h.counts.afterDedupe} leads` : h.status === "stopped" ? `stopped · ${h.counts.afterDedupe} leads` : h.status} · {new Date(h.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                  </span>
+                </button>
+                {h.status !== "failed" && <a className="history-csv" href={`/api/searches/${h.id}/csv`} title="Download this search as CSV">CSV</a>}
+              </div>
             ))}
           </div>
         </div>
@@ -338,10 +371,17 @@ export default function LeadFinder() {
         {(running || log.length > 0) && (
           <section className="panel stack" aria-live="polite">
             <div className="row" style={{ justifyContent: "space-between" }}>
-              <b>{stage ? STAGE_LABEL[stage.stage] : "Starting"}</b>
-              <span className="sub mono">{stage ? `${stage.done}/${stage.total}` : ""}</span>
+              <b>{stopping && searchRunning ? "Stopping…" : stage ? STAGE_LABEL[stage.stage] : "Starting"}</b>
+              <div className="row">
+                <span className="sub mono">{stage ? `${stage.done}/${stage.total}` : ""}</span>
+                {searchRunning && searchId && (
+                  <button className="btn" onClick={stopSearch} disabled={stopping} title="Stop here: everything checked so far is kept and can be exported">
+                    {stopping ? "Stopping…" : "Stop"}
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="progress"><i style={{ width: `${running ? pct : 100}%` }} /></div>
+            <div className="progress"><i style={{ width: `${searchRunning ? pct : 100}%` }} /></div>
             <div className="log" ref={logRef}>
               {log.map((l, i) => <div key={i} className={l.level}>{l.message}</div>)}
             </div>
@@ -371,7 +411,11 @@ export default function LeadFinder() {
                 </div>
                 <div className="row">
                   <input id="filter-q" type="search" placeholder="Filter by name or area" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
-                  {search?.status === "done" && <a className="btn" href={`/api/searches/${search.id}/csv`}>Export CSV</a>}
+                  {searchId && (
+                    <a className="btn" href={`/api/searches/${searchId}/csv`} title={search?.status === "done" ? "Download all leads" : "Download the leads found and checked so far"}>
+                      {search?.status === "done" ? "Export CSV" : "Export CSV (so far)"}
+                    </a>
+                  )}
                 </div>
               </div>
               <div className="sub">{shown.length} of {leads.length} shown · sorted by opportunity score{checking ? ` · ${checking} still being checked (they move up as they finish)` : ""}</div>

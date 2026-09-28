@@ -5,7 +5,7 @@ create table if not exists public.searches (
   id uuid primary key,
   created_at timestamptz not null default now(),
   params jsonb not null,
-  status text not null check (status in ('running','done','failed')),
+  status text not null check (status in ('running','done','failed','stopped')),
   counts jsonb not null default '{}'::jsonb,
   error text
 );
@@ -44,3 +44,7 @@ create index if not exists leads_place_idx on public.leads (place_id);
 -- The app talks to these tables with the service role key from the server only.
 alter table public.searches enable row level security;
 alter table public.leads enable row level security;
+
+-- Already created the tables before "stopped" existed? Run this once:
+-- alter table public.searches drop constraint if exists searches_status_check;
+-- alter table public.searches add constraint searches_status_check check (status in ('running','done','failed','stopped'));

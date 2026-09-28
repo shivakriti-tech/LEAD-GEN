@@ -2,6 +2,7 @@ import { defaultDeps, runSearch } from "@/lib/pipeline";
 import { getStore } from "@/lib/store";
 import type { ProgressEvent, SearchParams } from "@/lib/types";
 import { CATEGORIES } from "@/lib/categories";
+import { track } from "@/lib/live";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,7 +47,8 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       let closed = false;
-      const emit = (e: ProgressEvent) => {
+      const ctrl = new AbortController(); // the Stop button aborts it
+      const send = (e: ProgressEvent) => {
         if (closed) return; // browser went away: keep working, just stop sending
         try {
           controller.enqueue(enc.encode(JSON.stringify(e) + "\n"));
@@ -54,13 +56,15 @@ export async function POST(req: Request) {
           closed = true;
         }
       };
+      const emit = track(ctrl, send);
       try {
-        const result = await runSearch(params, deps, emit);
+        const result = await runSearch(params, deps, emit, ctrl.signal);
         emit({ type: "done", search: result.search, leads: result.leads });
       } catch (e) {
         // e.g. the store couldn't save the new search; without this the browser waits forever
         emit({ type: "log", level: "error", message: e instanceof Error ? e.message : "Search failed" });
       } finally {
+        emit.end();
         if (!closed) controller.close();
       }
     },

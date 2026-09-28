@@ -141,7 +141,7 @@ export interface SearchRecord {
   id: string;
   createdAt: string;
   params: SearchParams;
-  status: "running" | "done" | "failed";
+  status: "running" | "done" | "failed" | "stopped";
   counts: { found: number; afterDedupe: number; hot: number; warm: number; cold: number };
   error?: string;
 }

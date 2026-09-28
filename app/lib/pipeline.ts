@@ -49,7 +49,8 @@ export interface Deps {
 }
 
 /** Runs one lead search end to end, reporting progress as it goes. */
-export async function runSearch(params: SearchParams, deps: Deps, emit: (e: ProgressEvent) => void): Promise<{ search: SearchRecord; leads: Lead[] }> {
+export async function runSearch(params: SearchParams, deps: Deps, emit: (e: ProgressEvent) => void, signal?: AbortSignal): Promise<{ search: SearchRecord; leads: Lead[] }> {
+  const stopped = () => !!signal?.aborted;
   const log = (message: string, level: "info" | "warn" | "error" = "info") => emit({ type: "log", level, message });
   const search: SearchRecord = {
     id: uid(),
@@ -110,6 +111,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     emit({ type: "stage", stage: "search", done, total });
 
     const runJob = async (j: (typeof jobs)[number]) => {
+      if (stopped()) return;
       try {
         if (j.src === "google") {
           const r = await deps.google({ apiKey: deps.keys.google!, query: `${j.c.google} in ${place}`, category: j.c.label, city: params.city, max: params.perCategory });
@@ -214,7 +216,13 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     emit({ type: "stage", stage: "enrich", done: 0, total: leads.length });
     // businesses with a phone first: they're the ones you can call
     const order = [...leads].sort((a, b) => Number(!!b.phone) - Number(!!a.phone));
+    let stopLogged = false;
     await mapLimit(order, 8, async (l) => {
+      if (stopped()) {
+        if (!stopLogged) log("Stopping: businesses already checked are kept; the rest are saved as not checked.", "warn");
+        stopLogged = true;
+        return;
+      }
       try {
         await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: siteSearch, numberSearch: siteSearch ? numberSearch : undefined, state }, deps);
       } catch (e) {
@@ -235,7 +243,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
 
     // 3c. Instagram profiles via Meta's official API
     const withIg = leads.filter((l) => l.social?.instagram);
-    if (withIg.length && deps.keys.metaToken && deps.keys.igUserId) {
+    if (withIg.length && deps.keys.metaToken && deps.keys.igUserId && !stopped()) {
       const cap = withIg.slice(0, 150); // stay well inside Meta's hourly limit
       log(`Reading ${cap.length} Instagram profile${cap.length > 1 ? "s" : ""} through Meta's official API.`);
       let n = 0, stop = "";
@@ -280,7 +288,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     }
 
     const withSite = leads.filter((l) => l.audit?.status === "ok");
-    if (params.pageSpeed && withSite.length) {
+    if (params.pageSpeed && withSite.length && !stopped()) {
       log(`Checking mobile speed for ${withSite.length} websites. This is the slow part (10–30s each).`);
       let sp = 0;
       let ok = 0;
@@ -298,7 +306,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
       log(`Mobile speed checked for ${ok} of ${withSite.length} websites${deps.keys.pageSpeed ? " (using your PageSpeed key)" : " (no key: Google allows only a few checks without one)"}.`, ok ? "info" : "warn");
       for (const [m, n] of errs) log(`${n} speed check${n > 1 ? "s" : ""} failed: ${m}`, "warn");
     }
-    if (params.sources.apollo && deps.keys.apollo) {
+    if (params.sources.apollo && deps.keys.apollo && !stopped()) {
       const targets = leads.filter((l) => l.website && !isSocialHost(domainOf(l.website)));
       await mapLimit(targets, 3, async (l) => {
         try {
@@ -313,24 +321,27 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
           log(`Apollo: ${msg(e)}`, "warn");
         }
       });
-    } else if (params.sources.apollo) log("Apollo is on but no key is set. Skipping.", "warn");
+    } else if (params.sources.apollo && !deps.keys.apollo) log("Apollo is on but no key is set. Skipping.", "warn");
 
-    // 4. score
+    // 4. score (if stopped, businesses not checked keep their first rough score and go last)
     for (const l of leads) Object.assign(l, scoreWebsiteDev(l, deps.now?.()));
-    leads.sort((a, b) => b.score - a.score);
-    search.counts.hot = leads.filter((l) => l.tier === "hot").length;
-    search.counts.warm = leads.filter((l) => l.tier === "warm").length;
-    search.counts.cold = leads.filter((l) => l.tier === "cold").length;
+    leads.sort((a, b) => Number(!!a.pending) - Number(!!b.pending) || b.score - a.score);
+    const done_ = leads.filter((l) => !l.pending);
+    search.counts.hot = done_.filter((l) => l.tier === "hot").length;
+    search.counts.warm = done_.filter((l) => l.tier === "warm").length;
+    search.counts.cold = done_.filter((l) => l.tier === "cold").length;
     emit({ type: "stage", stage: "score", done: 1, total: 1 });
 
     if (deps.cacheStats && deps.cacheStats.hits) log(`Reused ${deps.cacheStats.hits} saved check${deps.cacheStats.hits > 1 ? "s" : ""} from earlier searches (kept up to 7 days; LEAD_CACHE=off to turn off).`);
 
     // 5. save
-    search.status = "done";
+    search.status = stopped() ? "stopped" : "done";
+    if (stopped()) search.error = `Stopped by you after checking ${done_.length} of ${leads.length} businesses`;
     await deps.store.saveSearch(search);
     await deps.store.saveLeads(search.id, leads);
     emit({ type: "stage", stage: "save", done: 1, total: 1 });
-    log(`Done: ${search.counts.hot} hot, ${search.counts.warm} warm, ${search.counts.cold} cold.`);
+    if (stopped()) log(`Stopped: ${done_.length} of ${leads.length} businesses checked (${search.counts.hot} hot, ${search.counts.warm} warm, ${search.counts.cold} cold). Export CSV has all of them; the unchecked ones are marked.`, "warn");
+    else log(`Done: ${search.counts.hot} hot, ${search.counts.warm} warm, ${search.counts.cold} cold.`);
     return { search, leads };
   } catch (e) {
     search.status = "failed";

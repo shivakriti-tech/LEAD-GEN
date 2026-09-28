@@ -119,6 +119,10 @@ input[type=text], input[type=password], input[type=search], select { background:
 .history button { all: unset; cursor: pointer; padding: 8px 10px; border-radius: 8px; font-size: 13px; color: #D5E3E0; display: flex; flex-direction: column; }
 .history button:hover { background: var(--slate-hover); }
 .history button:focus-visible { outline: 2px solid var(--aqua); }
+.history-row { display: flex; align-items: center; gap: 4px; }
+.history-row button { flex: 1; }
+.history-csv { font-size: 12px; color: var(--aqua); text-decoration: none; padding: 6px 8px; border-radius: 6px; }
+.history-csv:hover { background: var(--slate-hover); }
 
 @media (max-width: 1100px) {
   .lead { grid-template-columns: auto minmax(0, 1fr); }
