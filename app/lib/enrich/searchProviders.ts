@@ -6,8 +6,9 @@ import { fileUsage, memoryUsage, parseLimits, type Limit, type UsageBook } from 
 /**
  * Web search providers. Each one is a plug: adding a paid service later means adding a key,
  * not changing the lead engine.
- *  - Google Programmable Search: real Google results, ~100 free searches a day (if Google still offers it on your account).
- *  - Serper: real Google results, free starter credits, then paid.
+ *  - Serper: real Google results, 2,500 free searches once (no card), then prepaid credits.
+ *  - Google Programmable Search: real Google results, 100 free a day, but only for accounts that already have it
+ *    (closed to new sign-ups in 2025, shut down on 1 January 2027).
  *  - SearXNG: self-hosted on your own computer. Free, unlimited, no key, but weak for local businesses.
  *  - Tavily: 1,000 searches/month free, no credit card.
  *  - Brave: needs a card on file.

@@ -22,8 +22,8 @@ With no keys at all it already works: leads come from OpenStreetMap (free) and e
 |---|---|---|
 | `GOOGLE_PLACES_API_KEY` | Google Maps businesses with phone, website, rating, reviews. 1,000 free requests a month, about 20 businesses each | Google Cloud Console → new project → turn on billing → APIs & Services → enable **Places API (New)** → Credentials → Create API key. Restrict the key to Places API. Set a budget alert. |
 | `PAGESPEED_API_KEY` | Mobile speed check for every website (turns on automatically when set) | Same project → enable **PageSpeed Insights API**. If you reuse the Places key and restricted it, add PageSpeed Insights API to the key's allowed APIs, or Google rejects it (the app now shows this error). |
-| `GOOGLE_CSE_KEY`, `GOOGLE_CSE_CX` | Google-quality web search, about 100 free a day. Finds far more websites than the free engines, and turns on phone-number search | See **Web search** below |
-| `SERPER_API_KEY` | Google results through Serper: free starter credits, then paid | https://serper.dev |
+| `SERPER_API_KEY` | Google results through Serper: 2,500 free searches once (no card), then paid. Finds far more websites than the free engines, and turns on phone-number search | https://serper.dev |
+| `GOOGLE_CSE_KEY`, `GOOGLE_CSE_CX` | Google Programmable Search: only for accounts that already have it (closed to new sign-ups; ends 1 Jan 2027) | See **Web search** below |
 | `SEARXNG_URL` | Free, unlimited web search running on your own computer. Used to find missing websites and Instagram/Facebook profiles | See **Web search** below |
 | `TAVILY_API_KEY` | 1,000 free web searches a month, no credit card | https://app.tavily.com → sign up → copy the API key |
 | `BRAVE_SEARCH_API_KEY` | Another search option. Needs a card on file | https://brave.com/search/api/ |
@@ -57,8 +57,8 @@ The app searches the web to find websites the map missed and to find Instagram/F
 
 **Google-quality (best results, free allowances).** These match exact business names and phone numbers, which the free engines below don't. Setting up either one also turns on the phone-number search:
 
-- **Google Programmable Search**: about 100 free searches a day, if Google still offers it on your account. Create a search engine at https://programmablesearchengine.google.com (search the entire web) and copy its id into `GOOGLE_CSE_CX`; enable "Custom Search API" in Google Cloud and put the key in `GOOGLE_CSE_KEY`.
-- **Serper**: Google results through https://serper.dev, with free starter credits and then paid. Key in `SERPER_API_KEY`. Set `SEARCH_LIMITS=serper=<your credits>/month` to stop at your free credits.
+- **Serper** (recommended): Google results through https://serper.dev. New accounts get 2,500 free searches, once, with no card; after that you buy credit packs. Key in `SERPER_API_KEY`. Without a card on file it simply stops working when the free searches are used up, so it can't bill you. One benchmark run uses about 200.
+- **Google Programmable Search** (`GOOGLE_CSE_KEY`, `GOOGLE_CSE_CX`): only if your Google account already has it. Google closed it to new sign-ups in 2025 and shuts it down on 1 January 2027.
 
 **Free, unlimited or large allowances:**
 
@@ -84,7 +84,7 @@ Every outside service is a plug, so upgrading means adding a key, not changing t
 | What | Free now | Paid later | Where |
 |---|---|---|---|
 | Businesses (the lead list) | OpenStreetMap; Google Maps scraper (local testing only) | Google Places API (`GOOGLE_PLACES_API_KEY`): official, lists the website for most businesses | `lib/sources/` |
-| Web search (finding websites, phone search) | SearXNG, Tavily free, DuckDuckGo; Google Programmable Search / Serper free allowances | Serper or Brave with a paid plan: raise `SEARCH_LIMITS` | `lib/enrich/searchProviders.ts` |
+| Web search (finding websites, phone search) | SearXNG, Tavily free, DuckDuckGo; Serper's 2,500 free searches | Serper credit packs, or Brave: raise `SEARCH_LIMITS` | `lib/enrich/searchProviders.ts` |
 | Mobile speed | PageSpeed without a key (few checks) | PageSpeed key (free quota is large) | `lib/enrich/pagespeed.ts` |
 | Instagram details | – | Meta official API token | `lib/sources/meta.ts` |
 | Company data | – | Apollo (client's own key) | `lib/sources/apollo.ts` |
