@@ -2,8 +2,9 @@ import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { addDays, dueLabel, emailLink, firstMessage, followUpLabel, followUpMessage, issueChips, normalizeStatus, scoreSummary, shortAddress, whatsappLink, whatsappNumber } from "@/lib/outreach";
-import { mergeFollowUp, pipeline, validPatch } from "@/lib/followups";
+import { addDays, dueLabel, emailLink, firstMessage, followUpLabel, followUpMessage, issueChips, normalizeStatus, pitchText, scoreSummary, shortAddress, toneFor, whatsappLink, whatsappNumber } from "@/lib/outreach";
+import { mergeFollowUp, pipeline, touchedElsewhere, touchKeys, validPatch } from "@/lib/followups";
+import { estimate, sameSearch } from "@/app/_ui/SearchForm";
 import type { Store } from "@/lib/store";
 import { emptyAudit } from "@/lib/enrich/crawl";
 import { leadsToCsv } from "@/lib/csv";
@@ -27,20 +28,43 @@ describe("outreach helpers", () => {
     expect(whatsappLink(lead({ audit: emptyAudit("none") }), "en", "Riya, WebCraft")).toMatch(/^https:\/\/wa\.me\/919825011111\?text=Hi%20/);
   });
 
-  it("writes a first message in English or Hinglish that greets the owner and names the problem", () => {
-    const l = lead({ owner: { name: "Dr. Mehul Shah", via: "google_maps" }, audit: emptyAudit("none") });
-    const en = firstMessage(l, "en", "Riya, WebCraft");
-    expect(en).toMatch(/^Hi Dr\. Mehul,/);
-    expect(en).toContain("I noticed Aum Dental Care doesn't have a website yet");
-    expect(en).toContain("dentist in Vadodara");
-    expect(en).toMatch(/– Riya, WebCraft$/);
+  it("writes a first message in English or Hinglish that greets the owner, names the problem and introduces you", () => {
+    const me = { name: "Divy", work: "web developer", city: "Vadodara", link: "divy.dev" };
+    const l = lead({ owner: { name: "Dr. Mehul Shah", via: "google_maps" }, audit: emptyAudit("none"), rating: 4.8, reviews: 212 });
+    const en = firstMessage(l, "en", me);
+    expect(en).toMatch(/^Hi Dr\. Mehul, I came across Aum Dental Care on Google\. 212 reviews and a 4\.8 rating is really good\./);
+    expect(en).toContain("there's no website yet, so people searching for a dentist in Vadodara");
+    expect(en).toContain("booking button helps new patients"); // what a site does for a clinic
+    expect(en).toContain("I'm Divy, a web developer in Vadodara.");
+    expect(en).toMatch(/Some of my work: divy\.dev$/);
     const hi = firstMessage(l, "hi");
     expect(hi).toMatch(/^Namaste Dr\. Mehul ji,/);
     expect(hi).toContain("website nahi hai");
-    expect(hi).toMatch(/\[aapka naam\]$/);
-    const down = firstMessage(lead({ website: "https://moticafe.in", audit: { ...emptyAudit("down"), finalUrl: "https://moticafe.in/" } }), "en");
-    expect(down).toContain("website (moticafe.in) isn't loading");
+    expect(hi).toContain("Main [aapka naam] hoon");
+    const down = firstMessage(lead({ website: "https://moticafe.in", category: "Café & bakery", audit: { ...emptyAudit("down"), finalUrl: "https://moticafe.in/" } }), "en");
+    expect(down).toContain("your website (moticafe.in) and it isn't loading");
     expect(firstMessage(lead({ audit: emptyAudit("none") }), "en")).toMatch(/^Hi there,/);
+    // no praise for a poor or thin rating
+    expect(firstMessage(lead({ audit: emptyAudit("none"), rating: 3.6, reviews: 400 }), "en")).not.toContain("rating is really good");
+  });
+
+  it("writes a short version, and fits the pitch to the kind of business", () => {
+    const me = { name: "Divy", city: "Vadodara" };
+    const l = lead({ audit: emptyAudit("none"), reviews: 212 });
+    expect(firstMessage(l, "en", me, "short")).toBe("Hi there, Divy here, web developer from Vadodara. Aum Dental Care has 212 Google reviews but no website. I can build you a simple website. Can I show you a quick sample?");
+    const salon = lead({ name: "Kiran Beauty Salon", category: "Salon & spa", audit: { ...emptyAudit("social_only"), socials: { instagram: "x" } } });
+    expect(firstMessage(salon, "en")).toContain("people can only find you on Instagram");
+    expect(firstMessage(salon, "en")).toContain("prices and a booking button");
+    const slow = lead({ website: "https://shree.in", audit: { ...emptyAudit("ok"), finalUrl: "https://shree.in/", copyrightYear: 2018 }, signals: [{ key: "not_mobile", label: "", points: 25 }, { key: "stale", label: "", points: 10 }] });
+    expect(firstMessage(slow, "en", me, "short")).toContain("Aum Dental Care's website is not mobile-friendly and not updated since 2018.");
+    expect(firstMessage(slow, "hi", me, "short")).toContain("phone pe theek se nahi dikhti aur 2018 se update nahi hui");
+  });
+
+  it("starts with a follow-up once you've messaged them", () => {
+    expect(toneFor(lead(), "short")).toBe("short");
+    expect(toneFor(lead({ followUp: { status: "contacted", updatedAt: "" } }), "short")).toBe("follow");
+    expect(toneFor(lead({ followUp: { status: "won", updatedAt: "" } }), "friendly")).toBe("friendly");
+    expect(pitchText(lead(), "en", "follow", { name: "Divy" })).toMatch(/^Hi there, just following up.*– Divy$/);
   });
 
   it("writes a short follow-up nudge", () => {
@@ -125,6 +149,24 @@ describe("statuses, follow-up dates and the score in a line", () => {
     expect(p.due[0].search).toBe("Alkapuri, Vadodara");
     expect(p.contactedThisWeek).toBe(2);
     expect(p.byStatus).toMatchObject({ contacted: 3, new: 1 });
+    // remembers who you've contacted, by phone, for other searches
+    const other = lead({ id: "zz", phones: ["+91 98250 11111"] });
+    expect(touchKeys(other)).toContain("p:9825011111");
+    expect(touchedElsewhere(other, "s2", p.touched)).toMatchObject({ search: "Alkapuri, Vadodara" });
+    expect(touchedElsewhere(leads[0], "s1", p.touched)?.leadId).not.toBe("a"); // itself doesn't count
+    // results per business type, per city and overall
+    expect(p.stats["vadodara|Dentist"]).toMatchObject({ searches: 1, total: 5, hot: 5, noSite: 5 });
+    expect(p.stats["*|Dentist"].total).toBe(5);
+  });
+
+  it("estimates a new search from past ones, and spots a repeat", () => {
+    const stats = { "vadodara|Dentist": { searches: 2, total: 30, hot: 12, noSite: 20 }, "*|Salon & spa": { searches: 1, total: 8, hot: 2, noSite: 3 } };
+    expect(estimate(stats, "Vadodara", ["dentist", "salon", "gym"])).toEqual({ total: 23, hot: 8, known: 2 });
+    expect(estimate(stats, "Surat", ["gym"])).toBeNull();
+    const h = [{ id: "x", createdAt: new Date(Date.now() - 3 * 86_400_000).toISOString(), status: "done" as const, params: { city: "Vadodara", area: "Alkapuri", categories: ["dentist", "salon"] } as never, counts: { found: 0, afterDedupe: 20, hot: 5, warm: 0, cold: 0 } }];
+    expect(sameSearch(h, { city: "vadodara ", area: "alkapuri", cats: ["dentist"] })?.id).toBe("x");
+    expect(sameSearch(h, { city: "Vadodara", area: "", cats: ["dentist"] })).toBeUndefined();
+    expect(sameSearch(h, { city: "Vadodara", area: "Alkapuri", cats: ["gym"] })).toBeUndefined();
   });
 });
 

@@ -1,45 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Lead } from "@/lib/types";
-import { firstMessage, whatsappLinkWith, type Lang } from "@/lib/outreach";
+import { pitchText, toneFor, TONES, whatsappLinkWith, type Tone } from "@/lib/outreach";
+import { usePitch } from "./pitch";
 import { IconCheck, IconCopy, IconWhatsApp } from "./icons";
 
 /**
- * The pitch for one lead, ready to send: edit it if you like, then WhatsApp or copy it.
- * Your edits are kept (per lead) until you switch language.
+ * The message for one lead, ready to send: pick a tone and language, edit it if you like,
+ * then WhatsApp or copy it. Your edits stay (per lead) until you change tone or language.
  */
 export function PitchBox({
   lead,
-  lang,
-  setLang,
-  sender,
   draft,
   setDraft,
   onSent,
   autoFocus,
+  big,
 }: {
   lead: Lead;
-  lang: Lang;
-  setLang: (l: Lang) => void;
-  sender: string;
   draft?: string;
   setDraft: (text: string | undefined) => void;
   onSent: () => void;
   autoFocus?: boolean;
+  /** In the lead panel: a full-width send button. */
+  big?: boolean;
 }) {
+  const { lang, setLang, tone: preferred, setTone, me } = usePitch();
+  const [tone, setLocalTone] = useState<Tone>(() => toneFor(lead, preferred));
   const [copied, setCopied] = useState(false);
-  const text = draft ?? firstMessage(lead, lang, sender);
+  // a different lead (or its status changed): start from its own tone again
+  useEffect(() => setLocalTone(toneFor(lead, preferred)), [lead.id, lead.followUp?.status, preferred]); // eslint-disable-line react-hooks/exhaustive-deps
+  const text = draft ?? pitchText(lead, lang, tone, me);
   const wa = whatsappLinkWith(lead, text);
+  const pickTone = (t: Tone) => {
+    setDraft(undefined);
+    setLocalTone(t);
+    if (t !== "follow") setTone(t);
+  };
   const copy = () =>
     navigator.clipboard?.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     }, () => {});
   return (
-    <div className="pitch">
+    <div className={`pitch ${big ? "big" : ""}`}>
       <div className="pitch-head">
         <span className="lbl">Your message</span>
+        <div className="seg" role="group" aria-label="Tone">
+          {TONES.map((t) => (
+            <button key={t.key} type="button" aria-pressed={tone === t.key} onClick={() => pickTone(t.key)}>{t.label}</button>
+          ))}
+        </div>
         <div className="seg" role="group" aria-label="Message language">
           <button type="button" aria-pressed={lang === "en"} onClick={() => { setDraft(undefined); setLang("en"); }}>English</button>
           <button type="button" aria-pressed={lang === "hi"} onClick={() => { setDraft(undefined); setLang("hi"); }}>Hinglish</button>
@@ -49,19 +61,19 @@ export function PitchBox({
         className="pitch-text"
         value={text}
         onChange={(e) => setDraft(e.target.value)}
-        rows={4}
+        rows={big ? 7 : 4}
         aria-label={`Message to ${lead.name}`}
         autoFocus={autoFocus}
       />
       <div className="pitch-foot">
         {wa ? (
-          <a className="btn wa" href={wa} target="_blank" rel="noreferrer" onClick={onSent}><IconWhatsApp /> Send on WhatsApp</a>
+          <a className={`btn wa ${big ? "send" : ""}`} href={wa} target="_blank" rel="noreferrer" onClick={onSent}><IconWhatsApp /> Send on WhatsApp</a>
         ) : (
-          <span className="sub">No mobile number for WhatsApp: copy and send another way.</span>
+          <span className="sub">No mobile number for WhatsApp: copy it and send another way.</span>
         )}
-        <button type="button" className="btn" onClick={copy}>{copied ? <IconCheck /> : <IconCopy />} {copied ? "Copied" : "Copy pitch"}</button>
-        {draft !== undefined && <button type="button" className="linkish" onClick={() => setDraft(undefined)}>Reset</button>}
-        {!sender && <span className="sub">Tip: set your name in a lead's details so it signs the message.</span>}
+        <button type="button" className="btn" onClick={copy}>{copied ? <IconCheck /> : <IconCopy />} {copied ? "Copied" : "Copy"}</button>
+        {draft !== undefined && <button type="button" className="linkish" onClick={() => setDraft(undefined)}>Undo my edits</button>}
+        {!me.name && !big && <span className="sub">Tip: add your name under <i>Your details</i> in a lead's panel.</span>}
       </div>
     </div>
   );

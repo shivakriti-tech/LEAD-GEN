@@ -149,6 +149,17 @@ export interface SearchParams {
   verifyWebsites: boolean;
   /** Also use a web search (DuckDuckGo, or Brave with a key) when guessing fails. */
   webSearch: boolean;
+  /** Filters to start the results with (nothing is thrown away: you can turn them off). */
+  keep?: KeepOnly;
+}
+
+export interface KeepOnly {
+  skipChains: boolean;
+  needPhone: boolean;
+  /** Hide businesses you've already contacted, in this or any search. */
+  notContacted: boolean;
+  /** 4★ and above (businesses without a rating stay). */
+  goodRating: boolean;
 }
 
 export interface SearchRecord {

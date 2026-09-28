@@ -38,17 +38,16 @@ Restart `npm run dev` after changing `.env.local`.
 
 ## Using the Lead Finder screen
 
-- **Search:** pick a city (and area), business types and where to look. Setup notes for sources that aren't connected are under *Sources & setup* (side panel, or the icon top right on a phone). The form remembers your last search.
-- **Results:** once a search runs, the form folds into a one-line summary (*Edit & search again*). While the first results load you see grey placeholder rows.
-- **Summary cards** are filters: tap Hot, Warm or Cold to show only those, *All leads* to reset, *Contacted this week* to see the leads you've reached out to in the last 7 days.
-- **Filter bar** (stays at the top while you scroll): no working website, has phone, WhatsApp, has email, and status. Active filters turn dark with a tick; the bar shows "N of M leads" and *Clear filters*. Search names, areas and your notes, sort, switch between **Table** (compact, default) and **Cards**, and **Export** exactly the leads shown.
-- **Each lead:** score (tap it to see what it's made of, e.g. "No website +40, 212 reviews +25"), the problems, a colour-coded status, and **WhatsApp** as the main button: it opens with a ready pitch that names the business and its problem ("Hi there, I noticed Aum Dental Care doesn't have a website yet…"). *Pitch* shows that message to read and edit first (English or Hinglish), with *Copy pitch*; the copy icon copies it in one tap. Call, email and Maps are small icons.
-- **After you send on WhatsApp**, a small bar asks "Sent to …?". *Mark contacted* sets the status and a follow-up in 3 days.
-- **Status:** New, Contacted, Replied, Meeting booked, Won, Lost, each with its own colour. Tap the status to change it or to set a follow-up date (Tomorrow, In 3 days, Next week, or pick a date). Saved with the search (once it has finished) and included in the CSV.
-- **Follow up today** (top of the page): leads from any search whose follow-up date is today or overdue, with a WhatsApp follow-up message ready, *Tomorrow* to push it a day, and *Done* to clear it.
-- **Select leads** with the checkboxes (the header box selects all shown) to mark them contacted, set a status or follow-up date, export them, or delete them from the search, all at once.
-- **Detail panel** (click a name): the reason, the pitch, status, follow-up date and your note, all phones and emails with copy buttons, a pass/fail check of their website, why it scored what it did, and how we checked.
-- Every search in *Recent searches* also has a download icon. On a phone everything stacks into one column with bigger buttons, and the filters scroll sideways.
+- **New search** asks three questions. *Where should we look?* (an area and city; recent places are one tap). *What kind of business?* (cards with why each type is worth pitching; after a few searches they show your own results, e.g. "Last time: 7 of 13 had no working site", and a *Pitches well* tag). *Keep only the useful ones*: hide businesses you've already messaged (in any search, matched by phone number and Google listing), skip chains, only with a phone, only 4★ and above. These start as filters on the results, so nothing is thrown away. Sources and website checks are under *More options*.
+- **The summary box** beside the form (a bar at the bottom on a phone) shows what you picked, an estimate from your own past searches ("about 7 businesses, 4 worth messaging first"), how many free web searches you have left, and warns if you ran the same search recently, with a link to open it.
+- **While it runs** you see a checklist (finding businesses → checking each one → speed → scoring) with live counts and "Already spotted 3 without a working website". Leads appear in the list as they're checked and you can message them and change their status straight away. *Stop* keeps everything found so far.
+- **Results** start with what to do: "3 businesses to message first. 2 have no working website." The cards *Message first*, *Worth a try*, *Skip for now*, *Everything* and *Contacted this week* filter the list. Filter chips: no working website, not messaged yet, has phone, WhatsApp, has email, 4★ and up, no chains, plus status, search and sort, Table/Cards, Export. Businesses you messaged in another search are tagged *Messaged before*.
+- **The lead panel** (beside the list on a wide screen, sliding in on smaller ones): why it's a lead, the message, Call/Email/Map, status, follow-up date and note, *Next to message*, and all the details (contacts, website checks, why this score, how we checked). On a wide screen, keys: **J/K** next/previous, **W** WhatsApp, **C** mark contacted.
+- **Messages** are written for each business: its name, its rating if it's good, the problem, what a website does for that kind of business (booking for clinics and salons, menus for cafés, fees for coaching…), who you are, and a link to your work. Pick **Friendly** (full) or **Short** (two lines), English or Hinglish; leads you've already contacted start with a **Follow-up**. Fill in *Your details* once (name, what you do, city, link). Edit any message before sending.
+- **After you send on WhatsApp**, a bar asks "Sent to …?": *Mark contacted* (follow up in 3 days) or *Contacted, next lead →*.
+- **Status:** New, Contacted, Replied, Meeting booked, Won, Lost, each in its own colour. Tap it to change it or set a follow-up date. **Follow up today** at the top lists leads due today or overdue from all searches, with a follow-up message ready.
+- **Select leads** with the checkboxes to mark them contacted, set a status or follow-up, export or delete them (delete waits until a running search finishes).
+- Every search in *Recent searches* has a download icon. On a phone everything stacks into one column with bigger buttons.
 
 ## How a search works
 
@@ -206,7 +205,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 176 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 180 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

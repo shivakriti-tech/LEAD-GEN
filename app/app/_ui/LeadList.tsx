@@ -2,10 +2,11 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { Lead } from "@/lib/types";
-import { emailLink, firstMessage, issueChips, mapsLink, scoreSummary, shortAddress, telLink, whatsappLinkWith, type Lang } from "@/lib/outreach";
-import type { FollowUpPatch } from "@/lib/followups";
+import { emailLink, issueChips, mapsLink, pitchText, scoreSummary, shortAddress, statusOf, telLink, toneFor, whatsappLinkWith } from "@/lib/outreach";
+import type { FollowUpPatch, Touched } from "@/lib/followups";
 import { DueChip, StatusMenu } from "./StatusMenu";
 import { PitchBox } from "./PitchBox";
+import { usePitch } from "./pitch";
 import { IconCheck, IconCopy, IconMail, IconMap, IconPhone, IconWhatsApp } from "./icons";
 
 export const TIER_LABEL = { hot: "Hot", warm: "Warm", cold: "Cold" } as const;
@@ -62,22 +63,22 @@ interface RowProps {
   onOpen: () => void;
   pitchOpen: boolean;
   onTogglePitch: () => void;
-  lang: Lang;
-  setLang: (l: Lang) => void;
-  sender: string;
   draft?: string;
   setDraft: (t: string | undefined) => void;
   onSent: () => void;
   onFollowUp: (p: FollowUpPatch) => void;
   locked: boolean;
+  touched?: Touched;
+  docked?: boolean;
 }
 
 /** WhatsApp first; pitch, copy and the rest as smaller buttons. */
-function Actions({ lead: l, pitchOpen, onTogglePitch, lang, sender, draft, onSent }: RowProps) {
+function Actions({ lead: l, pitchOpen, onTogglePitch, draft, onSent, docked }: RowProps) {
   const [copied, setCopied] = useState(false);
-  const text = draft ?? firstMessage(l, lang, sender);
+  const { lang, tone, me } = usePitch();
+  const text = draft ?? pitchText(l, lang, toneFor(l, tone), me);
   const wa = whatsappLinkWith(l, text);
-  const mail = emailLink(l, sender);
+  const mail = emailLink(l, me);
   const copy = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard?.writeText(text).then(() => {
@@ -94,6 +95,7 @@ function Actions({ lead: l, pitchOpen, onTogglePitch, lang, sender, draft, onSen
       ) : (
         <span className="btn sm ghost" title="No mobile number found">No WhatsApp</span>
       )}
+      {!docked && <>
       <button type="button" className={`btn sm ${pitchOpen ? "on" : ""}`} onClick={onTogglePitch} aria-expanded={pitchOpen} title={pitchOpen ? "Hide the pitch" : "Read and edit the pitch"}>
         Pitch
       </button>
@@ -101,6 +103,7 @@ function Actions({ lead: l, pitchOpen, onTogglePitch, lang, sender, draft, onSen
       {l.phone && <a className="icon-act" href={telLink(l.phone)} title={`Call ${fmtPhone(l.phone)}`} aria-label={`Call ${fmtPhone(l.phone)}`}><IconPhone /></a>}
       {mail && <a className="icon-act" href={mail} title={`Email ${l.email}`} aria-label={`Email ${l.email}`}><IconMail /></a>}
       <a className="icon-act" href={mapsLink(l)} target="_blank" rel="noreferrer" title="Open in Google Maps" aria-label="Open in Google Maps"><IconMap /></a>
+      </>}
     </div>
   );
 }
@@ -113,21 +116,24 @@ function Check({ checked, onChange, label }: { checked: boolean; onChange: () =>
   );
 }
 
-function Chips({ lead: l, max = 3 }: { lead: Lead; max?: number }) {
+function Chips({ lead: l, max = 3, touched }: { lead: Lead; max?: number; touched?: Touched }) {
   if (l.pending) return <span className="tag">Checking website…</span>;
   return (
     <>
+      {touched && <span className="tag seen" title={`You marked it ${touched.status} in ${touched.search}`}>Messaged before</span>}
       {issueChips(l).slice(0, max).map((c) => <span key={c.label} className={`tag ${c.kind}`}>{c.label}</span>)}
       {l.chain && <span className="tag" title={l.chain.reason}>Chain</span>}
     </>
   );
 }
 
+const rowClass = (p: RowProps) => `${p.open ? "active" : ""} ${p.selected ? "picked" : ""} ${p.lead.pending ? "is-pending" : ""} ${statusOf(p.lead) === "lost" ? "is-lost" : ""}`;
+
 function CardRow(p: RowProps) {
   const l = p.lead;
   const where = shortAddress(l.address, l.city);
   return (
-    <article className={`card ${p.open ? "active" : ""} ${p.selected ? "picked" : ""} ${l.pending ? "is-pending" : ""}`} aria-label={l.name} onClick={p.onOpen}>
+    <article className={`card ${rowClass(p)}`} aria-label={l.name} onClick={p.onOpen}>
       <div className="card-top">
         <Check checked={p.selected} onChange={p.onSelect} label={`Select ${l.name}`} />
         <ScoreBadge lead={l} />
@@ -143,11 +149,11 @@ function CardRow(p: RowProps) {
           <StatusMenu lead={l} onChange={p.onFollowUp} disabled={p.locked} />
         </div>
       </div>
-      <p className="card-why"><span className="chips-inline"><Chips lead={l} /></span>{l.pending ? "Checking its website and contacts…" : l.whyNow}</p>
+      <p className="card-why"><span className="chips-inline"><Chips lead={l} touched={p.touched} /></span>{l.pending ? "Checking its website and contacts…" : l.whyNow}</p>
       <Actions {...p} />
-      {p.pitchOpen && (
+      {p.pitchOpen && !p.docked && (
         <div onClick={(e) => e.stopPropagation()}>
-          <PitchBox lead={l} lang={p.lang} setLang={p.setLang} sender={p.sender} draft={p.draft} setDraft={p.setDraft} onSent={p.onSent} autoFocus />
+          <PitchBox lead={l} draft={p.draft} setDraft={p.setDraft} onSent={p.onSent} autoFocus />
         </div>
       )}
     </article>
@@ -164,14 +170,13 @@ export function LeadList({
   onOpen,
   pitchId,
   onTogglePitch,
-  lang,
-  setLang,
-  sender,
   drafts,
   setDraft,
   onSent,
   onFollowUp,
   locked,
+  touched,
+  docked,
 }: {
   leads: Lead[];
   view: "cards" | "table";
@@ -182,14 +187,15 @@ export function LeadList({
   onOpen: (id: string) => void;
   pitchId: string | null;
   onTogglePitch: (id: string) => void;
-  lang: Lang;
-  setLang: (l: Lang) => void;
-  sender: string;
   drafts: Record<string, string>;
   setDraft: (id: string, t: string | undefined) => void;
   onSent: (l: Lead) => void;
   onFollowUp: (l: Lead, p: FollowUpPatch) => void;
   locked: boolean;
+  /** Already contacted in another search, if so. */
+  touched?: (l: Lead) => Touched | undefined;
+  /** The lead panel is open beside the list: keep rows short, the panel has the rest. */
+  docked?: boolean;
 }) {
   const row = (l: Lead): RowProps => ({
     lead: l,
@@ -199,14 +205,13 @@ export function LeadList({
     onOpen: () => onOpen(l.id),
     pitchOpen: pitchId === l.id,
     onTogglePitch: () => onTogglePitch(l.id),
-    lang,
-    setLang,
-    sender,
     draft: drafts[l.id],
     setDraft: (t) => setDraft(l.id, t),
     onSent: () => onSent(l),
     onFollowUp: (p) => onFollowUp(l, p),
     locked,
+    touched: touched?.(l),
+    docked,
   });
   const all = leads.length > 0 && leads.every((l) => selected.has(l.id));
 
@@ -218,7 +223,7 @@ export function LeadList({
     );
 
   return (
-    <div className="table-wrap">
+    <div className={`table-wrap ${docked ? "docked" : ""}`}>
       <table className="leads-table">
         <thead>
           <tr>
@@ -227,7 +232,7 @@ export function LeadList({
             <th>Business</th>
             <th className="c-problem">Problem</th>
             <th className="c-status">Status</th>
-            <th className="c-act">Reach out</th>
+            <th className="c-act">{docked ? "" : "Reach out"}</th>
           </tr>
         </thead>
         <tbody>
@@ -236,25 +241,25 @@ export function LeadList({
             const where = shortAddress(l.address, l.city);
             return (
               <Fragment key={l.id}>
-                <tr className={`${p.open ? "active" : ""} ${p.selected ? "picked" : ""} ${l.pending ? "is-pending" : ""}`} onClick={p.onOpen}>
+                <tr className={rowClass(p)} onClick={p.onOpen}>
                   <td className="c-sel"><Check checked={p.selected} onChange={p.onSelect} label={`Select ${l.name}`} /></td>
                   <td className="c-score"><ScoreBadge lead={l} size="sm" /></td>
                   <td className="c-biz">
                     <button type="button" className="name-btn" onClick={(e) => { e.stopPropagation(); p.onOpen(); }}>{l.name}</button>
                     <span className="card-meta">{l.category}{where ? ` · ${where}` : ""}</span>
-                    <span className="t-chips"><Chips lead={l} max={2} /></span>
+                    <span className="t-chips"><Chips lead={l} max={2} touched={p.touched} /></span>
                   </td>
-                  <td className="c-problem"><span className="chips-col"><Chips lead={l} max={2} /></span></td>
+                  <td className="c-problem"><span className="chips-col"><Chips lead={l} max={2} touched={p.touched} /></span></td>
                   <td className="c-status" onClick={(e) => e.stopPropagation()}>
                     <StatusMenu lead={l} onChange={p.onFollowUp} disabled={locked} />
                     <DueChip lead={l} />
                   </td>
                   <td className="c-act"><Actions {...p} /></td>
                 </tr>
-                {p.pitchOpen && (
+                {p.pitchOpen && !docked && (
                   <tr className="pitch-row">
                     <td colSpan={6}>
-                      <PitchBox lead={l} lang={lang} setLang={setLang} sender={sender} draft={p.draft} setDraft={p.setDraft} onSent={p.onSent} autoFocus />
+                      <PitchBox lead={l} draft={p.draft} setDraft={p.setDraft} onSent={p.onSent} autoFocus />
                     </td>
                   </tr>
                 )}

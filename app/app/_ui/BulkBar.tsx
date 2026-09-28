@@ -34,11 +34,10 @@ export function BulkBar({
         </>
       ) : (
         <>
-          <button type="button" className="btn sm primary" onClick={() => onPatch({ status: "contacted" })} disabled={locked}>Mark contacted</button>
+          <button type="button" className="btn sm primary" onClick={() => onPatch({ status: "contacted" })}>Mark contacted</button>
           <select
             className="sm"
             value=""
-            disabled={locked}
             aria-label="Set status"
             onChange={(e) => e.target.value && onPatch({ status: e.target.value as FollowUpStatus })}
           >
@@ -48,7 +47,6 @@ export function BulkBar({
           <select
             className="sm"
             value=""
-            disabled={locked}
             aria-label="Set follow-up"
             onChange={(e) => e.target.value && onPatch({ followUpOn: e.target.value === "clear" ? null : e.target.value })}
           >
@@ -59,7 +57,7 @@ export function BulkBar({
             <option value="clear">Clear date</option>
           </select>
           <button type="button" className="btn sm" onClick={onExport}><IconDownload /> Export</button>
-          <button type="button" className="btn sm danger-ghost" onClick={() => setConfirm(true)} disabled={locked}>Delete</button>
+          <button type="button" className="btn sm danger-ghost" onClick={() => setConfirm(true)} disabled={locked} title={locked ? "You can delete leads once the search has finished" : undefined}>Delete</button>
         </>
       )}
       <span className="grow" />

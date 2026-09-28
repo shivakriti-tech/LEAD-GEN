@@ -4,24 +4,22 @@ import { useState } from "react";
 import type { DueLead } from "@/lib/followups";
 import type { FollowUpPatch } from "@/lib/followups";
 import type { Lead } from "@/lib/types";
-import { addDays, dueLabel, followUpMessage, localDate, whatsappLinkWith, type Lang } from "@/lib/outreach";
+import { addDays, dueLabel, followUpMessage, localDate, whatsappLinkWith } from "@/lib/outreach";
+import { usePitch } from "./pitch";
 import { IconWhatsApp } from "./icons";
 
 /** "Follow up today": leads from any search whose follow-up date is today or overdue. */
 export function FollowUpsToday({
   due,
-  lang,
-  sender,
   onUpdate,
   onOpen,
 }: {
   due: DueLead[];
-  lang: Lang;
-  sender: string;
   onUpdate: (searchId: string, lead: DueLead["lead"], p: FollowUpPatch) => void;
   onOpen: (searchId: string, leadId: string) => void;
 }) {
   const [open, setOpen] = useState(true);
+  const { lang, me } = usePitch();
   if (!due.length) return null;
   const today = localDate();
   const late = due.filter((d) => d.lead.followUp!.followUpOn! < today).length;
@@ -37,7 +35,7 @@ export function FollowUpsToday({
       {open && (
         <ul className="fu-list">
           {due.map((d) => {
-            const wa = whatsappLinkWith(d.lead as Lead, followUpMessage(d.lead as Lead, lang, sender));
+            const wa = whatsappLinkWith(d.lead as Lead, followUpMessage(d.lead as Lead, lang, me));
             const when = d.lead.followUp!.followUpOn!;
             return (
               <li key={`${d.searchId}/${d.lead.id}`}>

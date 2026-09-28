@@ -35,6 +35,7 @@ export async function POST(req: Request) {
     pageSpeed: !!body.pageSpeed,
     verifyWebsites: body.verifyWebsites !== false,
     webSearch: body.webSearch !== false,
+    keep: body.keep && typeof body.keep === "object" ? { skipChains: !!body.keep.skipChains, needPhone: !!body.keep.needPhone, notContacted: !!body.keep.notContacted, goodRating: !!body.keep.goodRating } : undefined,
   };
   if (!params.city) return Response.json({ error: "Enter a city." }, { status: 400 });
   if (!params.categories.length) return Response.json({ error: "Pick at least one business type." }, { status: 400 });

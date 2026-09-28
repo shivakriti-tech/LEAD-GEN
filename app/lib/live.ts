@@ -1,4 +1,4 @@
-import type { ProgressEvent, SearchRecord } from "./types";
+import type { Lead, ProgressEvent, SearchRecord } from "./types";
 import type { Store } from "./store";
 
 /**
@@ -10,6 +10,8 @@ export interface LiveSearch {
   ctrl: AbortController;
   logs: Array<{ level: "info" | "warn" | "error"; message: string }>;
   stage?: { stage: string; done: number; total: number };
+  /** The search's own lead objects: a status set while it runs goes straight onto them, so its saves keep it. */
+  leads?: Lead[];
 }
 
 const g = globalThis as unknown as { __leadLive?: Map<string, LiveSearch> };
@@ -27,7 +29,8 @@ export function track(ctrl: AbortController, emit: (e: ProgressEvent) => void): 
     } else if (entry && e.type === "log") {
       entry.logs.push({ level: e.level, message: e.message });
       if (entry.logs.length > 300) entry.logs.splice(0, entry.logs.length - 300);
-    } else if (entry && e.type === "stage") entry.stage = { stage: e.stage, done: e.done, total: e.total };
+    } else if (entry && e.type === "leads") entry.leads = e.leads;
+    else if (entry && e.type === "stage") entry.stage = { stage: e.stage, done: e.done, total: e.total };
     else if (e.type === "done" && id) live.delete(id);
     emit(e);
   };
