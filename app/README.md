@@ -22,7 +22,7 @@ With no keys at all it already works: leads come from OpenStreetMap (free) and e
 |---|---|---|
 | `GOOGLE_PLACES_API_KEY` | Google Maps businesses with phone, website, rating, reviews. 1,000 free requests a month, about 20 businesses each | Google Cloud Console → new project → turn on billing → APIs & Services → enable **Places API (New)** → Credentials → Create API key. Restrict the key to Places API. Set a budget alert. |
 | `PAGESPEED_API_KEY` | Mobile speed check for every website (turns on automatically when set) | Same project → enable **PageSpeed Insights API**. If you reuse the Places key and restricted it, add PageSpeed Insights API to the key's allowed APIs, or Google rejects it (the app now shows this error). |
-| `SERPER_API_KEY` | Google results through Serper: 2,500 free searches once (no card), then paid. Finds far more websites than the free engines, and turns on phone-number search | https://serper.dev |
+| `SERPER_API_KEY` | Google results through Serper: 2,500 free searches once (no card), then paid | https://serper.dev |
 | `GOOGLE_CSE_KEY`, `GOOGLE_CSE_CX` | Google Programmable Search: only for accounts that already have it (closed to new sign-ups; ends 1 Jan 2027) | See **Web search** below |
 | `SEARXNG_URL` | Free, unlimited web search running on your own computer. Used to find missing websites and Instagram/Facebook profiles | See **Web search** below |
 | `TAVILY_API_KEY` | 1,000 free web searches a month, no credit card | https://app.tavily.com → sign up → copy the API key |
@@ -55,7 +55,7 @@ Restart `npm run dev` after changing `.env.local`.
 
 The app searches the web to find websites the map missed and to find Instagram/Facebook profiles. It uses the best option you've set up first. Each one stops at its free limit (counted per day/month in `.data/usage.json` and shown in the app's side panel), and the next one takes over, so nothing is ever billed by surprise.
 
-**Google-quality (best results, free allowances).** These match exact business names and phone numbers, which the free engines below don't. Setting up either one also turns on the phone-number search:
+**Google-quality (best results, free allowances).** These match exact business names and phone numbers, which the free engines below don't. The phone-number search stays off unless you set `PHONE_SEARCH=auto` (even through Serper it found 1 site in 69 searches in the Vadodara benchmark):
 
 - **Serper** (recommended): Google results through https://serper.dev. New accounts get 2,500 free searches, once, with no card; after that you buy credit packs. Key in `SERPER_API_KEY`. Without a card on file it simply stops working when the free searches are used up, so it can't bill you. One benchmark run uses about 200.
 - **Google Programmable Search** (`GOOGLE_CSE_KEY`, `GOOGLE_CSE_CX`): only if your Google account already has it. Google closed it to new sign-ups in 2025 and shuts it down on 1 January 2027.
@@ -73,7 +73,7 @@ The app searches the web to find websites the map missed and to find Instagram/F
 3. **Brave**: optional, needs a card.
 4. **DuckDuckGo**: always the last fallback. Free, but it blocks after a few dozen searches.
 
-A typical search uses about 1 web search per business without a website (2 when phone search is on), plus 2 per business type for the search-engine source, 1 for Instagram and 1 for Facebook.
+A typical search uses about 1 web search per business without a website (2 with `PHONE_SEARCH` on), plus 2 per business type for the search-engine source, 1 for Instagram and 1 for Facebook.
 
 Change the order with `SEARCH_ORDER` (e.g. `searxng,google_cse` to save Google's allowance for last) and the limits with `SEARCH_LIMITS` (e.g. `google_cse=100/day,serper=2500/month`).
 
@@ -191,7 +191,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 156 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 159 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

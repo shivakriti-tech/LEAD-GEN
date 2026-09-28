@@ -522,7 +522,8 @@ export function defaultDeps(store: Store): Deps {
       metaToken: process.env.META_ACCESS_TOKEN || undefined,
       igUserId: process.env.IG_BUSINESS_ACCOUNT_ID || undefined,
       fbPageSearch: /^(on|true|1|yes)$/i.test(process.env.FB_PAGE_SEARCH || ""),
-      phoneSearch: /^(on|true|1|yes)$/i.test(process.env.PHONE_SEARCH || "") ? "on" : /^(off|false|0|no)$/i.test(process.env.PHONE_SEARCH || "") ? "off" : "auto",
+      // Off unless asked: even through Serper (Google), 69 phone searches found 1 site in the Vadodara benchmark.
+      phoneSearch: /^(on|true|1|yes)$/i.test(process.env.PHONE_SEARCH || "") ? "on" : /^auto$/i.test(process.env.PHONE_SEARCH || "") ? "auto" : "off",
     },
     store,
   };

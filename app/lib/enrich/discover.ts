@@ -3,6 +3,7 @@ import { lookup } from "node:dns/promises";
 import type { Lead } from "../types";
 import { fetchPublic } from "../safeFetch";
 import { domainOf, fetchWithTimeout, isSocialHost } from "../util";
+import { facebookPage, instagramHandle } from "../sources/social";
 
 /**
  * Map data is often missing the website. Before we call a business "no website",
@@ -395,6 +396,8 @@ export async function discoverWebsite(lead: Lead, area: string | undefined, deps
   const resolves = deps.resolves ?? (deps.fetchHtml ? undefined : dnsResolves);
   const tried: string[] = [];
   const check = (url: string) => checkPage(url, lead, area, get);
+  // A page a search engine returned exists, so give slow hosting more time than a guessed address gets.
+  const slowGet = (url: string) => get(url, 15_000);
   const chainHint = (html: string) => (CHAIN_WORDS.test(html.slice(0, 400_000)) ? "its website mentions outlets or franchising" : undefined);
 
   // 1. likely domains
@@ -418,7 +421,7 @@ export async function discoverWebsite(lead: Lead, area: string | undefined, deps
   // 2. web search
   if (deps.search) {
     // the name in quotes keeps search engines from matching its words separately
-    const q = [`"${lead.name}"`, area, lead.city].filter(Boolean).join(" ");
+    const q = [`"${searchName(lead.name)}"`, area, lead.city].filter(Boolean).join(" ");
     tried.push(`web search: ${q}`);
     let hits: SearchHit[] = [];
     try {
@@ -439,7 +442,10 @@ export async function discoverWebsite(lead: Lead, area: string | undefined, deps
       }
       if (isSocialHost(d)) {
         // An Instagram/Facebook page whose title carries the name: good enough to say "uses social as website".
-        if (!social && tokens.length && tokens.every((t) => h.title.toLowerCase().includes(t))) social = h.url;
+        // only a profile counts, not a post or reel (instagram.com/reel/…) that happens to mention them
+        const ig = instagramHandle(h.url), fb = facebookPage(h.url);
+        if (!social && (ig || fb) && tokens.length && tokens.every((t) => h.title.toLowerCase().includes(t)))
+          social = ig ? `https://www.instagram.com/${ig}/` : `https://www.facebook.com/${fb}`;
         continue;
       }
       const ownName = domainMatchesName(d, lead.name);
@@ -449,7 +455,7 @@ export async function discoverWebsite(lead: Lead, area: string | undefined, deps
         continue;
       }
       if (checked++ >= 4) break;
-      const r = await check(h.url);
+      const r = await checkPage(h.url, lead, area, slowGet);
       if (!r) continue;
       const finalDomain = domainOf(r.finalUrl) ?? d;
       const own = ownName || domainMatchesName(finalDomain, lead.name);
@@ -467,12 +473,22 @@ export async function discoverWebsite(lead: Lead, area: string | undefined, deps
     // 3. search the phone number. A business's own site is usually one of the few pages with its exact
     // number, and this finds sites whose address has nothing to do with the name (sdcclinic.in).
     const numberSearch = deps.numberSearch ?? (deps.phoneSearch ? deps.search : undefined);
-    const byPhone = numberSearch ? await phoneSearch(lead, area, numberSearch, get) : { tried: [] as string[] };
+    const byPhone = numberSearch ? await phoneSearch(lead, area, numberSearch, slowGet) : { tried: [] as string[] };
     tried.push(...byPhone.tried);
     if (byPhone.website) return { website: byPhone.website, via: "web_search", evidence: byPhone.evidence, tried, chainHint: byPhone.html ? chainHint(byPhone.html) : undefined };
     if (social) return { social, tried };
   }
   return { tried };
+}
+
+/**
+ * The name to search for, in quotes. A long Google Maps name ("Parekh's Dental Care Multi Speciality
+ * Dental Clinic & Implant Centre") quoted whole matches nothing, because the site only says
+ * "Parekh's Dental Care", so quote the first three words.
+ */
+export function searchName(name: string): string {
+  const words = name.split(/\s+/).filter(Boolean);
+  return words.length > 4 ? words.slice(0, 3).join(" ") : name;
 }
 
 /** How a number is written on Indian sites: "98250 11111", "9825011111", "+91 98250 11111". */

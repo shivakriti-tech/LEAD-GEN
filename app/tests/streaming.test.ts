@@ -71,7 +71,32 @@ describe("phone search is opt-in and skips unrelated results", () => {
   it("searches with the cleaned name even when it's all generic words", async () => {
     const queries: string[] = [];
     await discoverWebsite(baseLead({ name: "Family Dental Care & Implant Center – Best Dentist in Vadodara" }), undefined, { resolves: async () => false, fetchHtml: async () => null, search: async (q) => { queries.push(q); return []; } });
-    expect(queries[0]).toBe('"Family Dental Care & Implant Center" Vadodara');
+    expect(queries[0]).toBe('"Family Dental Care" Vadodara'); // cleaned, and a long name is quoted by its first words
+  });
+});
+
+describe("fixes from the Serper run", () => {
+  it("quotes only the first words of a long name", async () => {
+    const { searchName } = await import("@/lib/enrich/discover");
+    expect(searchName("Parekh's Dental Care Multi Speciality Dental Clinic & Implant Centre")).toBe("Parekh's Dental Care");
+    expect(searchName("Dr. Divya's Dental Care")).toBe("Dr. Divya's Dental Care");
+  });
+  it("an Instagram post or reel isn't taken as the business's page; a profile is", async () => {
+    const hits = (url: string) => async () => [{ url, title: "Sanskruti Family Salon (@sanskruti.salon) • Instagram" }];
+    const opts = { resolves: async () => false, fetchHtml: async () => null };
+    const lead = baseLead({ name: "Sanskruti Family Salon" });
+    expect((await discoverWebsite(lead, undefined, { ...opts, search: hits("https://www.instagram.com/reel/C_5oHcxyn5G/?hl=en") })).social).toBeUndefined();
+    expect((await discoverWebsite(lead, undefined, { ...opts, search: hits("https://www.instagram.com/sanskruti.salon/?hl=en") })).social).toBe("https://www.instagram.com/sanskruti.salon/");
+  });
+  it("gives pages a search engine returned more time to load than guessed addresses", async () => {
+    const waits: Array<[string, number | undefined]> = [];
+    await discoverWebsite(baseLead(), undefined, {
+      resolves: async (d) => d === "shahsdentalcare.com",
+      fetchHtml: async (url: string, ms?: number) => { waits.push([url, ms]); return null; },
+      search: async () => [{ url: "https://sdcclinic.in/", title: "Shah's Dental Care" }],
+    });
+    expect(waits.find(([u]) => u.includes("shahsdentalcare.com"))?.[1]).toBeUndefined(); // guess: default 7 s
+    expect(waits.find(([u]) => u.includes("sdcclinic.in"))?.[1]).toBe(15_000);
   });
 });
 
