@@ -1,4 +1,4 @@
-import type { Lead } from "./types";
+import type { FollowUpStatus as AnyStatus, Lead } from "./types";
 import { domainOf, isMobile } from "./util";
 
 /**
@@ -8,15 +8,67 @@ import { domainOf, isMobile } from "./util";
 
 export type Lang = "en" | "hi";
 
+/** The steps a lead goes through, in order. */
 export const FOLLOW_UP = [
   { key: "new", label: "New" },
   { key: "contacted", label: "Contacted" },
-  { key: "interested", label: "Interested" },
+  { key: "replied", label: "Replied" },
+  { key: "meeting", label: "Meeting booked" },
   { key: "won", label: "Won" },
-  { key: "not_fit", label: "Not a fit" },
+  { key: "lost", label: "Lost" },
 ] as const;
 export type FollowUpStatus = (typeof FOLLOW_UP)[number]["key"];
-export const followUpLabel = (s?: FollowUpStatus) => FOLLOW_UP.find((x) => x.key === (s ?? "new"))!.label;
+/** Older saved statuses under their new names. */
+export const statusOf = (l: Pick<Lead, "followUp">): FollowUpStatus => normalizeStatus(l.followUp?.status);
+export function normalizeStatus(s?: AnyStatus | string): FollowUpStatus {
+  if (s === "interested") return "replied";
+  if (s === "not_fit") return "lost";
+  return (FOLLOW_UP.find((x) => x.key === s)?.key ?? "new") as FollowUpStatus;
+}
+export const followUpLabel = (s?: AnyStatus | string) => FOLLOW_UP.find((x) => x.key === normalizeStatus(s))!.label;
+/** Still worth chasing: not won or lost. */
+export const isOpen = (l: Pick<Lead, "followUp">) => !["won", "lost"].includes(statusOf(l));
+
+/** Your local date as YYYY-MM-DD (not UTC, so "today" is your today). */
+export function localDate(d = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+export function addDays(days: number, from = new Date()): string {
+  const d = new Date(from);
+  d.setDate(d.getDate() + days);
+  return localDate(d);
+}
+/** "Today", "Tomorrow", "Overdue · 2 Oct", "Fri 3 Oct" */
+export function dueLabel(date: string, today = localDate()): string {
+  if (date === today) return "Today";
+  if (date === addDays(1, new Date(`${today}T12:00:00`))) return "Tomorrow";
+  const d = new Date(`${date}T12:00:00`);
+  const pretty = d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+  return date < today ? `Overdue · ${pretty}` : pretty;
+}
+
+/** Why a lead scored what it did, in a few words: "No website + 212 reviews + owner known". */
+export function scoreSummary(l: Lead): string {
+  const short: Record<string, (label: string) => string> = {
+    no_website: () => "No website",
+    social_only: (x) => x.replace(/^Uses (.*) as its website$/, "Only $1"),
+    site_down: () => "Site broken",
+    not_mobile: () => "Not mobile-friendly",
+    very_slow: () => "Very slow",
+    slow: () => "Slow",
+    no_https: () => "No HTTPS",
+    stale: (x) => x.replace("Not updated since", "Old since"),
+    free_builder: () => "Free builder site",
+    busy: () => `${l.reviews} reviews`,
+    ig_active: () => "Active on Instagram",
+    owner_known: () => "Owner known",
+    established: (x) => x,
+    agency_lapsed: () => "Agency gone quiet",
+    chain: () => "Chain (−45)",
+  };
+  const parts = l.signals.filter((s) => short[s.key] && (s.points !== 0 || s.key === "chain")).map((s) => short[s.key](s.label));
+  return parts.join(" + ") || "Nothing stands out";
+}
 
 /** "Shop 4, Race Course Rd, Alkapuri, Vadodara, Gujarat 390007" → "Race Course Rd, Alkapuri" */
 export function shortAddress(address?: string, city?: string): string | undefined {
@@ -73,61 +125,65 @@ function greetName(l: Lead, lang: Lang): string {
     const short = /^(dr\.?|mr\.?|mrs\.?|ms\.?)$/i.test(parts[0]) ? parts.slice(0, 2).join(" ") : parts[0];
     return lang === "hi" ? `${short} ji` : short;
   }
-  return lang === "hi" ? `${l.name} team` : `${l.name} team`;
+  return lang === "hi" ? "ji" : "there";
 }
 
-/** One sentence about their website, in the chosen language. */
+/** The problem, in one sentence that names the business: "I noticed Aum Dental Care doesn't have a website yet…" */
 function reason(l: Lead, lang: Lang): string {
   const s = l.audit?.status;
   const site = domainOf(l.audit?.finalUrl ?? l.website);
-  const where = l.city ? (lang === "hi" ? `${l.city} mein` : `in ${l.city}`) : "";
+  const kind = l.category.toLowerCase();
+  const where = l.city ?? "";
   if (s === "none" || !s)
     return lang === "hi"
-      ? `Maine dekha ki aapki abhi koi website nahi hai, isliye online search karne wale customers call karne se pehle aapki services dekh nahi paate.`
-      : `I noticed you don't have a website yet, so people searching for a ${l.category.toLowerCase()} ${where} can't see your services before they call.`;
+      ? `Maine dekha ki ${l.name} ki abhi koi website nahi hai, isliye ${where} mein ${kind} search karne wale log call se pehle aapki services dekh nahi paate.`
+      : `I noticed ${l.name} doesn't have a website yet, so people searching for a ${kind}${where ? ` in ${where}` : ""} can't see your services before they call.`;
   if (s === "social_only")
     return lang === "hi"
-      ? `Maine dekha ki aap ${socialName(l)} ko hi website ki tarah use kar rahe hain. Ek apni website se Google pe naye customers aur direct bookings dono milte hain.`
-      : `I noticed you're using ${socialName(l)} as your website. A site of your own brings in customers from Google and lets them book or enquire directly.`;
+      ? `Maine dekha ki ${l.name} ${socialName(l)} ko hi website ki tarah use kar raha hai. Apni website se Google se naye customers aur direct enquiries dono milti hain.`
+      : `I noticed ${l.name} uses ${socialName(l)} as its website. A site of your own brings in customers from Google and lets them enquire directly.`;
   if (s === "down")
     return lang === "hi"
-      ? `Aapki website (${site}) abhi khul nahi rahi hai, toh Google se click karne wale customers ko kuch nahi dikhta.`
-      : `Your website (${site}) isn't loading right now, so customers who click it from Google see nothing.`;
+      ? `${l.name} ki website (${site}) abhi khul nahi rahi hai, toh Google se aane wale customers ko kuch nahi dikhta.`
+      : `I noticed ${l.name}'s website (${site}) isn't loading right now, so customers who find you on Google see nothing.`;
   const issues = issueChips(l).filter((c) => c.kind === "warn").map((c) => c.label.toLowerCase());
   if (issues.length)
     return lang === "hi"
-      ? `Maine aapki website (${site}) dekhi: ${issues.join(", ")}. Isse mobile pe aane wale customers wapas chale jaate hain.`
-      : `I had a look at your website (${site}): ${issues.join(", ")}. That loses customers who find you on their phone.`;
+      ? `Maine ${l.name} ki website (${site}) dekhi: ${issues.join(", ")}. Isse phone pe aane wale customers wapas chale jaate hain.`
+      : `I had a look at ${l.name}'s website (${site}): ${issues.join(", ")}. That loses customers who find you on their phone.`;
   return lang === "hi"
-    ? `Maine aapki website (${site}) dekhi, aur kuch chhote badlaav se usse zyada enquiries mil sakti hain.`
-    : `I had a look at your website (${site}) and a few changes could bring you more enquiries.`;
+    ? `Maine ${l.name} ki website (${site}) dekhi, kuch chhote badlaav se zyada enquiries aa sakti hain.`
+    : `I had a look at ${l.name}'s website (${site}) and a few changes could bring you more enquiries.`;
 }
 
-/** A short, polite first message. The sender signs it; placeholders stay visible if not set. */
+/** Short enough to read and send in 10 seconds. Placeholders stay visible until you set your name. */
 export function firstMessage(l: Lead, lang: Lang, sender?: string): string {
   const from = sender?.trim() || (lang === "hi" ? "[aapka naam]" : "[your name]");
   if (lang === "hi")
-    return [
-      `Namaste ${greetName(l, "hi")},`,
-      `Maine Google pe ${l.name} dekha. ${reason(l, "hi")}`,
-      `Hum ${l.city ?? "aapke shehar"} ke local businesses ke liye fast, mobile-friendly websites banate hain. Kya 5 minute baat kar sakte hain?`,
-      `– ${from}`,
-    ].join("\n\n");
-  return [
-    `Hi ${greetName(l, "en")},`,
-    `I came across ${l.name} on Google. ${reason(l, "en")}`,
-    `We build fast, mobile-friendly websites for local businesses${l.city ? ` in ${l.city}` : ""}. Would you be open to a quick 5-minute chat?`,
-    `– ${from}`,
-  ].join("\n\n");
+    return `Namaste ${greetName(l, "hi")}, ${reason(l, "hi")} Hum local businesses ke liye fast, mobile-friendly websites banate hain. Kya hum aapko ek chhota sample dikha sakte hain? – ${from}`;
+  return `Hi ${greetName(l, "en")}, ${reason(l, "en")} We build fast, mobile-friendly websites for local businesses. Can I show you a quick sample? – ${from}`;
+}
+
+/** WhatsApp link with your text (edited or the ready pitch). */
+export function whatsappLinkWith(l: Lead, text: string): string | undefined {
+  const n = whatsappNumber(l)?.replace(/\D/g, "");
+  return n ? `https://wa.me/${n}?text=${encodeURIComponent(text)}` : undefined;
 }
 
 export function whatsappLink(l: Lead, lang: Lang, sender?: string): string | undefined {
-  const n = whatsappNumber(l)?.replace(/\D/g, "");
-  return n ? `https://wa.me/${n}?text=${encodeURIComponent(firstMessage(l, lang, sender))}` : undefined;
+  return whatsappLinkWith(l, firstMessage(l, lang, sender));
 }
 
 export function emailLink(l: Lead, sender?: string): string | undefined {
   if (!l.email) return undefined;
   const subject = `A quick idea for ${l.name}`;
   return `mailto:${l.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(firstMessage(l, "en", sender))}`;
+}
+
+/** A short nudge for a lead you've already messaged. */
+export function followUpMessage(l: Lead, lang: Lang, sender?: string): string {
+  const from = sender?.trim() || (lang === "hi" ? "[aapka naam]" : "[your name]");
+  return lang === "hi"
+    ? `Namaste ${greetName(l, "hi")}, ${l.name} ki website ke baare mein humara pichla message follow up kar rahe hain. Agar aap chahein toh hum 2-3 sample designs bhej sakte hain. – ${from}`
+    : `Hi ${greetName(l, "en")}, just following up on my message about a website for ${l.name}. Happy to send 2–3 sample designs if you'd like to see them. – ${from}`;
 }

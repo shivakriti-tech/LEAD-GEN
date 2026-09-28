@@ -2,6 +2,18 @@ import type { EmailInfo } from "./enrich/email";
 
 export type SourceId = "google" | "osm" | "apollo" | "instagram" | "facebook" | "web" | "gmaps";
 
+/** Where you are with a lead. "interested" and "not_fit" are older names for "replied" and "lost". */
+export type FollowUpStatus = "new" | "contacted" | "replied" | "meeting" | "won" | "lost" | "interested" | "not_fit";
+export interface FollowUp {
+  status: FollowUpStatus;
+  note?: string;
+  /** Date to get back to them, YYYY-MM-DD (your local date). */
+  followUpOn?: string;
+  /** When they were first moved past "New": what "contacted this week" counts. */
+  contactedAt?: string;
+  updatedAt: string;
+}
+
 /** One business as a source returns it, before merging. */
 export interface RawPlace {
   source: SourceId;
@@ -122,7 +134,7 @@ export interface Lead {
   /** Still being checked (website, contacts); the score may change. */
   pending?: boolean;
   /** What you've done with this lead, and your note. Set from the screen, kept with the search. */
-  followUp?: { status: "new" | "contacted" | "interested" | "won" | "not_fit"; note?: string; updatedAt: string };
+  followUp?: FollowUp;
 }
 
 export interface SearchParams {

@@ -3,9 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { Lead } from "@/lib/types";
 import { EMAIL_KIND_LABEL } from "@/lib/enrich/email";
-import { emailLink, firstMessage, mapsLink, telLink, whatsappLink, whatsappNumber, type FollowUpStatus, type Lang } from "@/lib/outreach";
-import { fmtPhone, ScoreBadge, StatusSelect } from "./LeadCard";
-import { IconCheck, IconClose, IconCopy, IconCross, IconMail, IconMap, IconPhone, IconWhatsApp } from "./icons";
+import { emailLink, localDate, mapsLink, scoreSummary, telLink, whatsappNumber, type Lang } from "@/lib/outreach";
+import type { FollowUpPatch } from "@/lib/followups";
+import { fmtPhone, ScoreBadge } from "./LeadList";
+import { DueChip, StatusMenu } from "./StatusMenu";
+import { PitchBox } from "./PitchBox";
+import { IconCheck, IconClose, IconCopy, IconCross, IconMail, IconMap, IconPhone } from "./icons";
 
 const SOURCE_NAME: Record<string, string> = { google: "Google Maps", osm: "OpenStreetMap", apollo: "Apollo", instagram: "Instagram", facebook: "Facebook", web: "Search engines", gmaps: "Google Maps (scraper)" };
 const VIA: Record<string, string> = { source: "Listed by the source", domain_guess: "Found by trying likely web addresses", web_search: "Found by web search", instagram_bio: "Found through its Instagram bio", none_found: "No website found" };
@@ -33,6 +36,9 @@ export function LeadDrawer({
   onClose,
   onFollowUp,
   statusDisabled,
+  draft,
+  setDraft,
+  onSent,
 }: {
   lead: Lead;
   lang: Lang;
@@ -40,8 +46,11 @@ export function LeadDrawer({
   sender: string;
   setSender: (s: string) => void;
   onClose: () => void;
-  onFollowUp: (status: FollowUpStatus, note?: string) => void;
+  onFollowUp: (p: FollowUpPatch) => void;
   statusDisabled: boolean;
+  draft?: string;
+  setDraft: (t: string | undefined) => void;
+  onSent: () => void;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const [note, setNote] = useState(l.followUp?.note ?? "");
@@ -62,8 +71,6 @@ export function LeadDrawer({
   };
 
   const a = l.audit;
-  const msg = firstMessage(l, lang, sender);
-  const wa = whatsappLink(l, lang, sender);
   const mail = emailLink(l, sender);
   const total = l.signals.reduce((t, s) => t + Math.max(0, s.points), 0) || 1;
   const nowYear = new Date().getFullYear();
@@ -84,10 +91,28 @@ export function LeadDrawer({
         <div className="drawer-body">
           <p className="why-big">{l.pending ? "Still checking this business…" : l.whyNow}</p>
 
-          <section className="dsec follow">
+          <section className="dsec">
+            <PitchBox lead={l} lang={lang} setLang={setLang} sender={sender} draft={draft} setDraft={setDraft} onSent={onSent} />
             <div className="row">
-              <span className="lbl">Status</span>
-              <StatusSelect lead={l} onChange={(s) => onFollowUp(s, note)} disabled={statusDisabled} />
+              {mail && <a className="btn sm" href={mail}><IconMail /> Email instead</a>}
+              <div className="field sign">
+                <label className="lbl" htmlFor="sender">Sign messages as</label>
+                <input id="sender" type="text" value={sender} onChange={(e) => setSender(e.target.value)} placeholder="Your name, your agency" />
+              </div>
+            </div>
+          </section>
+
+          <section className="dsec follow">
+            <div className="row between">
+              <div className="row">
+                <span className="lbl">Status</span>
+                <StatusMenu lead={l} onChange={onFollowUp} disabled={statusDisabled} align="left" />
+                <DueChip lead={l} />
+              </div>
+              <label className="row fu-date">
+                <span className="lbl">Follow up on</span>
+                <input type="date" min={localDate()} value={l.followUp?.followUpOn ?? ""} disabled={statusDisabled} onChange={(e) => onFollowUp({ followUpOn: e.target.value || null })} />
+              </label>
             </div>
             <textarea
               aria-label="Your note"
@@ -95,7 +120,7 @@ export function LeadDrawer({
               value={note}
               disabled={statusDisabled}
               onChange={(e) => setNote(e.target.value)}
-              onBlur={() => note !== (l.followUp?.note ?? "") && onFollowUp(l.followUp?.status ?? "new", note)}
+              onBlur={() => note !== (l.followUp?.note ?? "") && onFollowUp({ note })}
               rows={2}
             />
           </section>
@@ -138,26 +163,6 @@ export function LeadDrawer({
           </section>
 
           <section className="dsec">
-            <div className="row between">
-              <h3>First message</h3>
-              <div className="seg" role="group" aria-label="Message language">
-                <button aria-pressed={lang === "en"} onClick={() => setLang("en")}>English</button>
-                <button aria-pressed={lang === "hi"} onClick={() => setLang("hi")}>Hinglish</button>
-              </div>
-            </div>
-            <pre className="msg">{msg}</pre>
-            <div className="row">
-              {wa ? <a className="btn wa" href={wa} target="_blank" rel="noreferrer"><IconWhatsApp /> Send on WhatsApp</a> : <span className="sub">No mobile number for WhatsApp.</span>}
-              {mail && <a className="btn" href={mail}><IconMail /> Email</a>}
-              <button className="btn" onClick={() => copy(msg, () => flash("msg"))}>{copied === "msg" ? <IconCheck /> : <IconCopy />} {copied === "msg" ? "Copied" : "Copy"}</button>
-            </div>
-            <div className="field sign">
-              <label className="lbl" htmlFor="sender">Sign messages as</label>
-              <input id="sender" type="text" value={sender} onChange={(e) => setSender(e.target.value)} placeholder="Your name, your agency" />
-            </div>
-          </section>
-
-          <section className="dsec">
             <h3>Their website</h3>
             <p className="sub">{VIA[l.websiteCheck?.via ?? "none_found"]}{l.websiteCheck?.evidence ? `: ${l.websiteCheck.evidence}` : ""}</p>
             {a && a.status !== "none" ? (
@@ -183,6 +188,7 @@ export function LeadDrawer({
 
           <section className="dsec">
             <h3>Why this score</h3>
+            <p className="sub">{scoreSummary(l)}</p>
             <ul className="points">
               {l.signals.map((s) => (
                 <li key={s.key}>

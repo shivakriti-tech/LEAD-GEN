@@ -1,24 +1,21 @@
 import { getStore } from "@/lib/store";
 import { live } from "@/lib/live";
-import { FOLLOW_UP } from "@/lib/outreach";
+import { mergeFollowUp, validPatch } from "@/lib/followups";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Save your follow-up status and note on one lead: { status: "contacted", note: "call back Monday" }. */
+/** Change one lead's status, note or follow-up date: { status: "contacted", followUpOn: "2026-10-02" }. */
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string; leadId: string }> }) {
   const { id, leadId } = await ctx.params;
   // while a search runs it saves its own copy of the leads every few seconds, which would overwrite this
-  if (live.has(id)) return Response.json({ error: "This search is still running. Statuses can be set when it finishes." }, { status: 409 });
-  let body: { status?: string; note?: string };
-  try {
-    body = await req.json();
-  } catch {
-    return Response.json({ error: "Send JSON." }, { status: 400 });
-  }
-  const status = FOLLOW_UP.find((s) => s.key === body.status)?.key ?? "new";
-  const note = typeof body.note === "string" ? body.note.slice(0, 2000) : undefined;
-  const lead = await getStore().updateLead(id, leadId, { status, note: note || undefined, updatedAt: new Date().toISOString() });
-  if (!lead) return Response.json({ error: "Lead not found" }, { status: 404 });
+  if (live.has(id)) return Response.json({ error: "This search is still running. You can update leads when it finishes." }, { status: 409 });
+  const patch = validPatch(await req.json().catch(() => null));
+  if (!patch) return Response.json({ error: "Send JSON." }, { status: 400 });
+  const store = getStore();
+  const hit = await store.getSearch(id);
+  const cur = hit?.leads.find((l) => l.id === leadId);
+  if (!cur) return Response.json({ error: "Lead not found" }, { status: 404 });
+  const [lead] = await store.updateFollowUps(id, [{ id: leadId, followUp: mergeFollowUp(cur.followUp, patch) }]);
   return Response.json({ lead });
 }

@@ -71,7 +71,7 @@ describe("pipeline: phone search routing", () => {
     const calls: string[] = [];
     const deps: Deps = {
       keys: { phoneSearch },
-      store: { kind: "local", saveSearch: async () => {}, saveLeads: async () => {}, listSearches: async () => [], getSearch: async () => null, updateLead: async () => null },
+      store: { kind: "local", saveSearch: async () => {}, saveLeads: async () => {}, listSearches: async () => [], getSearch: async () => null, updateFollowUps: async () => [], deleteLeads: async () => 0 },
       makeWebSearch: () => async (q) => { calls.push(`web:${q}`); return []; },
       makeNumberSearch: numberSearch ? () => async (q) => { calls.push(`num:${q}`); return numberSearch(q); } : undefined,
       google: async () => ({ requests: 0, places: [] }),

@@ -3,13 +3,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { categoryByKey } from "@/lib/categories";
 import { leadsToCsv } from "@/lib/csv";
-import { FOLLOW_UP, whatsappNumber, type FollowUpStatus, type Lang } from "@/lib/outreach";
+import { addDays, FOLLOW_UP, localDate, statusOf, whatsappNumber, type FollowUpStatus, type Lang } from "@/lib/outreach";
+import { mergeFollowUp, type DueLead, type FollowUpPatch } from "@/lib/followups";
 import type { Lead, ProgressEvent, SearchParams, SearchRecord, Tier } from "@/lib/types";
 import { DEFAULT_FORM, SearchForm, sourceInfo, type Config, type FormState } from "./_ui/SearchForm";
-import { LeadCard } from "./_ui/LeadCard";
+import { LeadList, Skeleton } from "./_ui/LeadList";
+import { FollowUpsToday } from "./_ui/FollowUps";
+import { BulkBar } from "./_ui/BulkBar";
 import { LeadDrawer } from "./_ui/LeadDrawer";
 import { SetupPanel } from "./_ui/SetupPanel";
-import { IconDownload, IconEdit, IconHistory, IconSearch, IconSettings, IconStop } from "./_ui/icons";
+import { IconCheck, IconDownload, IconEdit, IconHistory, IconSearch, IconSettings, IconStop } from "./_ui/icons";
 
 type LogLine = { level: "info" | "warn" | "error"; message: string };
 type Sort = "score" | "reviews" | "name" | "status";
@@ -62,7 +65,7 @@ const dateShort = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { d
 export default function LeadFinder() {
   const [config, setConfig] = useState<Config | null>(null);
   const [form, setForm] = usePref<FormState>("lf.form", DEFAULT_FORM);
-  const [prefs, setPrefs] = usePref<{ lang: Lang; sender: string }>("lf.prefs", { lang: "en", sender: "" });
+  const [prefs, setPrefs] = usePref<{ lang: Lang; sender: string; view: "cards" | "table" }>("lf.prefs", { lang: "en", sender: "", view: "table" });
   const [editing, setEditing] = useState(false);
 
   const [running, setRunning] = useState(false);
@@ -84,7 +87,13 @@ export default function LeadFinder() {
   const [status, setStatus] = useState<FollowUpStatus | "any">("any");
   const [sort, setSort] = useState<Sort>("score");
   const [q, setQ] = useState("");
+  const [contactedWeek, setContactedWeek] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pitchId, setPitchId] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [pipe, setPipe] = useState<{ due: DueLead[]; contactedThisWeek: number } | null>(null);
+  const [toast, setToast] = useState<{ text: string; lead?: Lead } | null>(null);
   const [setupOpen, setSetupOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
@@ -95,11 +104,16 @@ export default function LeadFinder() {
       .then((c: Config) => setConfig(c))
       .catch(() => {});
     loadHistory();
+    loadPipeline();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [log]);
+
+  function loadPipeline() {
+    fetch(`/api/pipeline?today=${localDate()}`).then((r) => r.json()).then((d) => d.due && setPipe(d)).catch(() => {});
+  }
 
   function loadHistory() {
     fetch("/api/searches").then((r) => r.json()).then((d) => setHistory(d.searches ?? [])).catch(() => {});
@@ -112,10 +126,11 @@ export default function LeadFinder() {
     setNeedWa(false);
     setNeedEmail(false);
     setStatus("any");
+    setContactedWeek(false);
     setQ("");
   }
 
-  async function openSearch(id: string) {
+  async function openSearch(id: string, leadId?: string) {
     setRecentOpen(false);
     const r = await fetch(`/api/searches/${id}`);
     if (!r.ok) return;
@@ -128,7 +143,9 @@ export default function LeadFinder() {
     setLog(d.live?.logs ?? []);
     setStage(d.live?.stage ?? null);
     setStopping(!!d.live?.stopping);
-    setOpenId(null);
+    setOpenId(leadId ?? null);
+    setSelected(new Set());
+    setPitchId(null);
     setEditing(false);
     setError("");
     resetFilters();
@@ -170,6 +187,8 @@ export default function LeadFinder() {
     setSearchId(null);
     setStopping(false);
     setOpenId(null);
+    setSelected(new Set());
+    setPitchId(null);
     resetFilters();
     const body = {
       categories: form.cats,
@@ -250,19 +269,61 @@ export default function LeadFinder() {
 
   const searchRunning = running || search?.status === "running";
 
-  /** Save a status/note; shows it immediately and rolls back if the save fails. */
-  async function saveFollowUp(lead: Lead, st: FollowUpStatus, note?: string) {
-    if (!searchId || searchRunning) return;
-    const before = lead.followUp;
-    const next = { status: st, note: note ?? lead.followUp?.note, updatedAt: new Date().toISOString() };
-    setLeads((ls) => ls.map((x) => (x.id === lead.id ? { ...x, followUp: next } : x)));
-    const r = await fetch(`/api/searches/${searchId}/leads/${lead.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) }).catch(() => null);
+  const locked = !!searchRunning;
+  const patchLocal = (ids: Set<string>, patch: FollowUpPatch) => setLeads((ls) => ls.map((x) => (ids.has(x.id) ? { ...x, followUp: mergeFollowUp(x.followUp, patch) } : x)));
+
+  /** Save a status/note/date: shown at once, rolled back if the save fails. Works for any saved search. */
+  async function saveFollowUp(lead: Pick<Lead, "id" | "followUp" | "name">, patch: FollowUpPatch, sid = searchId) {
+    if (!sid) return;
+    const here = sid === searchId;
+    if (here && locked) return;
+    const before = leads;
+    if (here) patchLocal(new Set([lead.id]), patch);
+    const r = await fetch(`/api/searches/${sid}/leads/${lead.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }).catch(() => null);
     if (!r?.ok) {
-      setLeads((ls) => ls.map((x) => (x.id === lead.id ? { ...x, followUp: before } : x)));
+      if (here) setLeads(before);
       const d = await r?.json().catch(() => null);
-      setError(d?.error ?? "Couldn't save the status. Try again.");
+      setError(d?.error ?? "Couldn't save that. Try again.");
     }
+    loadPipeline();
   }
+
+  async function bulkPatch(patch: FollowUpPatch) {
+    if (!searchId || locked || !selected.size) return;
+    const ids = new Set(selected);
+    const before = leads;
+    patchLocal(ids, patch);
+    const r = await fetch(`/api/searches/${searchId}/leads`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...ids], ...patch }) }).catch(() => null);
+    if (!r?.ok) {
+      setLeads(before);
+      setError("Couldn't update those leads. Try again.");
+    } else setToast({ text: `Updated ${ids.size} lead${ids.size > 1 ? "s" : ""}` });
+    loadPipeline();
+  }
+
+  async function deleteSelected() {
+    if (!searchId || locked || !selected.size) return;
+    const ids = [...selected];
+    const r = await fetch(`/api/searches/${searchId}/leads`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) }).catch(() => null);
+    if (!r?.ok) return setError("Couldn't delete those leads. Try again.");
+    const gone = new Set(ids);
+    setLeads((ls) => ls.filter((l) => !gone.has(l.id)));
+    setSelected(new Set());
+    setToast({ text: `Deleted ${ids.length} lead${ids.length > 1 ? "s" : ""}` });
+    loadHistory();
+    loadPipeline();
+  }
+
+  /** After WhatsApp opens: one tap to mark the lead contacted (and remind you in 3 days). */
+  function onSent(lead: Lead) {
+    if (statusOf(lead) === "new" && !locked) setToast({ text: `Sent to ${lead.name}?`, lead });
+  }
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 9000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const counts = useMemo(() => {
     const done = leads.filter((l) => !l.pending);
@@ -278,7 +339,8 @@ export default function LeadFinder() {
         (!needPhone || l.phone || l.phones.length) &&
         (!needWa || whatsappNumber(l)) &&
         (!needEmail || l.email) &&
-        (status === "any" || (l.followUp?.status ?? "new") === status) &&
+        (status === "any" || statusOf(l) === status) &&
+        (!contactedWeek || (!!l.followUp?.contactedAt && Date.now() - Date.parse(l.followUp.contactedAt) < 7 * 86_400_000)) &&
         (!qq || `${l.name} ${l.category} ${l.address ?? ""} ${l.followUp?.note ?? ""}`.toLowerCase().includes(qq)),
     );
     const cmp: Record<Sort, (a: Lead, b: Lead) => number> = {
@@ -288,12 +350,13 @@ export default function LeadFinder() {
       status: (a, b) => (b.followUp?.updatedAt ?? "").localeCompare(a.followUp?.updatedAt ?? ""),
     };
     return out.sort((a, b) => Number(!!a.pending) - Number(!!b.pending) || cmp[sort](a, b));
-  }, [leads, tier, onlyNoSite, needPhone, needWa, needEmail, status, q, sort]);
+  }, [leads, tier, onlyNoSite, needPhone, needWa, needEmail, status, contactedWeek, q, sort]);
 
-  const filtered = shown.length !== leads.length;
-  function exportShown() {
-    const csv = leadsToCsv(shown);
-    const name = `leads-${params?.city ?? "search"}-${new Date().toISOString().slice(0, 10)}${filtered ? `-${shown.length}` : ""}.csv`.replace(/[^a-z0-9.-]+/gi, "-").toLowerCase();
+  const activeFilters = [tier !== "all", onlyNoSite, needPhone, needWa, needEmail, status !== "any", contactedWeek, !!q.trim()].filter(Boolean).length;
+  const filtered = activeFilters > 0;
+  function exportLeads(list: Lead[]) {
+    const csv = leadsToCsv(list);
+    const name = `leads-${params?.city ?? "search"}-${new Date().toISOString().slice(0, 10)}${list.length !== leads.length ? `-${list.length}` : ""}.csv`.replace(/[^a-z0-9.-]+/gi, "-").toLowerCase();
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
@@ -301,6 +364,10 @@ export default function LeadFinder() {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+  const exportShown = () => exportLeads(shown);
+  const toggleSelect = (id: string) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleAll = () => setSelected((s) => (shown.every((l) => s.has(l.id)) ? new Set() : new Set(shown.map((l) => l.id))));
+  const contactedHere = leads.filter((l) => l.followUp?.contactedAt && Date.now() - Date.parse(l.followUp.contactedAt) < 7 * 86_400_000).length;
 
   const pct = stage && stage.total ? Math.round((stage.done / stage.total) * 100) : 0;
   const showForm = editing || (!leads.length && !searchRunning && !search);
@@ -372,6 +439,16 @@ export default function LeadFinder() {
           )}
         </div>
 
+        {pipe && pipe.due.length > 0 && (
+          <FollowUpsToday
+            due={pipe.due}
+            lang={prefs.lang}
+            sender={prefs.sender}
+            onUpdate={(sid, lead, p) => saveFollowUp(lead, p, sid)}
+            onOpen={(sid, id) => (sid === searchId ? setOpenId(id) : openSearch(sid, id))}
+          />
+        )}
+
         {showForm ? (
           <SearchForm form={form} setForm={setForm} config={config} running={running} onSubmit={run} onCancel={leads.length || search ? () => setEditing(false) : undefined} onOpenSetup={() => setSetupOpen(true)} />
         ) : (
@@ -419,62 +496,90 @@ export default function LeadFinder() {
           <p className="note">{search.error}. Businesses marked “Checking” weren't checked; they're included in exports with Checked = no.</p>
         )}
 
+        {searchRunning && !leads.length && <Skeleton />}
+
         {leads.length > 0 && (
           <>
-            <div className="tiles" role="group" aria-label="Filter by tier">
+            <div className="tiles" role="group" aria-label="Quick filters">
               {([["hot", "Hot", "pitch first"], ["warm", "Warm", "worth a try"], ["cold", "Cold", "site looks fine"]] as const).map(([t, label, hint]) => (
-                <button key={t} className={`tile ${t}`} aria-pressed={tier === t} onClick={() => setTier(tier === t ? "all" : t)}>
+                <button key={t} className={`tile t-${t}`} aria-pressed={tier === t} onClick={() => setTier(tier === t ? "all" : t)}>
                   <b>{counts[t]}</b>
                   <span>{label} · {hint}</span>
                 </button>
               ))}
-              <button className="tile" aria-pressed={tier === "all"} onClick={() => setTier("all")}>
+              <button className="tile" aria-pressed={tier === "all" && !contactedWeek} onClick={() => { setTier("all"); setContactedWeek(false); }}>
                 <b>{leads.length}</b>
-                <span>{counts.checking ? `All · ${counts.checking} still checking` : "All businesses"}</span>
+                <span>{counts.checking ? `All · ${counts.checking} still checking` : "All leads"}</span>
+              </button>
+              <button className="tile t-progress" aria-pressed={contactedWeek} onClick={() => setContactedWeek(!contactedWeek)} title="Leads you moved past New in the last 7 days (all searches). Tap to show the ones in this search.">
+                <b>{pipe?.contactedThisWeek ?? contactedHere}</b>
+                <span>Contacted this week</span>
               </button>
             </div>
 
-            <section className="panel stack results" aria-label="Leads">
-              <div className="toolbar">
-                <div className="chips" role="group" aria-label="Filters">
-                  <button className="chip" aria-pressed={onlyNoSite} onClick={() => setOnlyNoSite(!onlyNoSite)}>No working website</button>
-                  <button className="chip" aria-pressed={needPhone} onClick={() => setNeedPhone(!needPhone)}>Has phone</button>
-                  <button className="chip" aria-pressed={needWa} onClick={() => setNeedWa(!needWa)}>WhatsApp</button>
-                  <button className="chip" aria-pressed={needEmail} onClick={() => setNeedEmail(!needEmail)}>Has email</button>
-                </div>
-                <div className="toolbar-right">
-                  <select value={status} onChange={(e) => setStatus(e.target.value as FollowUpStatus | "any")} aria-label="Filter by status">
+            <section className="results" aria-label="Leads">
+              <div className="filterbar">
+                <div className="chips scroll" role="group" aria-label="Filters">
+                  {([["No working website", onlyNoSite, setOnlyNoSite], ["Has phone", needPhone, setNeedPhone], ["WhatsApp", needWa, setNeedWa], ["Has email", needEmail, setNeedEmail]] as const).map(([label, on, set]) => (
+                    <button key={label} className="chip" aria-pressed={on} onClick={() => set(!on)}>
+                      {on && <IconCheck />} {label}
+                    </button>
+                  ))}
+                  <select className={`chip-select ${status !== "any" ? "on" : ""}`} value={status} onChange={(e) => setStatus(e.target.value as FollowUpStatus | "any")} aria-label="Filter by status">
                     <option value="any">Any status</option>
                     {FOLLOW_UP.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
                   </select>
+                </div>
+                <div className="filterbar-row">
+                  <span className="count-line">
+                    <b>{shown.length}</b> of {leads.length} leads
+                    {filtered && <button className="linkish" onClick={resetFilters}>Clear filters ({activeFilters})</button>}
+                  </span>
+                  <span className="grow" />
+                  <input type="search" placeholder="Search name, area, note" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search leads" />
                   <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort">
                     <option value="score">Best leads first</option>
                     <option value="reviews">Most reviews</option>
                     <option value="name">Name A–Z</option>
                     <option value="status">Recently updated</option>
                   </select>
-                  <input type="search" placeholder="Search name, area, note" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search leads" />
-                </div>
-              </div>
-              <div className="row between">
-                <span className="sub">
-                  {shown.length} of {leads.length} shown{filtered && <> · <button className="linkish" onClick={resetFilters}>clear filters</button></>}
-                </span>
-                <div className="row">
-                  <button className="btn" onClick={exportShown} disabled={!shown.length} title="Download the leads shown, as CSV">
-                    <IconDownload /> Export {filtered ? `${shown.length} shown` : "CSV"}{searchRunning || (search && search.status !== "done") ? " (so far)" : ""}
+                  <div className="seg" role="group" aria-label="View">
+                    <button aria-pressed={prefs.view === "table"} onClick={() => setPrefs({ ...prefs, view: "table" })}>Table</button>
+                    <button aria-pressed={prefs.view === "cards"} onClick={() => setPrefs({ ...prefs, view: "cards" })}>Cards</button>
+                  </div>
+                  <button className="btn sm" onClick={exportShown} disabled={!shown.length} title="Download the leads shown, as CSV">
+                    <IconDownload /> Export{filtered ? ` ${shown.length}` : ""}
                   </button>
-                  {filtered && searchId && <a className="linkish" href={`/api/searches/${searchId}/csv`}>or all {leads.length}</a>}
                 </div>
               </div>
 
-              <div className="cards">
-                {shown.map((l) => (
-                  <LeadCard key={l.id} lead={l} active={openId === l.id} lang={prefs.lang} sender={prefs.sender} onOpen={() => setOpenId(l.id)} onStatus={(s) => saveFollowUp(l, s)} statusDisabled={searchRunning} />
-                ))}
-                {shown.length === 0 && <div className="empty">No leads match these filters. <button className="linkish" onClick={resetFilters}>Clear filters</button></div>}
-              </div>
-              {leads.some((l) => l.sources.includes("osm")) && <div className="sub">Map data from OpenStreetMap © OpenStreetMap contributors.</div>}
+              {shown.length ? (
+                <LeadList
+                  leads={shown}
+                  view={prefs.view}
+                  selected={selected}
+                  onToggleSelect={toggleSelect}
+                  onToggleAll={toggleAll}
+                  openId={openId}
+                  onOpen={setOpenId}
+                  pitchId={pitchId}
+                  onTogglePitch={(id) => setPitchId(pitchId === id ? null : id)}
+                  lang={prefs.lang}
+                  setLang={(lang) => setPrefs({ ...prefs, lang })}
+                  sender={prefs.sender}
+                  drafts={drafts}
+                  setDraft={(id, t) => setDrafts((d) => { const n = { ...d }; if (t === undefined) delete n[id]; else n[id] = t; return n; })}
+                  onSent={onSent}
+                  onFollowUp={(l, p) => saveFollowUp(l, p)}
+                  locked={locked}
+                />
+              ) : (
+                <div className="empty">
+                  <b>No leads match these filters.</b>
+                  <button className="btn sm" onClick={resetFilters}>Clear filters</button>
+                </div>
+              )}
+              {leads.some((l) => l.sources.includes("osm")) && <div className="sub attribution">Map data from OpenStreetMap © OpenStreetMap contributors.</div>}
             </section>
           </>
         )}
@@ -499,9 +604,37 @@ export default function LeadFinder() {
           sender={prefs.sender}
           setSender={(sender) => setPrefs({ ...prefs, sender })}
           onClose={() => setOpenId(null)}
-          onFollowUp={(st, note) => saveFollowUp(openLead, st, note)}
-          statusDisabled={searchRunning}
+          onFollowUp={(p) => saveFollowUp(openLead, p)}
+          statusDisabled={locked}
+          draft={drafts[openLead.id]}
+          setDraft={(t) => setDrafts((d) => { const n = { ...d }; if (t === undefined) delete n[openLead.id]; else n[openLead.id] = t; return n; })}
+          onSent={() => onSent(openLead)}
         />
+      )}
+      <BulkBar
+        count={selected.size}
+        locked={locked}
+        onPatch={bulkPatch}
+        onExport={() => exportLeads(leads.filter((l) => selected.has(l.id)))}
+        onDelete={deleteSelected}
+        onClear={() => setSelected(new Set())}
+      />
+      {toast && (
+        <div className="toast" role="status">
+          <span>{toast.text}</span>
+          {toast.lead && (
+            <button
+              className="btn sm primary"
+              onClick={() => {
+                saveFollowUp(toast.lead!, { status: "contacted", followUpOn: addDays(3) });
+                setToast({ text: `${toast.lead!.name} marked contacted · follow up in 3 days` });
+              }}
+            >
+              Mark contacted
+            </button>
+          )}
+          <button className="icon-btn" onClick={() => setToast(null)} aria-label="Dismiss">×</button>
+        </div>
       )}
       {setupOpen && <SetupPanel config={config} onClose={() => setSetupOpen(false)} />}
       {recentOpen && (

@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Lead, SearchRecord } from "./types";
+import type { FollowUp, Lead, SearchRecord } from "./types";
 
 /**
  * Saves searches and leads to Supabase when it's configured,
@@ -13,8 +13,10 @@ export interface Store {
   saveLeads(searchId: string, leads: Lead[]): Promise<void>;
   listSearches(): Promise<SearchRecord[]>;
   getSearch(id: string): Promise<{ search: SearchRecord; leads: Lead[] } | null>;
-  /** Save your follow-up status/note on one lead. Returns the updated lead, or null if not found. */
-  updateLead(searchId: string, leadId: string, followUp: NonNullable<Lead["followUp"]>): Promise<Lead | null>;
+  /** Save follow-up status/note/date on some leads of a search. Returns the leads that were updated. */
+  updateFollowUps(searchId: string, updates: Array<{ id: string; followUp: FollowUp }>): Promise<Lead[]>;
+  /** Remove leads from a search. Returns how many were removed. */
+  deleteLeads(searchId: string, ids: string[]): Promise<number>;
 }
 
 let cached: Store | null = null;
@@ -58,13 +60,23 @@ function localStore(): Store {
       }
     },
     getSearch: read,
-    async updateLead(searchId, leadId, followUp) {
+    async updateFollowUps(searchId, updates) {
       const cur = await read(searchId);
-      const lead = cur?.leads.find((l) => l.id === leadId);
-      if (!cur || !lead) return null;
-      lead.followUp = followUp;
-      await fs.writeFile(file(searchId), JSON.stringify(cur));
-      return lead;
+      if (!cur) return [];
+      const byId = new Map(updates.map((u) => [u.id, u.followUp]));
+      const changed = cur.leads.filter((l) => byId.has(l.id));
+      for (const l of changed) l.followUp = byId.get(l.id);
+      if (changed.length) await fs.writeFile(file(searchId), JSON.stringify(cur));
+      return changed;
+    },
+    async deleteLeads(searchId, ids) {
+      const cur = await read(searchId);
+      if (!cur) return 0;
+      const drop = new Set(ids);
+      const before = cur.leads.length;
+      cur.leads = cur.leads.filter((l) => !drop.has(l.id));
+      if (cur.leads.length !== before) await fs.writeFile(file(searchId), JSON.stringify(cur));
+      return before - cur.leads.length;
     },
   };
 }
@@ -124,14 +136,24 @@ function supabaseStore(db: SupabaseClient): Store {
       if (error) throw new Error(`Supabase: ${error.message}`);
       return { search: fromSearch(s), leads: (rows ?? []).map((r: any) => r.data as Lead) };
     },
-    async updateLead(searchId, leadId, followUp) {
-      const { data: row, error } = await db.from("leads").select("data").eq("search_id", searchId).eq("id", leadId).maybeSingle();
+    async updateFollowUps(searchId, updates) {
+      const out: Lead[] = [];
+      for (const { id, followUp } of updates) {
+        const { data: row, error } = await db.from("leads").select("data").eq("search_id", searchId).eq("id", id).maybeSingle();
+        if (error) throw new Error(`Supabase: ${error.message}`);
+        if (!row) continue;
+        const lead = { ...(row.data as Lead), followUp };
+        const up = await db.from("leads").update({ data: lead }).eq("search_id", searchId).eq("id", id);
+        if (up.error) throw new Error(`Supabase: ${up.error.message}`);
+        out.push(lead);
+      }
+      return out;
+    },
+    async deleteLeads(searchId, ids) {
+      if (!ids.length) return 0;
+      const { error, count } = await db.from("leads").delete({ count: "exact" }).eq("search_id", searchId).in("id", ids);
       if (error) throw new Error(`Supabase: ${error.message}`);
-      if (!row) return null;
-      const lead = { ...(row.data as Lead), followUp };
-      const up = await db.from("leads").update({ data: lead }).eq("search_id", searchId).eq("id", leadId);
-      if (up.error) throw new Error(`Supabase: ${up.error.message}`);
-      return lead;
+      return count ?? 0;
     },
   };
 }

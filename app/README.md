@@ -39,11 +39,16 @@ Restart `npm run dev` after changing `.env.local`.
 ## Using the Lead Finder screen
 
 - **Search:** pick a city (and area), business types and where to look. Setup notes for sources that aren't connected are under *Sources & setup* (side panel, or the icon top right on a phone). The form remembers your last search.
-- **Results:** once a search runs, the form folds into a one-line summary (*Edit & search again*). The Hot / Warm / Cold tiles filter the list; chips filter by no working website, phone, WhatsApp or email; you can also filter by status, sort, and search names, areas and your notes.
-- **Each lead:** score and tier, the main problems, the reason to pitch, and one-tap **Call**, **WhatsApp**, **Email** and **Maps**. WhatsApp and email open with a first message already written from the lead's reason (English or Hinglish; set *Sign messages as* once).
-- **Detail panel** (click a lead): status and your note, all phones and emails with copy buttons, the message, a pass/fail check of their website, why it scored what it did, and how we checked.
-- **Status:** New → Contacted → Interested → Won, or Not a fit. Saved with the search (once the search has finished) and included in the CSV.
-- **Export CSV** downloads exactly the leads shown (after your filters); *or all N* downloads the whole search. Every search in *Recent searches* also has a download icon.
+- **Results:** once a search runs, the form folds into a one-line summary (*Edit & search again*). While the first results load you see grey placeholder rows.
+- **Summary cards** are filters: tap Hot, Warm or Cold to show only those, *All leads* to reset, *Contacted this week* to see the leads you've reached out to in the last 7 days.
+- **Filter bar** (stays at the top while you scroll): no working website, has phone, WhatsApp, has email, and status. Active filters turn dark with a tick; the bar shows "N of M leads" and *Clear filters*. Search names, areas and your notes, sort, switch between **Table** (compact, default) and **Cards**, and **Export** exactly the leads shown.
+- **Each lead:** score (tap it to see what it's made of, e.g. "No website +40, 212 reviews +25"), the problems, a colour-coded status, and **WhatsApp** as the main button: it opens with a ready pitch that names the business and its problem ("Hi there, I noticed Aum Dental Care doesn't have a website yet…"). *Pitch* shows that message to read and edit first (English or Hinglish), with *Copy pitch*; the copy icon copies it in one tap. Call, email and Maps are small icons.
+- **After you send on WhatsApp**, a small bar asks "Sent to …?". *Mark contacted* sets the status and a follow-up in 3 days.
+- **Status:** New, Contacted, Replied, Meeting booked, Won, Lost, each with its own colour. Tap the status to change it or to set a follow-up date (Tomorrow, In 3 days, Next week, or pick a date). Saved with the search (once it has finished) and included in the CSV.
+- **Follow up today** (top of the page): leads from any search whose follow-up date is today or overdue, with a WhatsApp follow-up message ready, *Tomorrow* to push it a day, and *Done* to clear it.
+- **Select leads** with the checkboxes (the header box selects all shown) to mark them contacted, set a status or follow-up date, export them, or delete them from the search, all at once.
+- **Detail panel** (click a name): the reason, the pitch, status, follow-up date and your note, all phones and emails with copy buttons, a pass/fail check of their website, why it scored what it did, and how we checked.
+- Every search in *Recent searches* also has a download icon. On a phone everything stacks into one column with bigger buttons, and the filters scroll sideways.
 
 ## How a search works
 
@@ -201,7 +206,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 169 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 176 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```
