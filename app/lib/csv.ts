@@ -1,8 +1,11 @@
 import { EMAIL_KIND_LABEL } from "./enrich/email";
+import { followUpLabel } from "./outreach";
 import type { Lead } from "./types";
 
 const COLS: Array<[string, (l: Lead) => unknown]> = [
   ["Score", (l) => l.score],
+  ["Status", (l) => followUpLabel(l.followUp?.status)],
+  ["Note", (l) => l.followUp?.note],
   ["Tier", (l) => l.tier],
   ["Business", (l) => l.name],
   ["Type", (l) => l.category],

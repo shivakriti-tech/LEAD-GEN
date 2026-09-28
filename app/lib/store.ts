@@ -13,6 +13,8 @@ export interface Store {
   saveLeads(searchId: string, leads: Lead[]): Promise<void>;
   listSearches(): Promise<SearchRecord[]>;
   getSearch(id: string): Promise<{ search: SearchRecord; leads: Lead[] } | null>;
+  /** Save your follow-up status/note on one lead. Returns the updated lead, or null if not found. */
+  updateLead(searchId: string, leadId: string, followUp: NonNullable<Lead["followUp"]>): Promise<Lead | null>;
 }
 
 let cached: Store | null = null;
@@ -56,6 +58,14 @@ function localStore(): Store {
       }
     },
     getSearch: read,
+    async updateLead(searchId, leadId, followUp) {
+      const cur = await read(searchId);
+      const lead = cur?.leads.find((l) => l.id === leadId);
+      if (!cur || !lead) return null;
+      lead.followUp = followUp;
+      await fs.writeFile(file(searchId), JSON.stringify(cur));
+      return lead;
+    },
   };
 }
 
@@ -113,6 +123,15 @@ function supabaseStore(db: SupabaseClient): Store {
       const { data: rows, error } = await db.from("leads").select("data").eq("search_id", id).order("score", { ascending: false });
       if (error) throw new Error(`Supabase: ${error.message}`);
       return { search: fromSearch(s), leads: (rows ?? []).map((r: any) => r.data as Lead) };
+    },
+    async updateLead(searchId, leadId, followUp) {
+      const { data: row, error } = await db.from("leads").select("data").eq("search_id", searchId).eq("id", leadId).maybeSingle();
+      if (error) throw new Error(`Supabase: ${error.message}`);
+      if (!row) return null;
+      const lead = { ...(row.data as Lead), followUp };
+      const up = await db.from("leads").update({ data: lead }).eq("search_id", searchId).eq("id", leadId);
+      if (up.error) throw new Error(`Supabase: ${up.error.message}`);
+      return lead;
     },
   };
 }

@@ -119,6 +119,7 @@ describe("streaming search", () => {
       async saveLeads(id, leads) { saves.push(structuredClone(leads)); data.get(id)!.leads = structuredClone(leads); },
       async listSearches() { return [...data.values()].map((x) => x.search); },
       async getSearch(id) { return data.get(id) ?? null; },
+      async updateLead() { return null; },
     };
     return { store, saves };
   }

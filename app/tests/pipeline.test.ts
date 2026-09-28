@@ -21,6 +21,7 @@ function memStore(): Store & { data: Map<string, { search: SearchRecord; leads: 
     async saveLeads(id, leads) { data.get(id)!.leads = leads; },
     async listSearches() { return [...data.values()].map((x) => x.search); },
     async getSearch(id) { return data.get(id) ?? null; },
+    async updateLead() { return null; },
   };
 }
 

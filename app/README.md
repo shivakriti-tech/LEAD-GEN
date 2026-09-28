@@ -36,6 +36,15 @@ With no keys at all it already works: leads come from OpenStreetMap (free) and e
 
 Restart `npm run dev` after changing `.env.local`.
 
+## Using the Lead Finder screen
+
+- **Search:** pick a city (and area), business types and where to look. Setup notes for sources that aren't connected are under *Sources & setup* (side panel, or the icon top right on a phone). The form remembers your last search.
+- **Results:** once a search runs, the form folds into a one-line summary (*Edit & search again*). The Hot / Warm / Cold tiles filter the list; chips filter by no working website, phone, WhatsApp or email; you can also filter by status, sort, and search names, areas and your notes.
+- **Each lead:** score and tier, the main problems, the reason to pitch, and one-tap **Call**, **WhatsApp**, **Email** and **Maps**. WhatsApp and email open with a first message already written from the lead's reason (English or Hinglish; set *Sign messages as* once).
+- **Detail panel** (click a lead): status and your note, all phones and emails with copy buttons, the message, a pass/fail check of their website, why it scored what it did, and how we checked.
+- **Status:** New → Contacted → Interested → Won, or Not a fit. Saved with the search (once the search has finished) and included in the CSV.
+- **Export CSV** downloads exactly the leads shown (after your filters); *or all N* downloads the whole search. Every search in *Recent searches* also has a download icon.
+
 ## How a search works
 
 1. Searches Google Maps, OpenStreetMap, search engines (local businesses with their own website, through SearXNG/Tavily), and Instagram business profiles and Facebook Pages for each business type in the city/area. Search-engine results are only kept if the site is a local business: directories, national online stores, news sites and chains are skipped, and the homepage must mention the city or area.
@@ -158,7 +167,7 @@ Hot ≥ 65 · Warm 40–64 · Cold < 40. Tune it in `lib/score/websiteDev.ts`.
 ## Project layout
 
 ```
-app/page.tsx                 Lead Finder screen
+app/page.tsx                 Lead Finder screen (app/_ui/: search form, lead card, detail panel, setup panel)
 app/api/search/route.ts      runs a search, streams progress
 app/api/searches/...         past searches, CSV export
 lib/pipeline.ts              the whole search → merge → enrich → score flow
@@ -168,6 +177,7 @@ lib/score/websiteDev.ts      opportunity score for this niche
 lib/dedupe.ts                merging duplicates across sources
 lib/enrich/email.ts, mx.ts   email ranking (owner vs shared inbox) and mail-server check
 lib/cache.ts                 disk cache for repeat searches
+lib/outreach.ts              first messages (English/Hinglish), Call/WhatsApp/Email links, follow-up statuses
 lib/bench.ts, bench/         Vadodara lead-quality benchmark (npm run bench)
 lib/safeFetch.ts             blocks private/internal addresses when checking websites in a live build
 proxy.ts                     password protection (APP_PASSWORD)
@@ -191,7 +201,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 162 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 169 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

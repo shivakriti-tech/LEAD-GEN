@@ -121,6 +121,8 @@ export interface Lead {
   whyNow: string;
   /** Still being checked (website, contacts); the score may change. */
   pending?: boolean;
+  /** What you've done with this lead, and your note. Set from the screen, kept with the search. */
+  followUp?: { status: "new" | "contacted" | "interested" | "won" | "not_fit"; note?: string; updatedAt: string };
 }
 
 export interface SearchParams {
