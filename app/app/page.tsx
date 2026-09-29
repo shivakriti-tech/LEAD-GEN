@@ -78,6 +78,11 @@ const dateShort = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { d
 export default function LeadFinder() {
   const [config, setConfig] = useState<Config | null>(null);
   const [form, setForm] = usePref<FormState>("lf.form", DEFAULT_FORM);
+  // the first service list ticked all five by default; move a form still on that default to the agent's eight
+  const oldDefault = form.client?.services.length === 5 && ["customs", "freight", "courier", "forwarding", "warehousing"].every((x) => form.client!.services.includes(x as never));
+  useEffect(() => {
+    if (oldDefault) setForm({ ...form, client: { ...form.client!, services: DEFAULT_FORM.client.services } });
+  }, [oldDefault]); // eslint-disable-line react-hooks/exhaustive-deps
   const [prefs, setPrefs] = usePref<Prefs>("lf.prefs", { lang: "en", sender: "", view: "table", tone: "friendly", me: {} });
   const [editing, setEditing] = useState(false);
 
