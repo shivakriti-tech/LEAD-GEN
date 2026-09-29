@@ -25,7 +25,7 @@ export function RunPanel({
   onStop,
 }: {
   where: string;
-  params: Pick<SearchParams, "pageSpeed" | "sources"> | null;
+  params: Pick<SearchParams, "pageSpeed" | "sources" | "sells"> | null;
   stage: Stage | null;
   log: LogLine[];
   leads: Lead[];
@@ -38,7 +38,8 @@ export function RunPanel({
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [log]);
   const checked = leads.filter((l) => !l.pending);
-  const noSite = checked.filter((l) => ["none", "social_only", "down"].includes(l.audit?.status ?? "none")).length;
+  const logistics = params?.sells === "logistics";
+  const noSite = logistics ? checked.filter((l) => l.signals.some((x) => x.key === "exports" || x.key === "imports")).length : checked.filter((l) => ["none", "social_only", "down"].includes(l.audit?.status ?? "none")).length;
   const hot = checked.filter((l) => l.tier === "hot").length;
   const cur = stage ? STEP_OF[stage.stage] ?? 0 : 0;
   const sawSocial = stage?.stage === "social" || log.some((l) => /Instagram profile/.test(l.message) && /Reading/.test(l.message));
@@ -80,7 +81,7 @@ export function RunPanel({
       </ol>
       {running && checked.length > 0 && (
         <p className="found">
-          Already spotted <b>{noSite} without a working website</b>{hot ? <>, <b>{hot}</b> worth messaging first</> : null}. They're in the list below: you can message them now.
+          Already spotted <b>{noSite} {logistics ? `that export or import` : "without a working website"}</b>{hot ? <>, <b>{hot}</b> worth messaging first</> : null}. They're in the list below: you can message them now.
         </p>
       )}
       {last && (running || failed) && <p className={`last-log ${last.level}`}>{last.message}</p>}

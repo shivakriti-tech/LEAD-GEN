@@ -1,4 +1,4 @@
-import type { FollowUpStatus as AnyStatus, Lead } from "./types";
+import type { FollowUpStatus as AnyStatus, Lead, LogisticsService } from "./types";
 import { domainOf, isMobile } from "./util";
 
 /**
@@ -94,6 +94,7 @@ export const mapsLink = (l: Lead) =>
 
 /** The main reason to pitch, as the chips on a lead card: at most 3, most important first. */
 export function issueChips(l: Lead): Array<{ label: string; kind: "bad" | "warn" | "good" | "plain" }> {
+  if (l.pitchFor?.kind === "logistics") return fitChips(l);
   const s = l.audit?.status;
   const out: Array<{ label: string; kind: "bad" | "warn" | "good" | "plain" }> = [];
   if (!l.pending) {
@@ -216,6 +217,7 @@ function caseOf(l: Lead): Case {
 
 /** A first message for this lead: it names the business, its problem and what you'd do, in your voice. */
 export function firstMessage(l: Lead, lang: Lang, sender?: string | Sender, tone: Exclude<Tone, "follow"> = "friendly"): string {
+  if (l.pitchFor?.kind === "logistics") return logisticsMessage(l, lang, asSender(sender), tone);
   const me = asSender(sender);
   const name = me.name?.trim() || (lang === "hi" ? "[aapka naam]" : "[your name]");
   const work = me.work?.trim() || "web developer";
@@ -306,14 +308,80 @@ export function whatsappLink(l: Lead, lang: Lang, sender?: string | Sender): str
 
 export function emailLink(l: Lead, sender?: string | Sender): string | undefined {
   if (!l.email) return undefined;
-  const subject = `A quick idea for ${l.name}`;
+  const subject = l.pitchFor?.kind === "logistics" ? `Shipping and logistics for ${l.name}` : `A quick idea for ${l.name}`;
   return `mailto:${l.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(firstMessage(l, "en", sender))}`;
 }
 
 /** A short nudge for a lead you've already messaged. */
 export function followUpMessage(l: Lead, lang: Lang, sender?: string | Sender): string {
   const from = asSender(sender).name?.trim() || (lang === "hi" ? "[aapka naam]" : "[your name]");
+  if (l.pitchFor?.kind === "logistics")
+    return lang === "hi"
+      ? `Namaste ${greetName(l, "hi")}, ${l.name} ki shipping ke baare mein humara pichla message follow up kar rahe hain. Aapke regular routes ke rates bhej sakte hain. – ${from}`
+      : `Hi ${greetName(l, "en")}, just following up on my message about shipping for ${l.name}. Happy to share rates for your regular routes. – ${from}`;
   return lang === "hi"
     ? `Namaste ${greetName(l, "hi")}, ${l.name} ki website ke baare mein humara pichla message follow up kar rahe hain. Agar aap chahein toh hum 2-3 sample designs bhej sakte hain. – ${from}`
     : `Hi ${greetName(l, "en")}, just following up on my message about a website for ${l.name}. Happy to send 2–3 sample designs if you'd like to see them. – ${from}`;
+}
+
+/* ---------- logistics leads (for a logistics client) ---------- */
+
+const NEED_EN: Record<LogisticsService, string> = { customs: "customs clearance", freight: "truck freight", courier: "courier and parcels", forwarding: "export forwarding", warehousing: "warehousing" };
+const NEED_HI: Record<LogisticsService, string> = { customs: "custom clearance", freight: "truck transport", courier: "courier aur parcel", forwarding: "export forwarding", warehousing: "warehousing" };
+
+/** Why this business fits a logistics client, as chips: "Exporter", "Industrial area", "Sells online". */
+function fitChips(l: Lead): Array<{ label: string; kind: "bad" | "warn" | "good" | "plain" }> {
+  const k = new Set(l.signals.map((x) => x.key));
+  const out: Array<{ label: string; kind: "bad" | "warn" | "good" | "plain" }> = [];
+  if (k.has("competitor")) out.push({ label: "Logistics company", kind: "bad" });
+  if (k.has("exports")) out.push({ label: "Exporter", kind: "good" });
+  if (k.has("imports")) out.push({ label: "Importer", kind: "good" });
+  if (k.has("pan_india")) out.push({ label: "Pan-India", kind: "good" });
+  if (k.has("sells_online") || k.has("ships_parcels")) out.push({ label: "Sells online", kind: "good" });
+  if (k.has("industrial")) out.push({ label: "Industrial area", kind: "plain" });
+  if (k.has("b2b")) out.push({ label: `${l.audit?.trade?.b2b?.[0] ?? "B2B"} seller`, kind: "plain" });
+  if (k.has("makes_goods") && out.length < 3) out.push({ label: "Factory", kind: "plain" });
+  if (k.has("moves_stock") && out.length < 3) out.push({ label: "Trader", kind: "plain" });
+  return out.slice(0, 3);
+}
+
+function logisticsMessage(l: Lead, lang: Lang, me: Sender, tone: Exclude<Tone, "follow">): string {
+  const hi = lang === "hi";
+  const name = me.name?.trim() || (hi ? "[aapka naam]" : "[your name]");
+  const client = l.pitchFor?.client?.trim();
+  const needs = l.pitchFor?.needs.length ? l.pitchFor.needs : (["freight"] as LogisticsService[]);
+  const needText = joinAnd(needs.map((n) => (hi ? NEED_HI : NEED_EN)[n]), lang);
+  const k = new Set(l.signals.map((x) => x.key));
+  const countries = l.audit?.trade?.countries?.slice(0, 3) ?? [];
+  const greet = greetName(l, lang);
+  const city = me.city?.trim() || l.city;
+  const exportsTo = k.has("exports");
+  const link = me.link?.trim();
+  const kind = l.category.toLowerCase();
+  const area = l.signals.find((x) => x.key === "industrial")?.label.replace(/^In an industrial area \((.*)\)$/, "$1");
+
+  if (hi) {
+    if (tone === "short") return `Namaste ${greet}, main ${name}${client ? `, ${client} se` : ""}. Hum ${needText}${city ? ` ${city} se` : ""} karte hain. Agle shipment ka quote bhejein?`;
+    const seen = exportsTo
+      ? countries.length ? `Maine dekha aap ${joinAnd(countries, "hi")} export karte hain.` : "Maine dekha aap export karte hain."
+      : k.has("pan_india") ? "Maine dekha aap poore India mein supply karte hain."
+      : k.has("sells_online") || k.has("ships_parcels") ? "Maine dekha aap online bechte hain, toh roz parcels jaate honge."
+      : k.has("makes_goods") ? `${l.category}${area ? ` (${area})` : ""} hone ke naate aapka maal regular bahar jaata hoga.`
+      : k.has("moves_stock") ? "Aapka stock har hafte buyers tak jaata hoga."
+      : `Hum ${city ?? "aapke shehar"} ke businesses ki shipping sambhalte hain.`;
+    const who = client ? `Main ${name}, ${client} se.` : `Main ${name} hoon.`;
+    const ask = exportsTo ? "Kya hum aapke agle export shipment ka quote bhej sakte hain?" : "Kya hum aapke regular routes ke rates bhej sakte hain?";
+    return `Namaste ${greet}, ${seen.charAt(0).toLowerCase() + seen.slice(1)} ${who} Hum ${needText} sambhalte hain: pickup, paperwork aur tracking, sab ek jagah. ${ask}${link ? ` ${link}` : ""}`;
+  }
+  if (tone === "short") return `Hi ${greet}, ${name}${client ? ` from ${client}` : ""} here. We handle ${needText}${city ? ` from ${city}` : ""}. Can we quote for your next shipment?`;
+  const seen = exportsTo
+    ? countries.length ? `I saw you export to ${joinAnd(countries, "en")}.` : "I saw you export your products."
+    : k.has("pan_india") ? "I saw you supply across India."
+    : k.has("sells_online") || k.has("ships_parcels") ? "I saw you sell online, so parcels must be going out every day."
+    : k.has("makes_goods") ? `As ${an(kind)} ${kind}${area ? ` in ${area}` : ""}, you'll have goods going out every week.`
+    : k.has("moves_stock") ? "You'll be moving stock to buyers every week."
+    : `I work with businesses in ${city ?? "your city"} on their shipping.`;
+  const who = client ? `I'm ${name} from ${client}` : `I'm ${name}`;
+  const ask = exportsTo ? "Could we quote for your next export shipment?" : "Could we send you rates for your regular routes?";
+  return `Hi ${greet}, I came across ${l.name}. ${seen} ${who}${me.city ? ` in ${me.city}` : ""}. We handle ${needText} for businesses like yours: pickup, paperwork and tracking in one place, usually at better rates than booking each load separately. ${ask}${link ? ` ${link}` : ""}`;
 }

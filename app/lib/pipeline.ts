@@ -5,6 +5,7 @@ import { discoverWebsite, verifyCandidate, type SearchHit } from "./enrich/disco
 import { exactSearchChain, providersFromEnv, searchChain } from "./enrich/searchProviders";
 import { pageSpeedMobile } from "./enrich/pagespeed";
 import { scoreWebsiteDev } from "./score/websiteDev";
+import { scoreLogistics } from "./score/logistics";
 import { apolloEnrichDomain } from "./sources/apollo";
 import { googleTextSearch } from "./sources/googlePlaces";
 import { geocodeBBox, osmSearch, type BBox } from "./sources/osm";
@@ -60,6 +61,12 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     counts: { found: 0, afterDedupe: 0, hot: 0, warm: 0, cold: 0 },
   };
   emit({ type: "start", searchId: search.id });
+  /** Websites: how badly they need a new site. Logistics: how much freight they'd bring the client. */
+  const score = (l: Lead) => {
+    if (params.sells !== "logistics") return scoreWebsiteDev(l, deps.now?.());
+    const r = scoreLogistics(l, params.client?.services, deps.now?.());
+    return { ...r, pitchFor: { ...r.pitchFor, client: params.client?.name || undefined } };
+  };
   await deps.store.saveSearch(search);
 
   try {
@@ -100,7 +107,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     const useWeb = params.sources.web && !!webSearch;
     const jobs = cats.flatMap((c) => [
       ...(useGoogle ? [{ src: "google" as const, c }] : []),
-      ...(useOsm ? [{ src: "osm" as const, c }] : []),
+      ...(useOsm && c.osm.length ? [{ src: "osm" as const, c }] : []),
       ...(useIg ? [{ src: "instagram" as const, c }] : []),
       ...(useFb ? [{ src: "facebook" as const, c }] : []),
       ...(useWeb ? [{ src: "web" as const, c }] : []),
@@ -201,7 +208,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     // 3. Show every business now, then check each one and update it as soon as it's done.
     for (const l of leads) {
       l.websiteCheck = { via: l.website && !isSocialHost(domainOf(l.website)) ? "source" : "none_found", tried: [l.sources.map((x) => SOURCE_LABEL[x]).join(" + ")] };
-      Object.assign(l, scoreWebsiteDev(l, deps.now?.()));
+      Object.assign(l, score(l));
       l.pending = true;
     }
     emit({ type: "leads", leads });
@@ -228,7 +235,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
       } catch (e) {
         l.websiteCheck?.tried.push(`check failed: ${msg(e)}`);
       }
-      Object.assign(l, scoreWebsiteDev(l, deps.now?.()));
+      Object.assign(l, score(l));
       l.pending = false;
       emit({ type: "lead", lead: l });
       emit({ type: "stage", stage: "enrich", done: ++checked, total: leads.length });
@@ -324,7 +331,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     } else if (params.sources.apollo && !deps.keys.apollo) log("Apollo is on but no key is set. Skipping.", "warn");
 
     // 4. score (if stopped, businesses not checked keep their first rough score and go last)
-    for (const l of leads) Object.assign(l, scoreWebsiteDev(l, deps.now?.()));
+    for (const l of leads) Object.assign(l, score(l));
     leads.sort((a, b) => Number(!!a.pending) - Number(!!b.pending) || b.score - a.score);
     const done_ = leads.filter((l) => !l.pending);
     search.counts.hot = done_.filter((l) => l.tier === "hot").length;

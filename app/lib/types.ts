@@ -75,8 +75,31 @@ export interface WebsiteAudit {
   error?: string;
   foundedYear?: number; // "since 2009", JSON-LD foundingDate
   designedBy?: string; // agency credit in the footer, e.g. "Designed by XYZ Web"
+  /** What the site says about moving goods: exports, imports, selling online, pan-India supply. */
+  trade?: TradeHints;
   ownerName?: string; // schema.org founder/owner on the site
 }
+
+export interface TradeHints {
+  exports?: boolean;
+  imports?: boolean;
+  /** Import Export Code mentioned. */
+  iec?: boolean;
+  /** Countries named on the site, e.g. ["UAE", "USA"]. */
+  countries?: string[];
+  panIndia?: boolean;
+  /** Cart/checkout, or links to Amazon, Flipkart, Meesho. */
+  sellsOnline?: boolean;
+  /** Listings on IndiaMart, TradeIndia, ExportersIndia, Alibaba. */
+  b2b?: string[];
+  manufactures?: boolean;
+  dealers?: boolean;
+}
+
+/** Logistics services your client offers. */
+export type LogisticsService = "customs" | "freight" | "courier" | "forwarding" | "warehousing";
+/** What you're finding leads for. */
+export type Offer = "website_development" | "logistics";
 
 export interface Signal {
   key: string;
@@ -139,10 +162,14 @@ export interface Lead {
   pending?: boolean;
   /** What you've done with this lead, and your note. Set from the screen, kept with the search. */
   followUp?: FollowUp;
+  /** Set when the search was for a logistics client: what this business likely needs. */
+  pitchFor?: { kind: "logistics"; client?: string; needs: LogisticsService[] };
 }
 
 export interface SearchParams {
-  sells: "website_development";
+  sells: Offer;
+  /** For a logistics search: your client and what they offer. */
+  client?: { name?: string; services: LogisticsService[] };
   categories: string[]; // preset keys
   city: string;
   area?: string;

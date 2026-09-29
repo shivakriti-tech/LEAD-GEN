@@ -15,7 +15,7 @@ import { LeadPanel } from "./_ui/LeadPanel";
 import { RunPanel } from "./_ui/RunPanel";
 import { SetupPanel } from "./_ui/SetupPanel";
 import { PitchCtx, YourDetails, type PitchPrefs } from "./_ui/pitch";
-import { IconBell, IconCalendar, IconCheck, IconChevron, IconDownload, IconEdit, IconHistory, IconHome, IconPlus, IconSearch, IconSettings, IconShield } from "./_ui/icons";
+import { IconReport, IconBell, IconCalendar, IconCheck, IconChevron, IconDownload, IconEdit, IconHistory, IconHome, IconPlus, IconSearch, IconSettings, IconShield } from "./_ui/icons";
 import { Popover } from "./_ui/Popover";
 
 type LogLine = { level: "info" | "warn" | "error"; message: string };
@@ -67,6 +67,8 @@ const formFromParams = (p: SearchParams, prev: FormState): FormState => ({
   pageSpeed: p.pageSpeed,
   verifyWebsites: p.verifyWebsites,
   webSearch: p.webSearch,
+  sells: p.sells ?? "website_development",
+  client: p.client ? { name: p.client.name ?? "", services: p.client.services } : prev.client ?? DEFAULT_FORM.client,
 });
 
 const initials = (name?: string) => (name?.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "You").slice(0, 3);
@@ -84,7 +86,7 @@ export default function LeadFinder() {
   const [log, setLog] = useState<LogLine[]>([]);
   const [search, setSearch] = useState<SearchRecord | null>(null);
   const [searchId, setSearchId] = useState<string | null>(null);
-  const [params, setParams] = useState<Pick<SearchParams, "categories" | "city" | "area" | "sources"> | null>(null);
+  const [params, setParams] = useState<Pick<SearchParams, "categories" | "city" | "area" | "sources" | "sells" | "client"> | null>(null);
   const [stopping, setStopping] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [history, setHistory] = useState<SearchRecord[]>([]);
@@ -259,6 +261,8 @@ export default function LeadFinder() {
       webSearch: form.verifyWebsites && form.webSearch,
       apolloKey: form.sources.apollo && !config?.apollo ? form.apolloKey : undefined,
       keep,
+      sells: form.sells ?? "website_development",
+      client: form.sells === "logistics" ? { name: form.client?.name.trim() || undefined, services: form.client?.services ?? [] } : undefined,
     };
     setParams(body);
     try {
@@ -331,6 +335,7 @@ export default function LeadFinder() {
   }, [running, search]);
 
   const searchRunning = running || search?.status === "running";
+  const isLogistics = params?.sells === "logistics";
 
   // statuses can change any time (even while a search runs); deleting waits until it's finished
   const locked = !!searchRunning;
@@ -399,7 +404,7 @@ export default function LeadFinder() {
     const out = leads.filter(
       (l) =>
         (tier === "all" || (!l.pending && l.tier === tier)) &&
-        (!onlyNoSite || ["none", "social_only", "down"].includes(l.audit?.status ?? "")) &&
+        (!onlyNoSite || (isLogistics ? l.signals.some((x) => x.key === "exports" || x.key === "imports") : ["none", "social_only", "down"].includes(l.audit?.status ?? ""))) &&
         (!needPhone || l.phone || l.phones.length) &&
         (!needWa || whatsappNumber(l)) &&
         (!needEmail || l.email) &&
@@ -417,7 +422,7 @@ export default function LeadFinder() {
       status: (a, b) => (b.followUp?.updatedAt ?? "").localeCompare(a.followUp?.updatedAt ?? ""),
     };
     return out.sort((a, b) => Number(!!a.pending) - Number(!!b.pending) || cmp[sort](a, b));
-  }, [leads, tier, onlyNoSite, needPhone, needWa, needEmail, notContacted, skipChains, goodRating, status, contactedWeek, q, sort, searchId, pipe?.touched]);
+  }, [leads, tier, onlyNoSite, needPhone, needWa, needEmail, notContacted, skipChains, goodRating, status, contactedWeek, q, sort, searchId, pipe?.touched, isLogistics]);
 
   const activeFilters = [tier !== "all", onlyNoSite, needPhone, needWa, needEmail, notContacted, skipChains, goodRating, status !== "any", contactedWeek, !!q.trim()].filter(Boolean).length;
   const filtered = activeFilters > 0;
@@ -485,7 +490,8 @@ export default function LeadFinder() {
     const hot = leads.filter((l) => !l.pending && l.tier === "hot");
     const todo = hot.filter((l) => statusOf(l) === "new" && !touchedOf(l));
     const noSite = todo.filter((l) => ["none", "social_only", "down"].includes(l.audit?.status ?? "none")).length;
-    return { hot: hot.length, todo: todo.length, noSite };
+    const exporters = todo.filter((l) => l.signals.some((x) => x.key === "exports")).length;
+    return { hot: hot.length, todo: todo.length, noSite, exporters };
   }, [leads, touchedOf]);
   const pitch: PitchPrefs = {
     lang: prefs.lang,
@@ -590,8 +596,17 @@ export default function LeadFinder() {
           <div>
             {showForm ? (
               <>
-                <h1>Who needs a website today?</h1>
-                <p>Pick an area and the kinds of business you want to work with. We find the ones with weak or missing websites and write your first message.</p>
+                {form.sells === "logistics" ? (
+                  <>
+                    <h1>Who needs to ship goods today?</h1>
+                    <p>Pick an area and the kinds of business. We find the ones that ship goods regularly, say what they'll likely need, and write the first message for your logistics client.</p>
+                  </>
+                ) : (
+                  <>
+                    <h1>Who needs a website today?</h1>
+                    <p>Pick an area and the kinds of business you want to work with. We find the ones with weak or missing websites and write your first message.</p>
+                  </>
+                )}
               </>
             ) : searchRunning && !focus.todo ? (
               <>
@@ -601,7 +616,7 @@ export default function LeadFinder() {
             ) : focus.todo ? (
               <>
                 <h1>{focus.todo} {focus.todo === 1 ? "business" : "businesses"} to message first</h1>
-                <p>{focus.noSite ? `${focus.noSite === focus.todo ? (focus.todo === 1 ? "It has" : "All have") : `${focus.noSite} ${focus.noSite === 1 ? "has" : "have"}`} no working website. Start there: the message is ready.` : "Their reasons are below, with the message ready."}</p>
+                <p>{isLogistics ? (focus.exporters ? `${focus.exporters === focus.todo ? (focus.todo === 1 ? "It exports" : "All of them export") : `${focus.exporters} of them export`}: a fit for forwarding and customs. The message is ready.` : "Each one ships goods regularly. Their reasons are below, with the message ready.") : focus.noSite ? `${focus.noSite === focus.todo ? (focus.todo === 1 ? "It has" : "All have") : `${focus.noSite} ${focus.noSite === 1 ? "has" : "have"}`} no working website. Start there: the message is ready.` : "Their reasons are below, with the message ready."}</p>
               </>
             ) : focus.hot ? (
               <>
@@ -653,7 +668,7 @@ export default function LeadFinder() {
         {(searchRunning || (log.length > 0 && !leads.length)) && (
           <RunPanel
             where={params ? place(params) : "your area"}
-            params={params ? { pageSpeed: form.pageSpeed, sources: params.sources } : null}
+            params={params ? { pageSpeed: form.pageSpeed, sources: params.sources, sells: params.sells } : null}
             stage={stage}
             log={log}
             leads={leads}
@@ -693,7 +708,7 @@ export default function LeadFinder() {
             <section className="results" aria-label="Leads">
               <div className="filterbar">
                 <div className="chips scroll" role="group" aria-label="Filters">
-                  {([["No working website", onlyNoSite, setOnlyNoSite], ["Not messaged yet", notContacted, setNotContacted], ["Has phone", needPhone, setNeedPhone], ["WhatsApp", needWa, setNeedWa], ["Has email", needEmail, setNeedEmail], ["4★ and up", goodRating, setGoodRating], ["No chains", skipChains, setSkipChains]] as const).map(([label, on, set]) => (
+                  {([[isLogistics ? "Exports or imports" : "No working website", onlyNoSite, setOnlyNoSite], ["Not messaged yet", notContacted, setNotContacted], ["Has phone", needPhone, setNeedPhone], ["WhatsApp", needWa, setNeedWa], ["Has email", needEmail, setNeedEmail], ["4★ and up", goodRating, setGoodRating], ["No chains", skipChains, setSkipChains]] as const).map(([label, on, set]) => (
                     <button key={label} className="chip" aria-pressed={on} onClick={() => set(!on)}>
                       {on && <IconCheck />} {label}
                     </button>
@@ -723,6 +738,11 @@ export default function LeadFinder() {
                   <button className="btn sm" onClick={exportShown} disabled={!shown.length} title="Download the leads shown, as CSV">
                     <IconDownload /> Export{filtered ? ` ${shown.length}` : ""}
                   </button>
+                  {searchId && (
+                    <a className="btn sm" href={`/api/searches/${searchId}/report${pitch.me.name ? `?by=${encodeURIComponent(pitch.me.name)}` : ""}`} target="_blank" rel="noreferrer" title="A clean one-page report of the best leads, to send to your client (save it as PDF)">
+                      <IconReport /> Report
+                    </a>
+                  )}
                 </div>
               </div>
 

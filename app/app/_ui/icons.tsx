@@ -38,3 +38,4 @@ export const IconChat = () => <I d="M5 5h14v10H9l-4 4V5Z" />;
 export const IconUser = () => <I d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 20a8 8 0 0 1 16 0" />;
 export const IconShield = () => <I d="M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6l-7-3Z" />;
 export const IconExpand = () => <I d="M14 5h5v5M19 5l-7 7M10 19H5v-5M5 19l7-7" />;
+export const IconReport = () => <I d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" />;

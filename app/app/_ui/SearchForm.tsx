@@ -1,8 +1,9 @@
 "use client";
 
-import { CATEGORIES } from "@/lib/categories";
+import { CATEGORIES, categoriesFor } from "@/lib/categories";
 import type { CategoryStat } from "@/lib/followups";
-import type { KeepOnly, SearchParams, SearchRecord } from "@/lib/types";
+import { ALL_SERVICES, SERVICE_LABEL } from "@/lib/score/logistics";
+import type { KeepOnly, LogisticsService, Offer, SearchParams, SearchRecord } from "@/lib/types";
 import { IconCheck, IconSettings } from "./icons";
 
 export type Sources = SearchParams["sources"];
@@ -17,7 +18,11 @@ export interface FormState {
   webSearch: boolean;
   apolloKey: string;
   keep: KeepOnly;
+  /** What you're finding leads for: your website service, or a logistics client. */
+  sells: Offer;
+  client: { name: string; services: LogisticsService[] };
 }
+export const DEFAULT_CATS: Record<Offer, string[]> = { website_development: ["dentist", "salon", "cafe"], logistics: ["manufacturer", "exporter", "wholesaler"] };
 export const DEFAULT_KEEP: KeepOnly = { skipChains: true, needPhone: false, notContacted: true, goodRating: false };
 export const DEFAULT_FORM: FormState = {
   cats: ["dentist", "salon", "cafe"],
@@ -30,6 +35,8 @@ export const DEFAULT_FORM: FormState = {
   webSearch: true,
   apolloKey: "",
   keep: DEFAULT_KEEP,
+  sells: "website_development",
+  client: { name: "", services: ALL_SERVICES },
 };
 
 export type Config = {
@@ -63,6 +70,18 @@ const HINT: Record<string, string> = {
   hotel: "Direct bookings save commission",
   furniture: "Big purchases, long browsing",
   retail: "Often Instagram-only",
+  manufacturer: "Goods go out every week",
+  textile: "Bulk orders across India",
+  chemical: "Regular loads, often exported",
+  pharma: "Time-bound, tracked shipments",
+  engineering: "Heavy parts, truck loads",
+  food_proc: "Exports and cold routes",
+  exporter: "Forwarding and customs, every month",
+  importer: "Customs clearance and inland transport",
+  wholesaler: "Moves stock to shops daily",
+  distributor: "Warehousing and deliveries",
+  online_seller: "Parcels every day",
+  furniture_mfr: "Big items, trucks and packing",
 };
 
 const KEEP: Array<{ key: keyof KeepOnly; label: string; why: string }> = [
@@ -152,12 +171,16 @@ export function SearchForm({
   onOpenSearch: (id: string) => void;
 }) {
   const keep = { ...DEFAULT_KEEP, ...form.keep };
+  const sells: Offer = form.sells ?? "website_development";
+  const client = form.client ?? DEFAULT_FORM.client;
+  const setOffer = (o: Offer) => o !== sells && setForm({ ...form, sells: o, cats: DEFAULT_CATS[o], client });
+  const toggleService = (x: LogisticsService) => setForm({ ...form, client: { ...client, services: client.services.includes(x) ? client.services.filter((y) => y !== x) : [...client.services, x] } });
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm({ ...form, [k]: v });
   const setSource = (k: keyof Sources, v: boolean) => setForm({ ...form, sources: { ...form.sources, [k]: v } });
   const toggleCat = (k: string) => set("cats", form.cats.includes(k) ? form.cats.filter((x) => x !== k) : form.cats.length >= 8 ? form.cats : [...form.cats, k]);
   const sources = sourceInfo(config);
   const on = sources.filter((s) => s.ready && form.sources[s.key] && s.key !== "apollo");
-  const canRun = !running && form.cats.length > 0 && form.city.trim().length > 0 && on.length > 0;
+  const canRun = !running && form.cats.length > 0 && form.city.trim().length > 0 && on.length > 0 && (sells !== "logistics" || client.services.length > 0);
 
   const picked = form.cats.map((k) => CATEGORIES.find((c) => c.key === k)?.label ?? k);
   const where = form.area.trim() || form.city.trim();
@@ -168,7 +191,7 @@ export function SearchForm({
   const places = [...new Map(history.map((h) => [`${low(h.params.area)}|${low(h.params.city)}`, h.params])).values()].slice(0, 4);
   const allowance = config?.searchUsage?.find((u) => u.limit && u.exact);
   const left = allowance?.limit ? allowance.limit.n - (allowance.limit.per === "day" ? allowance.today : allowance.month) : null;
-  const block = !form.city.trim() ? "Enter a city to start." : !form.cats.length ? "Pick at least one business type." : !on.length ? "Turn on at least one source under More options." : "";
+  const block = sells === "logistics" && !client.services.length ? "Pick at least one service your client offers." : !form.city.trim() ? "Enter a city to start." : !form.cats.length ? "Pick at least one business type." : !on.length ? "Turn on at least one source under More options." : "";
 
   return (
     <form
@@ -180,6 +203,38 @@ export function SearchForm({
       }}
     >
       <div className="sf-main">
+        <section className="step">
+          <h2 className="step-title">Who are the leads for?</h2>
+          <div className="offers" role="radiogroup" aria-label="Who are the leads for">
+            <button type="button" role="radio" aria-checked={sells === "website_development"} className={`offer ${sells === "website_development" ? "on" : ""}`} onClick={() => setOffer("website_development")}>
+              <b>Website clients</b>
+              <span className="sub">Businesses with a missing or weak website, for your web design service.</span>
+            </button>
+            <button type="button" role="radio" aria-checked={sells === "logistics"} className={`offer ${sells === "logistics" ? "on" : ""}`} onClick={() => setOffer("logistics")}>
+              <b>A logistics client</b>
+              <span className="sub">Businesses that ship goods: factories, exporters, traders and online sellers.</span>
+            </button>
+          </div>
+          {sells === "logistics" && (
+            <div className="client-box">
+              <label className="field">
+                <span className="lbl">Your client's company <span className="opt">optional, shown in messages and the report</span></span>
+                <input type="text" value={client.name} onChange={(e) => set("client", { ...client, name: e.target.value })} placeholder="e.g. Shree Logistics" />
+              </label>
+              <div className="field">
+                <span className="lbl">Services they offer</span>
+                <div className="chips">
+                  {ALL_SERVICES.map((x) => (
+                    <button key={x} type="button" className="chip" aria-pressed={client.services.includes(x)} onClick={() => toggleService(x)}>
+                      {client.services.includes(x) && <IconCheck />} {SERVICE_LABEL[x].replace(/^\w/, (c) => c.toUpperCase())}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
         <section className="step">
           <h2 className="step-title">Where should we look?</h2>
           <p className="step-hint">An area works best. Leave it empty to cover the whole city.</p>
@@ -207,9 +262,9 @@ export function SearchForm({
 
         <section className="step">
           <h2 className="step-title">What kind of business?</h2>
-          <p className="step-hint">Pick up to 8 ({form.cats.length} picked). Businesses that take bookings or walk-ins pitch best.</p>
+          <p className="step-hint">Pick up to 8 ({form.cats.length} picked). {sells === "logistics" ? "Factories and exporters ship the most." : "Businesses that take bookings or walk-ins pitch best."}</p>
           <div className="cats">
-            {CATEGORIES.map((c) => {
+            {categoriesFor(sells).map((c) => {
               const onC = form.cats.includes(c.key);
               const st = statFor(stats, form.city, c.label);
               const good = st && st.s.total >= 5 && st.s.hot / st.s.total >= 0.4;
@@ -218,7 +273,7 @@ export function SearchForm({
                   <span className="box">{onC && <IconCheck />}</span>
                   <span className="cat-txt">
                     <b>{c.label}{good && <span className="tag good">Pitches well</span>}</b>
-                    <span className="sub">{st ? `Last time${st.here ? "" : " (all cities)"}: ${st.s.noSite} of ${st.s.total} had no working site` : HINT[c.key]}</span>
+                    <span className="sub">{st ? `Last time${st.here ? "" : " (all cities)"}: ${sells === "logistics" ? `${st.s.hot} of ${st.s.total} were strong leads` : `${st.s.noSite} of ${st.s.total} had no working site`}` : HINT[c.key]}</span>
                   </span>
                 </button>
               );
@@ -294,6 +349,7 @@ export function SearchForm({
         <span className="k">Your search</span>
         <b className="big">{headline}</b>
         <dl>
+          <div><dt>For</dt><dd>{sells === "logistics" ? client.name.trim() || "Logistics client" : "Your website service"}</dd></div>
           <div><dt>Area</dt><dd>{form.city.trim() ? cap(form.area.trim() ? `${form.area.trim()}, ${form.city.trim()}` : `All of ${form.city.trim()}`) : "Not set"}</dd></div>
           <div><dt>Types</dt><dd>{picked.length ? `${picked.length} picked` : "None yet"}</dd></div>
           <div><dt>Filters on</dt><dd>{filtersOn}</dd></div>

@@ -456,6 +456,13 @@ button.score:hover { box-shadow: 0 0 0 3px var(--accent-soft); }
 .place-f + .place-f { border-left: 1px solid var(--line); }
 .place-f input { border: 0; padding: 2px 0 4px; font-size: 18px; font-weight: 500; background: transparent; border-radius: 0; box-shadow: none; }
 .place-f input:focus { box-shadow: none; }
+.offers { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.offer { display: flex; flex-direction: column; gap: 3px; text-align: left; border: 1.5px solid transparent; background: var(--sunk); border-radius: 18px; padding: 14px 16px; transition: border-color .15s, background .15s; }
+.offer b { font-family: var(--display); font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+.offer:hover { background: #EFECE6; }
+.offer.on { border-color: var(--ink); background: var(--surface); }
+.client-box { margin-top: 12px; background: var(--sunk); border-radius: 18px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.client-box .chip[aria-pressed="false"] { background: var(--surface); }
 .recent { margin-top: 12px; display: flex; gap: 6px 14px; flex-wrap: wrap; align-items: center; }
 .cats { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
 .cat { display: flex; gap: 10px; align-items: flex-start; text-align: left; border: 1.5px solid transparent; background: var(--sunk); border-radius: 16px; padding: 12px 14px; transition: border-color .15s, background .15s; }
@@ -670,6 +677,7 @@ kbd { font-family: var(--mono); font-size: 11.5px; border: 1px solid var(--line-
   .biz .sub { max-width: 60vw; }
 
   .place { grid-template-columns: 1fr; }
+  .offers { grid-template-columns: 1fr; }
   .place-f + .place-f { border-left: 0; border-top: 1px solid var(--line); }
   .cats { grid-template-columns: 1fr 1fr; }
   .cat { padding: 10px; }

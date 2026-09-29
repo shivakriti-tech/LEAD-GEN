@@ -7,7 +7,9 @@ export interface CategoryPreset {
   label: string;
   group: string;
   google: string;
-  osm: string[]; // Overpass filter fragments, e.g. ["amenity"="dentist"]
+  osm: string[]; // Overpass filter fragments, e.g. ["amenity"="dentist"]; empty = not on the map
+  /** Which offering this type is for (default: websites). */
+  sells?: "logistics";
 }
 
 export const CATEGORIES: CategoryPreset[] = [
@@ -27,6 +29,23 @@ export const CATEGORIES: CategoryPreset[] = [
   { key: "hotel", label: "Hotel & homestay", group: "Travel", google: "hotel", osm: ['["tourism"="hotel"]', '["tourism"="guest_house"]'] },
   { key: "furniture", label: "Furniture shop", group: "Retail", google: "furniture shop", osm: ['["shop"="furniture"]'] },
   { key: "retail", label: "Retail shop", group: "Retail", google: "clothing store", osm: ['["shop"="clothes"]', '["shop"="boutique"]'] },
+
+  // Businesses that ship goods: leads for a logistics client
+  { key: "manufacturer", label: "Manufacturer", group: "Factories", google: "manufacturer", osm: ['["man_made"="works"]', '["industrial"="factory"]'], sells: "logistics" },
+  { key: "textile", label: "Textile & garment maker", group: "Factories", google: "textile manufacturer", osm: ['["industrial"="textile"]', '["craft"="tailor"]["shop"!="clothes"]'], sells: "logistics" },
+  { key: "chemical", label: "Chemical & plastics", group: "Factories", google: "chemical plastic products manufacturer", osm: ['["industrial"="chemical"]'], sells: "logistics" },
+  { key: "pharma", label: "Pharma & medical", group: "Factories", google: "pharmaceutical company", osm: ['["industrial"="pharmaceutical"]'], sells: "logistics" },
+  { key: "engineering", label: "Engineering & fabrication", group: "Factories", google: "engineering works fabrication", osm: ['["craft"="metal_construction"]', '["industrial"="machine_shop"]'], sells: "logistics" },
+  { key: "food_proc", label: "Food & agro processing", group: "Factories", google: "food processing unit", osm: ['["industrial"="food"]'], sells: "logistics" },
+  { key: "exporter", label: "Exporter", group: "Import & export", google: "exporters", osm: [], sells: "logistics" },
+  { key: "importer", label: "Importer", group: "Import & export", google: "importers", osm: [], sells: "logistics" },
+  { key: "wholesaler", label: "Wholesaler", group: "Trade", google: "wholesaler", osm: ['["shop"="wholesale"]'], sells: "logistics" },
+  { key: "distributor", label: "Distributor & stockist", group: "Trade", google: "distributor stockist", osm: [], sells: "logistics" },
+  { key: "online_seller", label: "Online seller", group: "Trade", google: "online store ecommerce brand", osm: [], sells: "logistics" },
+  { key: "furniture_mfr", label: "Furniture maker", group: "Factories", google: "furniture manufacturer", osm: ['["craft"="carpenter"]'], sells: "logistics" },
 ];
+
+/** The business types for an offering. */
+export const categoriesFor = (sells: "website_development" | "logistics") => CATEGORIES.filter((c) => (c.sells ?? "website_development") === sells);
 
 export const categoryByKey = (key: string) => CATEGORIES.find((c) => c.key === key);

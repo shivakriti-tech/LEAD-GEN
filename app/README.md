@@ -51,6 +51,17 @@ Restart `npm run dev` after changing `.env.local`.
 - **Select leads** with the checkboxes to mark them contacted, set a status or follow-up, export or delete them (delete waits until a running search finishes).
 - Every search in *Recent searches* has a download icon. On a phone everything stacks into one column with bigger buttons.
 
+## Leads for a logistics client
+
+Besides website clients, the app finds leads **for a logistics company** (your client): businesses that ship goods.
+
+- In *New search*, pick **A logistics client**, type the client's company name (optional) and tick the services they offer: customs clearance, truck freight, courier and parcels, export forwarding, warehousing.
+- Business types switch to ones that ship goods: manufacturer, textile & garment maker, chemical & plastics, pharma & medical, engineering & fabrication, food & agro processing, furniture maker, exporter, importer, wholesaler, distributor & stockist, online seller.
+- Each business's website is read for shipping clues: exports (and to which countries), imports, an import-export code (IEC), "pan-India" supply, online selling (cart/checkout, Amazon/Flipkart links), IndiaMart/TradeIndia listings, manufacturing, dealer networks. Its address is checked for industrial estates (GIDC, MIDC, industrial area…).
+- **Scoring** favours factories and exporters in industrial estates that supply across India, and only counts what the client offers (exports count for more when the client does forwarding and customs). Transporters, couriers and packers & movers are marked as competitors and score 0. Each lead says why it fits and what it will likely need, e.g. "Manufacturer in GIDC Makarpura that exports to UAE, USA and Kenya and supplies across India. Likely needs truck freight, export forwarding and customs clearance."
+- **Messages** mention what we saw and the client: "I saw you export to UAE, USA and Kenya. I'm Divy from Shree Logistics… Could we quote for your next export shipment?" (Friendly, Short, Follow-up; English or Hinglish).
+- **For your client:** *Export* gives a CSV with extra columns (Likely needs, Exports to, Listed on). *Report* opens a clean one-page report of the best leads (summary, why each fits, likely needs, contacts), with competitors left out; press *Save as PDF* to send it. It works for website searches too.
+
 ## How a search works
 
 1. Searches Google Maps, OpenStreetMap, search engines (local businesses with their own website, through SearXNG/Tavily), and Instagram business profiles and Facebook Pages for each business type in the city/area. Search-engine results are only kept if the site is a local business: directories, national online stores, news sites and chains are skipped, and the homepage must mention the city or area.
@@ -207,7 +218,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 184 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 194 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

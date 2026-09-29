@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import type { WebsiteAudit } from "../types";
+import type { TradeHints, WebsiteAudit } from "../types";
 import { fetchPublic } from "../safeFetch";
 import { domainOf, isMobile, isSocialHost, normalizePhone } from "../util";
 
@@ -44,6 +44,29 @@ function personName(v: unknown): string | undefined {
   const n = typeof x === "string" ? x : x && typeof x === "object" && typeof (x as { name?: unknown }).name === "string" ? (x as { name: string }).name : undefined;
   const t = n?.replace(/\s+/g, " ").trim();
   return t && t.length >= 3 && t.length <= 60 ? t : undefined;
+}
+
+const COUNTRIES = ["USA", "United States", "UK", "United Kingdom", "UAE", "Dubai", "Saudi", "Qatar", "Oman", "Kuwait", "Bahrain", "Europe", "Germany", "France", "Italy", "Spain", "Netherlands", "Africa", "Kenya", "Nigeria", "Egypt", "Australia", "Canada", "Singapore", "Malaysia", "Bangladesh", "Nepal", "Sri Lanka", "China", "Japan", "Korea", "Brazil", "Mexico", "Russia", "Turkey", "Vietnam", "Indonesia", "Thailand"];
+const B2B: Array<[RegExp, string]> = [[/indiamart\.com$/, "IndiaMart"], [/tradeindia\.com$/, "TradeIndia"], [/exportersindia\.com$/, "ExportersIndia"], [/alibaba\.com$/, "Alibaba"], [/justdial\.com$/, "Justdial"]];
+const SHOPS = /(^|\.)(amazon\.in|amazon\.com|flipkart\.com|meesho\.com|myntra\.com|ajio\.com|etsy\.com|nykaa\.com)$/;
+
+/** What a page says about moving goods. Pure, exported for tests. */
+export function tradeHints(text: string, hosts: string[], html = ""): TradeHints {
+  const t = text.slice(0, 400_000);
+  const countries = COUNTRIES.filter((c) => new RegExp(`\\b${c}\\b`).test(t));
+  const b2b = [...new Set(hosts.flatMap((h) => B2B.filter(([re]) => re.test(h)).map(([, n]) => n)))];
+  const out: TradeHints = {
+    exports: /\b(export(s|er|ers|ing|ed)?|worldwide|overseas (buyers|clients|markets)|international (buyers|clients|markets))\b/i.test(t),
+    imports: /\b(import(s|er|ers|ing|ed)?)\b(?! (your|our) (contacts|data|file))/i.test(t),
+    iec: /\b(IEC\s*(no|code|number)?|import[- ]export code)\b/i.test(t),
+    countries: countries.length ? [...new Set(countries.map((c) => (c === "United States" ? "USA" : c === "United Kingdom" ? "UK" : c)))] : undefined,
+    panIndia: /\b(pan[- ]india|all over india|across india|all india|nationwide|throughout india|across the country)\b/i.test(t),
+    sellsOnline: /\b(add to cart|buy now|shop now|checkout|free shipping|cash on delivery|cod available)\b/i.test(t) || hosts.some((h) => SHOPS.test(h)) || /cdn\.shopify\.com|woocommerce/i.test(html),
+    b2b: b2b.length ? b2b : undefined,
+    manufactures: /\b(manufactur(e|er|ers|ing)|factory|production (unit|capacity|plant)|plant capacity|our plant)\b/i.test(t),
+    dealers: /\b(dealer(s|ship)?|distributor(s|ship)?) (network|across|in \d+|enquiry)|become (a|our) (dealer|distributor)/i.test(t),
+  };
+  return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== false && v !== undefined)) as TradeHints;
 }
 
 /** Pure HTML parser: everything we can learn from one page. Exported for tests. */
@@ -217,7 +240,15 @@ export function parsePage(html: string, pageUrl: string) {
   // --- Sort phones: mobiles first (better for WhatsApp outreach) ---
   const sortedPhones = [...phones].sort((a, b) => Number(isMobile(b)) - Number(isMobile(a)));
 
-  return { emails: [...emails], phones: sortedPhones, socials, whatsapp, mobileViewport, copyrightYear, builder, contactLinks: contactLinks.slice(0, 2), foundedYear: extractedFoundingYear, designedBy, ownerName };
+  const hosts: string[] = [];
+  $("a[href]").each((_, a) => {
+    try {
+      hosts.push(new URL($(a).attr("href") || "", pageUrl).hostname.replace(/^www\./, ""));
+    } catch {}
+  });
+  const trade = tradeHints(text, [...new Set(hosts)], html.slice(0, 300_000));
+
+  return { emails: [...emails], phones: sortedPhones, socials, whatsapp, mobileViewport, copyrightYear, builder, contactLinks: contactLinks.slice(0, 2), foundedYear: extractedFoundingYear, designedBy, ownerName, trade };
 }
 
 /** Load a business website and audit it. Never throws. */
@@ -254,6 +285,7 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
   let foundedYear = first.foundedYear;
   let designedBy = first.designedBy;
   let ownerName = first.ownerName;
+  const trade: TradeHints = { ...first.trade };
 
   // look at up to 2 contact/about pages for more contacts
   for (const link of first.contactLinks) {
@@ -268,6 +300,7 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
       foundedYear ??= p.foundedYear;
       designedBy ??= p.designedBy;
       ownerName ??= p.ownerName;
+      mergeTrade(trade, p.trade);
     } catch {}
   }
 
@@ -307,5 +340,13 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
     foundedYear,
     designedBy,
     ownerName,
+    trade: Object.keys(trade).length ? trade : undefined,
   };
+}
+
+function mergeTrade(into: TradeHints, more: TradeHints) {
+  for (const [k, v] of Object.entries(more) as Array<[keyof TradeHints, TradeHints[keyof TradeHints]]>) {
+    if (Array.isArray(v)) (into as Record<string, unknown>)[k] = [...new Set([...((into[k] as string[] | undefined) ?? []), ...v])];
+    else if (v) (into as Record<string, unknown>)[k] = true;
+  }
 }

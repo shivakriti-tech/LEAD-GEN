@@ -1,6 +1,7 @@
 import { EMAIL_KIND_LABEL } from "./enrich/email";
 import { followUpLabel } from "./outreach";
 import type { Lead } from "./types";
+import { SERVICE_LABEL } from "./score/logistics";
 
 const COLS: Array<[string, (l: Lead) => unknown]> = [
   ["Score", (l) => l.score],
@@ -27,6 +28,9 @@ const COLS: Array<[string, (l: Lead) => unknown]> = [
   ["Rating", (l) => l.rating],
   ["Reviews", (l) => l.reviews],
   ["Why now", (l) => l.whyNow],
+  ["Likely needs", (l) => l.pitchFor?.needs.map((n) => SERVICE_LABEL[n]).join("; ")],
+  ["Exports to", (l) => l.audit?.trade?.countries?.join(" ")],
+  ["Listed on", (l) => l.audit?.trade?.b2b?.join(" ")],
   ["Signals", (l) => l.signals.map((s) => s.label).join("; ")],
   ["Instagram", (l) => l.social?.instagram?.url ?? l.audit?.socials.instagram],
   ["Instagram followers", (l) => l.social?.instagram?.followers],
