@@ -56,7 +56,7 @@ Restart `npm run dev` after changing `.env.local`.
 
 Besides website clients, the app finds leads **for a logistics company** (your client): businesses that ship goods.
 
-- In *New search*, pick **A logistics client**, type the client's company name (optional) and tick the services they offer: customs clearance, truck freight, courier and parcels, export forwarding, warehousing.
+- In *New search*, pick **A logistics client**, type the client's company name (optional) and tick the services they offer: customs clearance, documentation, DGFT, ICEGATE, sea / ocean freight, by road, import, export (plus courier & parcels and warehousing for clients who offer them). Each lead lists what it likely needs: an exporter needs sea freight, customs clearance, documentation, ICEGATE filing (shipping bills), DGFT work (export benefits) and export handling; an importer needs the same for imports (bills of entry); a business with an import-export code (IEC) needs DGFT work; factories and traders need road transport.
 - Business types switch to ones that ship goods: manufacturer, textile & garment maker, chemical & plastics, pharma & medical, engineering & fabrication, food & agro processing, furniture maker, exporter, importer, wholesaler, distributor & stockist, online seller.
 - Each business's website is read for shipping clues: exports (and to which countries), imports, an import-export code (IEC), "pan-India" supply, online selling (cart/checkout, Amazon/Flipkart links), IndiaMart/TradeIndia listings, manufacturing, dealer networks. Its address is checked for industrial estates (GIDC, MIDC, industrial area…).
 - **Scoring** favours factories and exporters in industrial estates that supply across India, and only counts what the client offers (exports count for more when the client does forwarding and customs). Transporters, couriers and packers & movers are marked as competitors and score 0. Each lead says why it fits and what it will likely need, e.g. "Manufacturer in GIDC Makarpura that exports to UAE, USA and Kenya and supplies across India. Likely needs truck freight, export forwarding and customs clearance."
@@ -247,7 +247,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 206 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 207 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

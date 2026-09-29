@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { tradeHints } from "@/lib/enrich/crawl";
-import { scoreLogistics } from "@/lib/score/logistics";
+import { DEFAULT_SERVICES, scoreLogistics } from "@/lib/score/logistics";
 import { firstMessage, followUpMessage, issueChips } from "@/lib/outreach";
 import { categoriesFor } from "@/lib/categories";
 import { leadsReport } from "@/lib/report";
@@ -34,8 +34,19 @@ describe("scoring for a logistics client", () => {
     expect(r.tier).toBe("hot");
     expect(r.signals.map((s) => s.key)).toEqual(expect.arrayContaining(["makes_goods", "exports", "pan_india", "industrial"]));
     expect(r.signals.find((s) => s.key === "industrial")!.label).toBe("In an industrial area (GIDC Makarpura)");
-    expect(r.whyNow).toBe("Manufacturer in GIDC Makarpura that exports to UAE and USA and supplies across India. Likely needs truck freight, export forwarding and customs clearance.");
-    expect(r.pitchFor.needs).toEqual(["freight", "forwarding", "customs"]);
+    expect(r.whyNow).toBe("Manufacturer in GIDC Makarpura that exports to UAE and USA and supplies across India. Likely needs sea freight, customs clearance, export-import documentation, ICEGATE filing and more.");
+    expect(r.pitchFor.needs).toEqual(["sea", "customs", "documentation", "icegate", "dgft", "forwarding", "freight"]);
+  });
+
+  it("fits a customs & freight agent's services: importers and IEC holders need the paperwork", () => {
+    const agent = DEFAULT_SERVICES; // customs, documentation, DGFT, ICEGATE, sea, road, import, export
+    const imp = scoreLogistics(lead({ name: "Patel Chemicals", category: "Importer", address: "Por GIDC, Vadodara", audit: audit({ iec: true }) }), agent);
+    expect(imp.pitchFor.needs).toEqual(["sea", "customs", "documentation", "icegate", "dgft", "imports"]);
+    expect(imp.signals.find((s) => s.key === "imports")!.points).toBe(15);
+    expect(imp.signals.find((s) => s.key === "iec")!.points).toBe(10); // DGFT work is on offer
+    const road = scoreLogistics(lead({ name: "Om Traders", category: "Wholesaler", address: "Makarpura, Vadodara" }), agent);
+    expect(road.pitchFor.needs).toEqual(["freight"]); // no courier/warehousing on offer
+    expect(road.whyNow).toMatch(/Likely needs road transport\.$/);
   });
 
   it("only counts services the client offers", () => {
@@ -70,9 +81,9 @@ describe("messages for a logistics client", () => {
   const l = scored(lead({ owner: { name: "Rakesh Patel", via: "google_maps" }, audit: audit({ exports: true, countries: ["UAE", "USA"] }) }));
   it("mentions what we saw, the client, and the services that fit", () => {
     expect(firstMessage(l, "en", { name: "Divy" })).toBe(
-      "Hi Rakesh, I came across Shiv Steel Industries. I saw you export to UAE and USA. I'm Divy from Shree Logistics. We handle truck freight, export forwarding and customs clearance for businesses like yours: pickup, paperwork and tracking in one place, usually at better rates than booking each load separately. Could we quote for your next export shipment?",
+      "Hi Rakesh, I came across Shiv Steel Industries. I saw you export to UAE and USA. I'm Divy from Shree Logistics. We handle sea freight, customs clearance and export-import documentation for businesses like yours: pickup, paperwork and tracking in one place, usually at better rates than booking each load separately. Could we quote for your next export shipment?",
     );
-    expect(firstMessage(l, "en", { name: "Divy" }, "short")).toBe("Hi Rakesh, Divy from Shree Logistics here. We handle truck freight, export forwarding and customs clearance from Vadodara. Can we quote for your next shipment?");
+    expect(firstMessage(l, "en", { name: "Divy" }, "short")).toBe("Hi Rakesh, Divy from Shree Logistics here. We handle sea freight, customs clearance and export-import documentation from Vadodara. Can we quote for your next shipment?");
     expect(firstMessage(l, "hi", { name: "Divy" })).toMatch(/^Namaste Rakesh ji, maine dekha aap UAE aur USA export karte hain\. Main Divy, Shree Logistics se\./);
     expect(followUpMessage(l, "en", { name: "Divy" })).toMatch(/shipping for Shiv Steel Industries/);
   });
@@ -94,7 +105,7 @@ describe("report and CSV for the client", () => {
     expect(html).toContain("<dt>Prepared by</dt><dd>Divy");
     expect(html).toContain("Shiv Steel Industries");
     expect(html).toContain("sales@shivsteel.in");
-    expect(html).toContain("Likely needs:</span> truck freight, customs clearance");
+    expect(html).toContain("Likely needs:</span> customs clearance, road transport");
     expect(html).toContain("<h2>Strong leads");
     expect(html).toMatch(/@media print/);
     expect(html).toContain('<button class="print" onclick="window.print()">Print</button>'); // no PDF link given
@@ -108,6 +119,6 @@ describe("report and CSV for the client", () => {
   it("adds needs and export countries to the CSV", () => {
     const [head, row] = leadsToCsv([leads[0]]).replace(/^﻿/, "").split("\r\n");
     expect(head).toContain("Likely needs,Exports to,Listed on");
-    expect(row).toContain(",truck freight; customs clearance,UAE,");
+    expect(row).toContain(",customs clearance; road transport,UAE,");
   });
 });

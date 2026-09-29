@@ -5,14 +5,40 @@ import type { Lead, LogisticsService, Signal, Tier } from "../types";
  * client's services it would use. Higher = more (and more regular) freight to win.
  */
 
+/** How a service reads in a sentence ("Likely needs sea freight and customs clearance"). */
 export const SERVICE_LABEL: Record<LogisticsService, string> = {
   customs: "customs clearance",
-  freight: "truck freight",
+  documentation: "export-import documentation",
+  dgft: "DGFT licences and export benefits",
+  icegate: "ICEGATE filing",
+  sea: "sea freight",
+  freight: "road transport",
+  imports: "import handling",
+  forwarding: "export handling",
   courier: "courier and parcels",
-  forwarding: "export forwarding",
   warehousing: "warehousing",
 };
-export const ALL_SERVICES: LogisticsService[] = ["customs", "freight", "courier", "forwarding", "warehousing"];
+/** Short names for the service buttons. */
+export const SERVICE_CHIP: Record<LogisticsService, string> = {
+  customs: "Customs clearance",
+  documentation: "Documentation",
+  dgft: "DGFT",
+  icegate: "ICEGATE",
+  sea: "Sea / ocean freight",
+  freight: "By road",
+  imports: "Import",
+  forwarding: "Export",
+  courier: "Courier & parcels",
+  warehousing: "Warehousing",
+};
+/** Every service, in the order needs are listed (most specific first). */
+export const ALL_SERVICES: LogisticsService[] = ["sea", "customs", "documentation", "icegate", "dgft", "forwarding", "imports", "freight", "courier", "warehousing"];
+/** What a customs & freight agent typically offers: ticked on a new search. */
+export const DEFAULT_SERVICES: LogisticsService[] = ["customs", "documentation", "dgft", "icegate", "sea", "freight", "imports", "forwarding"];
+/** The service buttons, in the order a customs & freight agent lists them. */
+export const SERVICE_ORDER: LogisticsService[] = [...DEFAULT_SERVICES, "courier", "warehousing"];
+/** Export/import services: an exporter or importer is a strong lead when the client offers any of these. */
+const EXIM: LogisticsService[] = ["customs", "documentation", "dgft", "icegate", "sea", "forwarding", "imports"];
 
 const FACTORY = /manufactur|textile|garment|chemical|plastic|pharma|engineering|fabricat|food processing|agro|furniture maker|factory/i;
 const TRADE = /wholesal|distributor|stockist|trader|dealer/i;
@@ -45,17 +71,20 @@ export function scoreLogistics(lead: Lead, services: LogisticsService[] = ALL_SE
   }
   const exports = /exporter/i.test(cat) || !!t.exports;
   const imports = /importer/i.test(cat) || !!t.imports;
+  const exim = EXIM.some((x) => offers.has(x));
   if (exports) {
-    const helps = offers.has("forwarding") || offers.has("customs");
-    add("exports", t.countries?.length ? `Exports (${t.countries.slice(0, 3).join(", ")}${t.countries.length > 3 ? "…" : ""})` : "Exports goods", helps ? 25 : 10);
-    need("forwarding");
-    need("customs");
+    add("exports", t.countries?.length ? `Exports (${t.countries.slice(0, 3).join(", ")}${t.countries.length > 3 ? "…" : ""})` : "Exports goods", exim ? 25 : 10);
+    for (const x of ["sea", "customs", "documentation", "icegate", "dgft", "forwarding"] as const) need(x);
   }
   if (imports) {
-    add("imports", "Imports goods", offers.has("customs") ? 15 : 5);
-    need("customs");
+    add("imports", "Imports goods", exim ? 15 : 5);
+    for (const x of ["sea", "customs", "documentation", "icegate", "imports"] as const) need(x);
   }
-  if (t.iec) add("iec", "Has an import-export code (IEC)", 5);
+  if (t.iec) {
+    add("iec", "Has an import-export code (IEC)", offers.has("dgft") ? 10 : 5);
+    need("dgft");
+    need("documentation");
+  }
   if ((t.countries?.length ?? 0) >= 3) add("many_countries", `Ships to ${t.countries!.length}+ countries`, 10);
   if (t.panIndia) {
     add("pan_india", "Supplies across India", offers.has("freight") || offers.has("courier") ? 15 : 5);
@@ -90,7 +119,7 @@ export function scoreLogistics(lead: Lead, services: LogisticsService[] = ALL_SE
 
   const score = Math.max(0, Math.min(100, s.reduce((a, x) => a + x.points, 0)));
   const tier: Tier = score >= 60 ? "hot" : score >= 30 ? "warm" : "cold";
-  const list = [...needs];
+  const list = ALL_SERVICES.filter((x) => needs.has(x));
   return { signals: s, score, tier, whyNow: whyNow(lead, s, list, t.countries), pitchFor: { kind: "logistics", needs: list } };
 }
 
@@ -99,9 +128,9 @@ const join = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1)
 function whyNow(lead: Lead, s: Signal[], needs: LogisticsService[], countries?: string[]): string {
   const has = (k: string) => s.find((x) => x.key === k);
   if (has("competitor")) return "Looks like a transport or courier company itself: a competitor, not a customer.";
-  const who = has("exports") && !has("makes_goods") ? "Exporter" : has("makes_goods") || has("moves_stock") || has("ships_parcels") ? lead.category : "Business";
+  const who = has("exports") && !has("makes_goods") ? "Exporter" : has("imports") && !has("makes_goods") && !has("moves_stock") ? "Importer" : has("makes_goods") || has("moves_stock") || has("ships_parcels") ? lead.category : "Business";
   const where = has("industrial") ? ` in ${has("industrial")!.label.replace(/^In an industrial area \((.*)\)$/, "$1")}` : lead.city ? ` in ${lead.city}` : "";
-  const reach = [has("exports") && (countries?.length ? `exports to ${join(countries.slice(0, 3))}` : "exports"), has("imports") && "imports", has("pan_india") && "supplies across India", has("sells_online") && "sells online"].filter(Boolean) as string[];
-  const needText = needs.length ? ` Likely needs ${join(needs.map((n) => SERVICE_LABEL[n]))}.` : "";
+  const reach = [has("exports") && (countries?.length ? `exports to ${join(countries.slice(0, 3))}` : "exports"), has("imports") && who !== "Importer" && "imports", has("pan_india") && "supplies across India", has("sells_online") && "sells online"].filter(Boolean) as string[];
+  const needText = needs.length ? ` Likely needs ${join([...needs.slice(0, 4).map((n) => SERVICE_LABEL[n]), ...(needs.length > 4 ? ["more"] : [])])}.` : "";
   return `${who}${where}${reach.length ? ` that ${join(reach)}` : ""}.${needText}`;
 }

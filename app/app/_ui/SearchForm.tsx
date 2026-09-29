@@ -2,7 +2,7 @@
 
 import { CATEGORIES, categoriesFor } from "@/lib/categories";
 import type { CategoryStat } from "@/lib/followups";
-import { ALL_SERVICES, SERVICE_LABEL } from "@/lib/score/logistics";
+import { DEFAULT_SERVICES, SERVICE_CHIP, SERVICE_ORDER } from "@/lib/score/logistics";
 import type { KeepOnly, LogisticsService, Offer, SearchParams, SearchRecord } from "@/lib/types";
 import { IconCheck, IconSettings } from "./icons";
 
@@ -38,7 +38,7 @@ export const DEFAULT_FORM: FormState = {
   apolloKey: "",
   keep: DEFAULT_KEEP,
   sells: "website_development",
-  client: { name: "", services: ALL_SERVICES },
+  client: { name: "", services: DEFAULT_SERVICES },
 };
 
 export type Config = {
@@ -227,9 +227,9 @@ export function SearchForm({
               <div className="field">
                 <span className="lbl">Services they offer</span>
                 <div className="chips">
-                  {ALL_SERVICES.map((x) => (
+                  {SERVICE_ORDER.map((x) => (
                     <button key={x} type="button" className="chip" aria-pressed={client.services.includes(x)} onClick={() => toggleService(x)}>
-                      {client.services.includes(x) && <IconCheck />} {SERVICE_LABEL[x].replace(/^\w/, (c) => c.toUpperCase())}
+                      {client.services.includes(x) && <IconCheck />} {SERVICE_CHIP[x]}
                     </button>
                   ))}
                 </div>

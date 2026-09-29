@@ -97,7 +97,8 @@ export interface TradeHints {
 }
 
 /** Logistics services your client offers. */
-export type LogisticsService = "customs" | "freight" | "courier" | "forwarding" | "warehousing";
+/** freight = by road (trucks), forwarding = export handling, sea = sea / ocean freight. */
+export type LogisticsService = "customs" | "documentation" | "dgft" | "icegate" | "sea" | "freight" | "imports" | "forwarding" | "courier" | "warehousing";
 /** What you're finding leads for. */
 export type Offer = "website_development" | "logistics";
 

@@ -326,8 +326,8 @@ export function followUpMessage(l: Lead, lang: Lang, sender?: string | Sender): 
 
 /* ---------- logistics leads (for a logistics client) ---------- */
 
-const NEED_EN: Record<LogisticsService, string> = { customs: "customs clearance", freight: "truck freight", courier: "courier and parcels", forwarding: "export forwarding", warehousing: "warehousing" };
-const NEED_HI: Record<LogisticsService, string> = { customs: "custom clearance", freight: "truck transport", courier: "courier aur parcel", forwarding: "export forwarding", warehousing: "warehousing" };
+const NEED_EN: Record<LogisticsService, string> = { customs: "customs clearance", documentation: "export-import documentation", dgft: "DGFT work", icegate: "ICEGATE filing", sea: "sea freight", freight: "road transport", imports: "import handling", forwarding: "export handling", courier: "courier and parcels", warehousing: "warehousing" };
+const NEED_HI: Record<LogisticsService, string> = { customs: "custom clearance", documentation: "export-import documentation", dgft: "DGFT ka kaam", icegate: "ICEGATE filing", sea: "sea freight", freight: "road transport", imports: "import handling", forwarding: "export handling", courier: "courier aur parcel", warehousing: "warehousing" };
 
 /** Why this business fits a logistics client, as chips: "Exporter", "Industrial area", "Sells online". */
 function fitChips(l: Lead): Array<{ label: string; kind: "bad" | "warn" | "good" | "plain" }> {
@@ -350,12 +350,14 @@ function logisticsMessage(l: Lead, lang: Lang, me: Sender, tone: Exclude<Tone, "
   const name = me.name?.trim() || (hi ? "[aapka naam]" : "[your name]");
   const client = l.pitchFor?.client?.trim();
   const needs = l.pitchFor?.needs.length ? l.pitchFor.needs : (["freight"] as LogisticsService[]);
-  const needText = joinAnd(needs.map((n) => (hi ? NEED_HI : NEED_EN)[n]), lang);
+  // a message names at most 3 services; the rest come up on the call
+  const needText = joinAnd(needs.slice(0, 3).map((n) => (hi ? NEED_HI : NEED_EN)[n]), lang);
   const k = new Set(l.signals.map((x) => x.key));
   const countries = l.audit?.trade?.countries?.slice(0, 3) ?? [];
   const greet = greetName(l, lang);
   const city = me.city?.trim() || l.city;
   const exportsTo = k.has("exports");
+  const importsFrom = !exportsTo && k.has("imports");
   const link = me.link?.trim();
   const kind = l.category.toLowerCase();
   const area = l.signals.find((x) => x.key === "industrial")?.label.replace(/^In an industrial area \((.*)\)$/, "$1");
@@ -364,24 +366,26 @@ function logisticsMessage(l: Lead, lang: Lang, me: Sender, tone: Exclude<Tone, "
     if (tone === "short") return `Namaste ${greet}, main ${name}${client ? `, ${client} se` : ""}. Hum ${needText}${city ? ` ${city} se` : ""} karte hain. Agle shipment ka quote bhejein?`;
     const seen = exportsTo
       ? countries.length ? `Maine dekha aap ${joinAnd(countries, "hi")} export karte hain.` : "Maine dekha aap export karte hain."
+      : importsFrom ? "Maine dekha aap maal import karte hain."
       : k.has("pan_india") ? "Maine dekha aap poore India mein supply karte hain."
       : k.has("sells_online") || k.has("ships_parcels") ? "Maine dekha aap online bechte hain, toh roz parcels jaate honge."
       : k.has("makes_goods") ? `${l.category}${area ? ` (${area})` : ""} hone ke naate aapka maal regular bahar jaata hoga.`
       : k.has("moves_stock") ? "Aapka stock har hafte buyers tak jaata hoga."
       : `Hum ${city ?? "aapke shehar"} ke businesses ki shipping sambhalte hain.`;
     const who = client ? `Main ${name}, ${client} se.` : `Main ${name} hoon.`;
-    const ask = exportsTo ? "Kya hum aapke agle export shipment ka quote bhej sakte hain?" : "Kya hum aapke regular routes ke rates bhej sakte hain?";
+    const ask = exportsTo ? "Kya hum aapke agle export shipment ka quote bhej sakte hain?" : importsFrom ? "Kya hum aapke agle import consignment ki clearance ka quote bhej sakte hain?" : "Kya hum aapke regular routes ke rates bhej sakte hain?";
     return `Namaste ${greet}, ${seen.charAt(0).toLowerCase() + seen.slice(1)} ${who} Hum ${needText} sambhalte hain: pickup, paperwork aur tracking, sab ek jagah. ${ask}${link ? ` ${link}` : ""}`;
   }
   if (tone === "short") return `Hi ${greet}, ${name}${client ? ` from ${client}` : ""} here. We handle ${needText}${city ? ` from ${city}` : ""}. Can we quote for your next shipment?`;
   const seen = exportsTo
     ? countries.length ? `I saw you export to ${joinAnd(countries, "en")}.` : "I saw you export your products."
+    : importsFrom ? "I saw you import goods."
     : k.has("pan_india") ? "I saw you supply across India."
     : k.has("sells_online") || k.has("ships_parcels") ? "I saw you sell online, so parcels must be going out every day."
     : k.has("makes_goods") ? `As ${an(kind)} ${kind}${area ? ` in ${area}` : ""}, you'll have goods going out every week.`
     : k.has("moves_stock") ? "You'll be moving stock to buyers every week."
     : `I work with businesses in ${city ?? "your city"} on their shipping.`;
   const who = client ? `I'm ${name} from ${client}` : `I'm ${name}`;
-  const ask = exportsTo ? "Could we quote for your next export shipment?" : "Could we send you rates for your regular routes?";
+  const ask = exportsTo ? "Could we quote for your next export shipment?" : importsFrom ? "Could we quote for clearing your next import consignment?" : "Could we send you rates for your regular routes?";
   return `Hi ${greet}, I came across ${l.name}. ${seen} ${who}${me.city ? ` in ${me.city}` : ""}. We handle ${needText} for businesses like yours: pickup, paperwork and tracking in one place, usually at better rates than booking each load separately. ${ask}${link ? ` ${link}` : ""}`;
 }

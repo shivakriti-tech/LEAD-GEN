@@ -1,3 +1,4 @@
+import { ALL_SERVICES } from "./score/logistics";
 import { categoriesFor } from "./categories";
 import { RECHECK_AFTER, type Directory } from "./directory";
 import type { Deps } from "./pipeline";
@@ -77,7 +78,7 @@ export async function runPrefill(opts: {
     if (i) await pause(opts.pauseMs ?? 3_000);
     const params: SearchParams = {
       sells: j.offer,
-      client: j.offer === "logistics" ? { services: ["customs", "freight", "courier", "forwarding", "warehousing"] } : undefined,
+      client: j.offer === "logistics" ? { services: ALL_SERVICES } : undefined,
       categories: j.categories,
       city: opts.city,
       area: j.area,
