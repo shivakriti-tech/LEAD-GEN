@@ -12,6 +12,25 @@ export interface CategoryPreset {
   sells?: "logistics";
 }
 
+/*
+ * Factories in India are rarely tagged by what they make (industrial=pharmaceutical is almost never
+ * used). They're on the map as a named factory building, industrial compound, workshop or company
+ * office, so they're found by name inside those. Estate names (GIDC, industrial area…) are skipped.
+ */
+const NOT_ESTATE = '["name"!~"GIDC|MIDC|estate|industrial (area|park|zone|hub)|phase|SEZ",i]';
+const inIndustry = (words: string) => {
+  const n = `["name"~"${words}",i]`;
+  return [
+    `["industrial"]${n}`,
+    `["man_made"="works"]${n}`,
+    `["building"~"^(industrial|factory|warehouse)$"]${n}`,
+    `["landuse"="industrial"]${n}${NOT_ESTATE}`,
+    `["craft"]${n}`,
+    `["office"="company"]${n}`,
+  ];
+};
+const inOffices = (words: string) => [`["office"]["name"~"${words}",i]`, `["man_made"="works"]["name"~"${words}",i]`, `["building"~"^(industrial|commercial|office|warehouse)$"]["name"~"${words}",i]`];
+
 export const CATEGORIES: CategoryPreset[] = [
   { key: "dentist", label: "Dentist", group: "Clinics", google: "dental clinic", osm: ['["amenity"="dentist"]', '["healthcare"="dentist"]'] },
   { key: "skin", label: "Skin clinic", group: "Clinics", google: "skin clinic dermatologist", osm: ['["healthcare:speciality"="dermatology"]'] },
@@ -31,18 +50,18 @@ export const CATEGORIES: CategoryPreset[] = [
   { key: "retail", label: "Retail shop", group: "Retail", google: "clothing store", osm: ['["shop"="clothes"]', '["shop"="boutique"]'] },
 
   // Businesses that ship goods: leads for a logistics client
-  { key: "manufacturer", label: "Manufacturer", group: "Factories", google: "manufacturer", osm: ['["man_made"="works"]', '["industrial"="factory"]'], sells: "logistics" },
-  { key: "textile", label: "Textile & garment maker", group: "Factories", google: "textile manufacturer", osm: ['["industrial"="textile"]', '["craft"="tailor"]["shop"!="clothes"]'], sells: "logistics" },
-  { key: "chemical", label: "Chemical & plastics", group: "Factories", google: "chemical plastic products manufacturer", osm: ['["industrial"="chemical"]'], sells: "logistics" },
-  { key: "pharma", label: "Pharma & medical", group: "Factories", google: "pharmaceutical company", osm: ['["industrial"="pharmaceutical"]'], sells: "logistics" },
-  { key: "engineering", label: "Engineering & fabrication", group: "Factories", google: "engineering works fabrication", osm: ['["craft"="metal_construction"]', '["industrial"="machine_shop"]'], sells: "logistics" },
-  { key: "food_proc", label: "Food & agro processing", group: "Factories", google: "food processing unit", osm: ['["industrial"="food"]'], sells: "logistics" },
-  { key: "exporter", label: "Exporter", group: "Import & export", google: "exporters", osm: [], sells: "logistics" },
-  { key: "importer", label: "Importer", group: "Import & export", google: "importers", osm: [], sells: "logistics" },
-  { key: "wholesaler", label: "Wholesaler", group: "Trade", google: "wholesaler", osm: ['["shop"="wholesale"]'], sells: "logistics" },
-  { key: "distributor", label: "Distributor & stockist", group: "Trade", google: "distributor stockist", osm: [], sells: "logistics" },
+  { key: "manufacturer", label: "Manufacturer", group: "Factories", google: "manufacturer", osm: ['["man_made"="works"]', '["industrial"="factory"]', '["building"~"^(industrial|factory)$"]', `["landuse"="industrial"]${NOT_ESTATE}`, '["name"~"industries|manufactur|udyog|products|mfg",i]["office"]'], sells: "logistics" },
+  { key: "textile", label: "Textile & garment maker", group: "Factories", google: "textile manufacturer", osm: ['["industrial"="textile"]', ...inIndustry("textile|fabric|garment|apparel|spinning|weaving|yarn|cotton|silk|knit|denim|dyeing|processors")], sells: "logistics" },
+  { key: "chemical", label: "Chemical & plastics", group: "Factories", google: "chemical plastic products manufacturer", osm: ['["industrial"="chemical"]', ...inIndustry("chem|plast|polymer|resin|paint|dye|petro|fertili|pigment|rubber|pack|coating")], sells: "logistics" },
+  { key: "pharma", label: "Pharma & medical", group: "Factories", google: "pharmaceutical company", osm: ['["industrial"="pharmaceutical"]', ...inIndustry("pharma|drug|laborator|life ?science|biotech|formulation|healthcare|surgical|medi")], sells: "logistics" },
+  { key: "engineering", label: "Engineering & fabrication", group: "Factories", google: "engineering works fabrication", osm: ['["craft"="metal_construction"]', '["industrial"="machine_shop"]', ...inIndustry("engineer|fabricat|forg|casting|foundry|steel|metal|machin|tool|pump|valve|transformer|cable|auto ?parts")], sells: "logistics" },
+  { key: "food_proc", label: "Food & agro processing", group: "Factories", google: "food processing unit", osm: ['["industrial"="food"]', ...inIndustry("food|agro|spice|masala|flour|oil mill|rice|dairy|beverage|snack|namkeen|dal mill|cold storage")], sells: "logistics" },
+  { key: "exporter", label: "Exporter", group: "Import & export", google: "exporters", osm: inOffices("export|impex|overseas"), sells: "logistics" },
+  { key: "importer", label: "Importer", group: "Import & export", google: "importers", osm: inOffices("import|impex|overseas"), sells: "logistics" },
+  { key: "wholesaler", label: "Wholesaler", group: "Trade", google: "wholesaler", osm: ['["shop"="wholesale"]', ...inOffices("wholesale|traders|trading")], sells: "logistics" },
+  { key: "distributor", label: "Distributor & stockist", group: "Trade", google: "distributor stockist", osm: ['["shop"]["name"~"distribut|stockist",i]', ...inOffices("distribut|stockist")], sells: "logistics" },
   { key: "online_seller", label: "Online seller", group: "Trade", google: "online store ecommerce brand", osm: [], sells: "logistics" },
-  { key: "furniture_mfr", label: "Furniture maker", group: "Factories", google: "furniture manufacturer", osm: ['["craft"="carpenter"]'], sells: "logistics" },
+  { key: "furniture_mfr", label: "Furniture maker", group: "Factories", google: "furniture manufacturer", osm: ['["craft"="carpenter"]', ...inIndustry("furniture|wood|timber|ply|modular")], sells: "logistics" },
 ];
 
 /** The business types for an offering. */
