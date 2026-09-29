@@ -16,7 +16,7 @@ const cssText = (s: string) => s.replace(/[\\"'<>\r\n]/g, " ").slice(0, 120);
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const safeUrl = (u?: string) => (u && /^https?:\/\//i.test(u) ? u : undefined);
 
-export function leadsReport(opts: { search: SearchRecord; leads: Lead[]; by?: string; all?: boolean; now?: Date }): string {
+export function leadsReport(opts: { search: SearchRecord; leads: Lead[]; by?: string; all?: boolean; now?: Date; pdfHref?: string; notice?: string }): string {
   const { search, by, all } = opts;
   const p = search.params;
   const logistics = p.sells === "logistics";
@@ -87,7 +87,8 @@ a { color: inherit; text-decoration-color: #C9C2B6; text-underline-offset: 2px; 
 .mark { width: 22px; height: 22px; border-radius: 7px; background: var(--dark); position: relative; flex: none; }
 .mark::after { content: ""; position: absolute; left: 12px; top: 5px; width: 5px; height: 12px; border-radius: 2px; background: #F0561D; }
 .brand span { color: var(--accent); }
-.print { border: 0; background: var(--accent); color: #fff; font: inherit; font-weight: 700; padding: 9px 18px; border-radius: 999px; cursor: pointer; }
+.print { display: inline-block; text-decoration: none; border: 0; background: var(--accent); color: #fff; font: inherit; font-weight: 700; padding: 9px 18px; border-radius: 999px; cursor: pointer; }
+.notice { margin-top: 14px; padding: 10px 14px; border-radius: 12px; background: #FFF3DC; color: #8A5A05; font-size: 13px; }
 .hero { background: #fff; border-radius: 22px; padding: 26px 28px; margin-top: 22px; }
 .kicker { color: var(--accent-ink); font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
 h1 { font-size: 30px; line-height: 1.15; letter-spacing: -.03em; margin: 6px 0 18px; }
@@ -147,7 +148,7 @@ h3 { font-size: 16px; line-height: 1.35; letter-spacing: -.01em; flex: 1; min-wi
 @media print {
   body { background: #fff; font-size: 10pt; }
   .page { max-width: none; padding: 0; }
-  .print { display: none; }
+  .print, .notice { display: none; }
   .hero { padding: 0 0 4mm; border-radius: 0; margin-top: 5mm; }
   h1 { font-size: 20pt; margin-bottom: 4mm; }
   .facts { grid-template-columns: repeat(3, 1fr); gap: 2mm 6mm; padding-top: 3mm; }
@@ -173,7 +174,8 @@ h3 { font-size: 16px; line-height: 1.35; letter-spacing: -.01em; flex: 1; min-wi
 }
 </style></head>
 <body><div class="page">
-<div class="bar"><div class="brand"><i class="mark"></i>Lead<span>Autopilot</span></div><button class="print" onclick="window.print()">Save as PDF</button></div>
+<div class="bar"><div class="brand"><i class="mark"></i>Lead<span>Autopilot</span></div>${opts.pdfHref ? `<a class="print" href="${esc(opts.pdfHref)}">Download PDF</a>` : `<button class="print" onclick="window.print()">Print</button>`}</div>
+${opts.notice ? `<p class="notice">${esc(opts.notice)}</p>` : ""}
 <header class="hero">
   <div class="kicker">Lead report</div>
   <h1>${esc(title)}</h1>

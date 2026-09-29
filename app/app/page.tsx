@@ -740,7 +740,7 @@ export default function LeadFinder() {
                     <IconDownload /> Export{filtered ? ` ${shown.length}` : ""}
                   </button>
                   {searchId && (
-                    <a className="btn sm" href={`/api/searches/${searchId}/report${pitch.me.name ? `?by=${encodeURIComponent(pitch.me.name)}` : ""}`} target="_blank" rel="noreferrer" title="A clean one-page report of the best leads, to send to your client (save it as PDF)">
+                    <a className="btn sm" href={`/api/searches/${searchId}/report?format=pdf${pitch.me.name ? `&by=${encodeURIComponent(pitch.me.name)}` : ""}`} target="_blank" rel="noreferrer" title="A PDF report of the best leads, to send to your client. Opens in a new tab; download it from there">
                       <IconReport /> Report
                     </a>
                   )}

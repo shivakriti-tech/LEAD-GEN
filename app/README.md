@@ -32,6 +32,7 @@ With no keys at all it already works: leads come from OpenStreetMap (free) and e
 | `APOLLO_API_KEY` | Company size and LinkedIn page. Only the client's own key | Apollo → Settings → API. You can also paste it in the app for one search. |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Save searches in a real database instead of the `.data` folder | supabase.com → new project → SQL Editor → run `supabase/schema.sql` → Project Settings → API |
 | `CRAWLER_CONTACT` | Your email in the crawler's User-Agent (OpenStreetMap asks for one) | Any address you check |
+| `PDF_BROWSER` | Only if the *Report* PDF says no Chrome or Edge was found: the full path to Chrome, Edge or Chromium | e.g. `C:\Program Files\Google\Chrome\Application\chrome.exe` |
 | `APP_PASSWORD` | Password-protects the whole app (the browser asks; any user name). **Set it before putting the app online**: saved searches hold phone numbers and emails, and every search spends your API quota | Any long password |
 
 Restart `npm run dev` after changing `.env.local`.
@@ -60,7 +61,7 @@ Besides website clients, the app finds leads **for a logistics company** (your c
 - Each business's website is read for shipping clues: exports (and to which countries), imports, an import-export code (IEC), "pan-India" supply, online selling (cart/checkout, Amazon/Flipkart links), IndiaMart/TradeIndia listings, manufacturing, dealer networks. Its address is checked for industrial estates (GIDC, MIDC, industrial area…).
 - **Scoring** favours factories and exporters in industrial estates that supply across India, and only counts what the client offers (exports count for more when the client does forwarding and customs). Transporters, couriers and packers & movers are marked as competitors and score 0. Each lead says why it fits and what it will likely need, e.g. "Manufacturer in GIDC Makarpura that exports to UAE, USA and Kenya and supplies across India. Likely needs truck freight, export forwarding and customs clearance."
 - **Messages** mention what we saw and the client: "I saw you export to UAE, USA and Kenya. I'm Divy from Shree Logistics… Could we quote for your next export shipment?" (Friendly, Short, Follow-up; English or Hinglish).
-- **For your client:** *Export* gives a CSV with extra columns (Likely needs, Exports to, Listed on). *Report* opens a clean one-page report of the best leads (summary, why each fits, likely needs, contacts), with competitors left out; press *Save as PDF* to send it. It works for website searches too.
+- **For your client:** *Export* gives a CSV with extra columns (Likely needs, Exports to, Listed on). *Report* opens a ready PDF of the best leads (summary, strong and possible leads, why each fits, likely needs, contacts; competitors left out) in a new tab: download it from the PDF viewer and send it. It works for website searches too. The PDF is made with the Edge or Chrome already on your computer; if neither is found, the report opens as a web page with a *Print* button instead (set `PDF_BROWSER` to fix that).
 
 ## Saved lead directory (faster searches)
 

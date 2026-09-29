@@ -97,6 +97,10 @@ describe("report and CSV for the client", () => {
     expect(html).toContain("Likely needs:</span> truck freight, customs clearance");
     expect(html).toContain("<h2>Strong leads");
     expect(html).toMatch(/@media print/);
+    expect(html).toContain('<button class="print" onclick="window.print()">Print</button>'); // no PDF link given
+    const withPdf = leadsReport({ search, leads, pdfHref: "?format=pdf&by=Divy" });
+    expect(withPdf).toContain('<a class="print" href="?format=pdf&amp;by=Divy">Download PDF</a>');
+    expect(leadsReport({ search, leads, notice: "No <b>Chrome</b>" })).toContain('<p class="notice">No &lt;b&gt;Chrome&lt;/b&gt;</p>');
     expect(html).not.toContain("Maruti Roadways");
     expect(html).not.toContain("Pending one");
     expect(html).not.toMatch(/<script/i);
