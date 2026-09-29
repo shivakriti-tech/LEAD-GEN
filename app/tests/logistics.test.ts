@@ -91,10 +91,12 @@ describe("report and CSV for the client", () => {
   it("lists the best leads with why they fit and how to reach them, leaving out competitors", () => {
     const html = leadsReport({ search, leads, by: "Divy", now: new Date("2026-09-29T12:00:00Z") });
     expect(html).toContain("Leads for Shree &lt;Logistics&gt;"); // escaped
-    expect(html).toContain("prepared by Divy");
+    expect(html).toContain("<dt>Prepared by</dt><dd>Divy");
     expect(html).toContain("Shiv Steel Industries");
     expect(html).toContain("sales@shivsteel.in");
-    expect(html).toContain("Likely needs: truck freight, customs clearance");
+    expect(html).toContain("Likely needs:</span> truck freight, customs clearance");
+    expect(html).toContain("<h2>Strong leads");
+    expect(html).toMatch(/@media print/);
     expect(html).not.toContain("Maruti Roadways");
     expect(html).not.toContain("Pending one");
     expect(html).not.toMatch(/<script/i);
