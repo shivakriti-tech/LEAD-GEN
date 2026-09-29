@@ -257,6 +257,7 @@ export default function LeadFinder() {
       perCategory: form.perCategory,
       sources: { ...form.sources, google: form.sources.google && !!config?.google, gmaps: form.sources.gmaps && !!config?.gmapsScraper },
       pageSpeed: form.pageSpeed,
+      fresh: !!form.fresh,
       verifyWebsites: form.verifyWebsites,
       webSearch: form.verifyWebsites && form.webSearch,
       apolloKey: form.sources.apollo && !config?.apollo ? form.apolloKey : undefined,

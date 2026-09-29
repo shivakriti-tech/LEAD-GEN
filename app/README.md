@@ -62,6 +62,31 @@ Besides website clients, the app finds leads **for a logistics company** (your c
 - **Messages** mention what we saw and the client: "I saw you export to UAE, USA and Kenya. I'm Divy from Shree Logistics… Could we quote for your next export shipment?" (Friendly, Short, Follow-up; English or Hinglish).
 - **For your client:** *Export* gives a CSV with extra columns (Likely needs, Exports to, Listed on). *Report* opens a clean one-page report of the best leads (summary, why each fits, likely needs, contacts), with competitors left out; press *Save as PDF* to send it. It works for website searches too.
 
+## Saved lead directory (faster searches)
+
+Businesses that a search finds and checks are saved per city, area and business type in `.data/directory`. The next search for the same place starts from them instead of searching from scratch:
+
+- Businesses checked in the last **7 days** load straight away (no Google calls, no website checks). They still come in one by one on the results screen, and the log says plainly that saved data is being used ("Found saved data for Dentist in Alkapuri, Vadodara (checked 3 days ago)").
+- Businesses checked **more than 7 days ago** are checked again during the search. What changed is shown on the lead: *Now has a website*, *Website stopped working*, *Website working again*, *Moved to a new website*, *New phone number*.
+- The free map (OpenStreetMap) is always searched again, so **new businesses** since the saved data are added and checked.
+- Sources the saved data didn't use (e.g. it came from the map only and you have Google on) still run live.
+- Saved data older than **30 days** isn't used. Only public business facts are saved; your statuses, notes and messages stay with each search. A stopped search isn't saved.
+- To search everything live, untick **Reuse businesses checked recently** under *More options*. To turn the directory off, set `LEAD_DIRECTORY=off` in `.env.local`.
+
+### Fill it ahead of time (Vadodara)
+
+```
+npm run prefill -- --dry                  see what would run
+npm run prefill                           all Vadodara areas: 15 city areas (websites) + 8 industrial estates (logistics)
+npm run prefill -- --offer=logistics      only the industrial estates (or --offer=website)
+npm run prefill -- --area="Makarpura GIDC"   one area
+npm run prefill -- --force                refill even what was filled in the last week
+npm run prefill -- --web                  also find websites by web search (uses your search quota)
+npm run prefill -- --google               also use Google Places (uses your Google quota)
+```
+
+By default it uses free sources only. It takes a while (the free map servers are slow); leave it running, or press Ctrl+C and run it again later: finished areas are kept and fresh ones are skipped. Run it once a week to keep the data fresh. *Setup* shows how many businesses are saved.
+
 ## How a search works
 
 1. Searches Google Maps, OpenStreetMap, search engines (local businesses with their own website, through SearXNG/Tavily), and Instagram business profiles and Facebook Pages for each business type in the city/area. Search-engine results are only kept if the site is a local business: directories, national online stores, news sites and chains are skipped, and the homepage must mention the city or area.
@@ -194,6 +219,7 @@ lib/score/websiteDev.ts      opportunity score for this niche
 lib/dedupe.ts                merging duplicates across sources
 lib/enrich/email.ts, mx.ts   email ranking (owner vs shared inbox) and mail-server check
 lib/cache.ts                 disk cache for repeat searches
+lib/directory.ts             saved lead directory (per city/area/type); lib/prefill.ts + scripts/prefill.ts fill it ahead of time
 lib/outreach.ts              first messages (English/Hinglish), Call/WhatsApp/Email links, follow-up statuses
 lib/bench.ts, bench/         Vadodara lead-quality benchmark (npm run bench)
 lib/safeFetch.ts             blocks private/internal addresses when checking websites in a live build
@@ -207,7 +233,7 @@ tests/                       npm test
 
 ## Rules we follow
 
-- Google Maps data: keep `place_id` long term; refresh details from Google rather than keeping them forever.
+- Google Maps data: keep `place_id` long term; refresh details from Google rather than keeping them forever. Saved Google details are used for at most 30 days (the lead directory).
 - OpenStreetMap public servers are for light use, and results must credit "© OpenStreetMap contributors" (the app does).
 - Website checks are polite: one request at a time per site, short timeouts, a clear User-Agent.
 - Apollo data is only fetched with the client's own key and not reused for other clients.
@@ -218,7 +244,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 194 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 199 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

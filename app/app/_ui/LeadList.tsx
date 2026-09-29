@@ -121,6 +121,7 @@ function Chips({ lead: l, max = 3, touched }: { lead: Lead; max?: number; touche
   return (
     <>
       {touched && <span className="tag seen" title={`You marked it ${touched.status} in ${touched.search}`}>Messaged before</span>}
+      {l.changes?.length ? <span className="tag warn" title={l.changes.join(" · ")}>{l.changes.length === 1 ? l.changes[0] : "Changed"}</span> : null}
       {issueChips(l).slice(0, max).map((c) => <span key={c.label} className={`tag ${c.kind}`}>{c.label}</span>)}
       {l.chain && <span className="tag" title={l.chain.reason}>Chain</span>}
     </>

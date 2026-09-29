@@ -100,6 +100,7 @@ export function LeadPanel({
 
       <div className="drawer-body">
         <p className={`reason ${l.pending ? "" : l.tier}`}>{l.pending ? "Still checking this business…" : l.whyNow}</p>
+        {l.changes?.length ? <p className="note">Changed since it was last checked: <b>{l.changes.join(", ")}</b>.</p> : null}
         {touched && <p className="note">You already marked this business <b>{touched.status}</b> in {touched.search}{touched.at ? ` on ${new Date(touched.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : ""}. Check before messaging again.</p>}
 
         <PitchBox lead={l} draft={draft} setDraft={setDraft} onSent={onSent} big />
@@ -253,7 +254,7 @@ export function LeadPanel({
         <section className="dsec">
           <details>
             <summary>How we checked</summary>
-            <p className="sub">Found on {l.sources.map((s) => SOURCE_NAME[s] ?? s).join(" + ")}.{l.chain ? ` Chain: ${l.chain.reason}.` : ""}</p>
+            <p className="sub">Found on {l.sources.map((s) => SOURCE_NAME[s] ?? s).join(" + ")}.{l.chain ? ` Chain: ${l.chain.reason}.` : ""}{l.checkedAt ? ` Last checked ${new Date(l.checkedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.` : ""}</p>
             <ul className="tried">{(l.websiteCheck?.tried ?? []).map((t, i) => <li key={i}>{t}</li>)}</ul>
           </details>
         </section>

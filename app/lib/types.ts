@@ -162,6 +162,12 @@ export interface Lead {
   pending?: boolean;
   /** What you've done with this lead, and your note. Set from the screen, kept with the search. */
   followUp?: FollowUp;
+  /** When this business's details were last checked (website, contacts). */
+  checkedAt?: string;
+  /** Came from the saved directory (found by an earlier search or the prefill). */
+  saved?: boolean;
+  /** What changed since it was last checked, e.g. "Now has a website". */
+  changes?: string[];
   /** Set when the search was for a logistics client: what this business likely needs. */
   pitchFor?: { kind: "logistics"; client?: string; needs: LogisticsService[] };
 }
@@ -180,6 +186,8 @@ export interface SearchParams {
   verifyWebsites: boolean;
   /** Also use a web search (DuckDuckGo, or Brave with a key) when guessing fails. */
   webSearch: boolean;
+  /** Don't use saved data; search everything live. */
+  fresh?: boolean;
   /** Filters to start the results with (nothing is thrown away: you can turn them off). */
   keep?: KeepOnly;
 }

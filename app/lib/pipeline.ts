@@ -15,6 +15,7 @@ import { webLeadSearch } from "./sources/webSearch";
 import { gmapsScrapeBatch, gmapsScraperUrl } from "./sources/gmapsScraper";
 import { mergeBySocial, rememberSocial } from "./dedupe";
 import { cached, cacheMode, DAY, type CacheStats } from "./cache";
+import { forDirectory, localDirectory, RECHECK_AFTER, whatChanged, type Directory, type DirectoryEntry } from "./directory";
 import { classifyEmail, rankEmails } from "./enrich/email";
 import { domainAcceptsMail } from "./enrich/mx";
 import type { WebsiteAudit } from "./types";
@@ -44,6 +45,10 @@ export interface Deps {
   /** Does this email domain accept mail? Leave out to skip the check (tests). */
   mx?: typeof domainAcceptsMail;
   cacheStats?: CacheStats;
+  /** Saved businesses from earlier searches and the prefill. Leave out to always search live. */
+  directory?: Directory;
+  /** Pause (ms) between showing saved businesses that don't need a recheck, so results arrive at a readable pace. */
+  revealMs?: number;
   keys: { gmapsScraper?: string; google?: string; pageSpeed?: string; apollo?: string; brave?: string; metaToken?: string; igUserId?: string; fbPageSearch?: boolean; phoneSearch?: "auto" | "on" | "off" };
   store: Store;
   now?: () => Date;
@@ -81,6 +86,20 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     const cats = params.categories.map(categoryByKey).filter((c): c is NonNullable<typeof c> => !!c);
     if (!cats.length) throw new Error("Pick at least one business type.");
 
+    // 0. saved businesses for this area and these types (from earlier searches or the prefill)
+    const saved = new Map<string, DirectoryEntry>();
+    if (deps.directory && !params.fresh)
+      for (const c of cats) {
+        const e = await deps.directory.get(params.city, params.area, c.key).catch(() => undefined);
+        if (e) saved.set(c.key, e);
+      }
+    const liveCats = cats.filter((c) => !saved.has(c.key));
+    if (saved.size) {
+      const oldest = Math.min(...[...saved.values()].map((e) => Date.parse(e.savedAt)));
+      const days = Math.floor(((deps.now?.() ?? new Date()).getTime() - oldest) / DAY);
+      log(`Found saved data for ${[...saved.keys()].map((k) => categoryByKey(k)?.label ?? k).join(", ")} in ${place} (checked ${days < 1 ? "today" : days === 1 ? "yesterday" : `${days} days ago`}). Rechecking it and looking for new businesses.`);
+    }
+
     const useGoogle = params.sources.google && !!deps.keys.google;
     if (params.sources.google && !deps.keys.google) log("Google Places is on but no API key is set. Skipping Google. Add GOOGLE_PLACES_API_KEY to .env.local.", "warn");
     let useOsm = params.sources.osm;
@@ -97,7 +116,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     const useGmaps = params.sources.gmaps && !!deps.keys.gmapsScraper;
     if (params.sources.gmaps && !deps.keys.gmapsScraper) log("Google Maps scraper is on but not available (not set up, or this is a live build where it's switched off). Skipping it.", "warn");
     const socialPossible = useGmaps || (params.sources.instagram || params.sources.facebook || params.sources.web) && (!!webSearch || (!!deps.keys.fbPageSearch && !!deps.keys.metaToken));
-    if (!useGoogle && !useOsm && !socialPossible) throw new Error(params.sources.osm ? "OpenStreetMap couldn't find this place and there is no Google key. Check the city name, or add GOOGLE_PLACES_API_KEY." : "No lead source is available. Turn on OpenStreetMap or add a Google Places key.");
+    if (!useGoogle && !useOsm && !socialPossible && saved.size < cats.length) throw new Error(params.sources.osm ? "OpenStreetMap couldn't find this place and there is no Google key. Check the city name, or add GOOGLE_PLACES_API_KEY." : "No lead source is available. Turn on OpenStreetMap or add a Google Places key.");
 
     // 1. search
     const raw: RawPlace[] = [];
@@ -105,14 +124,29 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     const useIg = params.sources.instagram && !!webSearch;
     const useFb = params.sources.facebook && (fbApi || !!webSearch);
     const useWeb = params.sources.web && !!webSearch;
-    const jobs = cats.flatMap((c) => [
-      ...(useGoogle ? [{ src: "google" as const, c }] : []),
-      ...(useOsm && c.osm.length ? [{ src: "osm" as const, c }] : []),
-      ...(useIg ? [{ src: "instagram" as const, c }] : []),
-      ...(useFb ? [{ src: "facebook" as const, c }] : []),
-      ...(useWeb ? [{ src: "web" as const, c }] : []),
-    ]);
-    if (!useGoogle && !useOsm && !useIg && !useFb && !useWeb && !useGmaps) throw new Error("No lead source is available.");
+    const jobs = [
+      ...liveCats.flatMap((c) => [
+        ...(useGoogle ? [{ src: "google" as const, c }] : []),
+        ...(useOsm && c.osm.length ? [{ src: "osm" as const, c }] : []),
+        ...(useIg ? [{ src: "instagram" as const, c }] : []),
+        ...(useFb ? [{ src: "facebook" as const, c }] : []),
+        ...(useWeb ? [{ src: "web" as const, c }] : []),
+      ]),
+      // types with saved data: a free map search to catch businesses that opened since, plus any of
+      // this search's sources that weren't used to build the saved data
+      ...cats.filter((c) => saved.has(c.key)).flatMap((c) => {
+        const had = saved.get(c.key)!.sources ?? ["osm"];
+        return [
+          ...(useGoogle && !had.includes("google") ? [{ src: "google" as const, c }] : []),
+          ...(useOsm && c.osm.length ? [{ src: "osm" as const, c }] : []),
+          ...(useIg && !had.includes("instagram") ? [{ src: "instagram" as const, c }] : []),
+          ...(useFb && !had.includes("facebook") ? [{ src: "facebook" as const, c }] : []),
+          ...(useWeb && !had.includes("web") ? [{ src: "web" as const, c }] : []),
+        ];
+      }),
+    ];
+    const usedSources = [useGoogle && "google", useOsm && "osm", useIg && "instagram", useFb && "facebook", useWeb && "web"].filter(Boolean) as string[];
+    if (!useGoogle && !useOsm && !useIg && !useFb && !useWeb && !useGmaps && saved.size < cats.length) throw new Error("No lead source is available.");
     let done = 0, googleRequests = 0;
     const total = jobs.length + (useGmaps ? 1 : 0);
     emit({ type: "stage", stage: "search", done, total });
@@ -157,14 +191,14 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
       mapLimit(group(["osm"]), 2, runJob),
       mapLimit(group(["web", "instagram", "facebook"]), 3, runJob),
       // Google Maps scraper (local testing only): one business type at a time, minutes each.
-      useGmaps
+      useGmaps && liveCats.length
         ? (async () => {
-            log(`Google Maps scraper (testing only): searching ${cats.length} business type${cats.length > 1 ? "s" : ""}. About 2–4 minutes each.`);
+            log(`Google Maps scraper (testing only): searching ${liveCats.length} business type${liveCats.length > 1 ? "s" : ""}. About 2–4 minutes each.`);
             const results = await deps.gmaps({
               baseUrl: deps.keys.gmapsScraper!,
               city: params.city,
               max: params.perCategory,
-              requests: cats.map((c) => ({ category: c.label, keyword: `${c.google} in ${place}` })),
+              requests: liveCats.map((c) => ({ category: c.label, keyword: `${c.google} in ${place}` })),
               onProgress: (m) => log(m),
             });
             for (const r of results) {
@@ -181,6 +215,22 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
 
     // 2. merge + drop closed
     let leads = mergePlaces(raw);
+    if (saved.size) {
+      // saved businesses first; a live result that's one of them is dropped, the rest are new since last time
+      const keysOf = (l: Lead) => [l.placeId && `g:${l.placeId}`, l.osmId && `o:${l.osmId}`, ...[l.phone, ...l.phones].filter(Boolean).map((p) => `p:${p!.replace(/\D/g, "").slice(-10)}`), l.website && !isSocialHost(domainOf(l.website)) && `w:${domainOf(l.website)}`, `n:${simplifyName(l.name)}|${(l.city ?? "").toLowerCase()}`].filter(Boolean) as string[];
+      const known = new Set<string>();
+      const fromDir: Lead[] = [];
+      for (const e of saved.values())
+        for (const s of e.leads) {
+          const ks = keysOf(s);
+          if (ks.some((k) => known.has(k))) continue; // same business saved under two types
+          ks.forEach((k) => known.add(k));
+          fromDir.push({ ...s, saved: true, followUp: undefined, pitchFor: undefined, changes: undefined });
+        }
+      const fresh = leads.filter((l) => !keysOf(l).some((k) => known.has(k)));
+      if (fresh.length && raw.length) log(`${fresh.length} new business${fresh.length === 1 ? "" : "es"} since the saved data.`);
+      leads = [...fromDir, ...fresh];
+    }
     const closed = leads.filter((l) => l.businessStatus === "CLOSED_PERMANENTLY").length;
     leads = leads.filter((l) => l.businessStatus !== "CLOSED_PERMANENTLY");
     search.counts.afterDedupe = leads.length;
@@ -207,7 +257,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
 
     // 3. Show every business now, then check each one and update it as soon as it's done.
     for (const l of leads) {
-      l.websiteCheck = { via: l.website && !isSocialHost(domainOf(l.website)) ? "source" : "none_found", tried: [l.sources.map((x) => SOURCE_LABEL[x]).join(" + ")] };
+      if (!l.saved) l.websiteCheck = { via: l.website && !isSocialHost(domainOf(l.website)) ? "source" : "none_found", tried: [l.sources.map((x) => SOURCE_LABEL[x]).join(" + ")] };
       Object.assign(l, score(l));
       l.pending = true;
     }
@@ -215,32 +265,65 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     const progress = saver(() => deps.store.saveLeads(search.id, leads));
     progress.now();
 
-    const needSite = params.verifyWebsites ? leads.filter((l) => !l.chain && (!l.website || isSocialHost(domainOf(l.website)))).length : 0;
+    // Saved businesses checked in the last week are ready; older ones and new ones get a full check.
+    const nowMs = (deps.now?.() ?? new Date()).getTime();
+    const needsCheck = (l: Lead) => !l.saved || !l.checkedAt || nowMs - Date.parse(l.checkedAt) > RECHECK_AFTER;
+    const toCheck = leads.filter(needsCheck);
+    const ready = leads.filter((l) => !needsCheck(l));
+    const recheck = toCheck.filter((l) => l.saved).length;
+    const needSite = params.verifyWebsites ? toCheck.filter((l) => !l.chain && (!l.website || isSocialHost(domainOf(l.website)))).length : 0;
     const siteSearch = params.verifyWebsites && params.webSearch ? webSearch : undefined;
-    if (needSite) log(`Checking ${leads.length} businesses. ${needSite} have no website listed: looking for one (likely web addresses${siteSearch ? ", web search" : ""}${siteSearch && numberSearch ? " and their phone number" : ""}).`);
+    if (ready.length) log(`${ready.length} saved business${ready.length === 1 ? " was" : "es were"} checked in the last week: loading them${recheck ? `; rechecking ${recheck} older one${recheck === 1 ? "" : "s"}` : ""}.`);
+    if (needSite) log(`Checking ${toCheck.length} businesses. ${needSite} have no website listed: looking for one (likely web addresses${siteSearch ? ", web search" : ""}${siteSearch && numberSearch ? " and their phone number" : ""}).`);
     const state = { searchBroken: false };
-    let checked = 0;
+    let checked = 0, changed = 0;
     emit({ type: "stage", stage: "enrich", done: 0, total: leads.length });
     // businesses with a phone first: they're the ones you can call
-    const order = [...leads].sort((a, b) => Number(!!b.phone) - Number(!!a.phone));
+    const byPhone = (xs: Lead[]) => [...xs].sort((a, b) => Number(!!b.phone) - Number(!!a.phone));
     let stopLogged = false;
-    await mapLimit(order, 8, async (l) => {
-      if (stopped()) {
-        if (!stopLogged) log("Stopping: businesses already checked are kept; the rest are saved as not checked.", "warn");
-        stopLogged = true;
-        return;
-      }
-      try {
-        await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: siteSearch, numberSearch: siteSearch ? numberSearch : undefined, state }, deps);
-      } catch (e) {
-        l.websiteCheck?.tried.push(`check failed: ${msg(e)}`);
-      }
+    const stopNow = () => {
+      if (!stopped()) return false;
+      if (!stopLogged) log("Stopping: businesses already checked are kept; the rest are saved as not checked.", "warn");
+      stopLogged = true;
+      return true;
+    };
+    const finish = (l: Lead) => {
       Object.assign(l, score(l));
       l.pending = false;
       emit({ type: "lead", lead: l });
       emit({ type: "stage", stage: "enrich", done: ++checked, total: leads.length });
       progress.soon();
-    });
+    };
+    // shown one after another at a readable pace (about 20 seconds at most for the whole list)
+    const pace = deps.revealMs ?? Math.max(150, Math.min(700, Math.round(20_000 / Math.max(1, ready.length))));
+    await Promise.all([
+      mapLimit(byPhone(toCheck), 8, async (l) => {
+        if (stopNow()) return;
+        const before = l.saved ? { website: l.website, phone: l.phone, audit: l.audit } : undefined;
+        try {
+          await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: siteSearch, numberSearch: siteSearch ? numberSearch : undefined, state }, deps);
+        } catch (e) {
+          l.websiteCheck?.tried.push(`check failed: ${msg(e)}`);
+        }
+        l.checkedAt = (deps.now?.() ?? new Date()).toISOString();
+        if (before) {
+          const c = whatChanged(before, l);
+          if (c.length) {
+            l.changes = c;
+            changed++;
+          }
+        }
+        finish(l);
+      }),
+      (async () => {
+        for (const l of byPhone(ready)) {
+          if (stopNow()) return;
+          if (pace) await new Promise((r) => setTimeout(r, pace));
+          finish(l);
+        }
+      })(),
+    ]);
+    if (recheck) log(`Rechecked ${recheck} saved business${recheck === 1 ? "" : "es"} last checked over a week ago: ${changed ? `${changed} changed (marked in the list)` : "no changes"}.`);
     await progress.flush();
     const found = leads.filter((l) => l.websiteCheck?.via === "domain_guess" || l.websiteCheck?.via === "web_search").length;
     if (needSite) log(`Found and verified ${found} website${found === 1 ? "" : "s"} the map data didn't list.${state.searchBroken ? " Web search stopped partway (every search option failed). Set up SearXNG (free, see README) or a free Tavily key." : ""}`);
@@ -346,6 +429,15 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     if (stopped()) search.error = `Stopped by you after checking ${done_.length} of ${leads.length} businesses`;
     await deps.store.saveSearch(search);
     await deps.store.saveLeads(search.id, leads);
+    // remember what this search found (a stopped search is incomplete, so it isn't saved)
+    if (deps.directory && !stopped()) {
+      const savedAt = (deps.now?.() ?? new Date()).toISOString();
+      for (const c of cats) {
+        const mine = leads.filter((l) => l.category === c.label && !l.pending);
+        const sources = [...new Set([...(saved.get(c.key)?.sources ?? []), ...usedSources])];
+        if (mine.length) await deps.directory.put({ city: params.city, area: params.area, category: c.key, savedAt, sources, leads: mine.map((l) => forDirectory(l)) }).catch((e) => log(`Couldn't save to the lead directory: ${msg(e)}`, "warn"));
+      }
+    }
     emit({ type: "stage", stage: "save", done: 1, total: 1 });
     if (stopped()) log(`Stopped: ${done_.length} of ${leads.length} businesses checked (${search.counts.hot} hot, ${search.counts.warm} warm, ${search.counts.cold} cold). Export CSV has all of them; the unchecked ones are marked.`, "warn");
     else log(`Done: ${search.counts.hot} hot, ${search.counts.warm} warm, ${search.counts.cold} cold.`);
@@ -531,6 +623,8 @@ export function defaultDeps(store: Store): Deps {
     apollo: apolloEnrichDomain,
     mx: domainAcceptsMail,
     cacheStats,
+    // LEAD_DIRECTORY=off: every search runs fully live and nothing is saved for later searches
+    directory: /^(off|0|false|no)$/i.test(process.env.LEAD_DIRECTORY || "") ? undefined : localDirectory(),
     keys: {
       google: process.env.GOOGLE_PLACES_API_KEY || undefined,
       pageSpeed: process.env.PAGESPEED_API_KEY || undefined,

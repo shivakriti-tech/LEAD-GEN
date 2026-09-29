@@ -39,6 +39,7 @@ export async function POST(req: Request) {
     pageSpeed: !!body.pageSpeed,
     verifyWebsites: body.verifyWebsites !== false,
     webSearch: body.webSearch !== false,
+    fresh: !!body.fresh,
     keep: body.keep && typeof body.keep === "object" ? { skipChains: !!body.keep.skipChains, needPhone: !!body.keep.needPhone, notContacted: !!body.keep.notContacted, goodRating: !!body.keep.goodRating } : undefined,
   };
   if (!params.city) return Response.json({ error: "Enter a city." }, { status: 400 });

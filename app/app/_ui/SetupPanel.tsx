@@ -27,6 +27,14 @@ export function SetupPanel({ config, onClose }: { config: Config | null; onClose
     { name: "Better web search (Serper)", ok: !!config?.searchUsage?.some((u) => u.exact), status: config?.searchUsage?.some((u) => u.exact) ? "Connected" : "Optional", how: config?.searchUsage?.some((u) => u.exact) ? undefined : "Add SERPER_API_KEY to .env.local: 2,500 free Google searches, finds far more websites (README → Web search)." },
     { name: "Mobile speed (PageSpeed)", ok: !!config?.pageSpeedKey, status: config?.pageSpeedKey ? "Key set" : "No key", how: config?.pageSpeedKey ? undefined : "Add PAGESPEED_API_KEY to .env.local; without it only a few checks work." },
     { name: "Instagram details (Meta)", ok: !!config?.meta, status: config?.meta ? "Connected" : "Optional", how: config?.meta ? undefined : "Add META_ACCESS_TOKEN and IG_BUSINESS_ACCOUNT_ID (README → Instagram setup) to read followers, last post and bio website." },
+    {
+      name: "Saved lead directory",
+      ok: !!config?.directory?.sets,
+      status: config?.directory ? (config.directory.sets ? `${config.directory.businesses.toLocaleString("en-IN")} businesses in ${config.directory.areas} area${config.directory.areas === 1 ? "" : "s"}` : "Empty") : "Off",
+      how: config?.directory
+        ? `Searches start from businesses already checked here, recheck the old ones and add new ones. Fill it ahead of time with: npm run prefill (Vadodara; free sources). ${config.directory.lastSaved ? `Last filled ${new Date(config.directory.lastSaved).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}.` : ""}`
+        : "Turned off with LEAD_DIRECTORY=off.",
+    },
     { name: "Saving searches", ok: true, status: config?.store === "supabase" ? "Supabase database" : "On this computer (.data folder)" },
   ];
 

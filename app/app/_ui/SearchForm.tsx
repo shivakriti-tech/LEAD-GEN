@@ -14,6 +14,8 @@ export interface FormState {
   perCategory: number;
   sources: Sources;
   pageSpeed: boolean;
+  /** Search everything live instead of starting from saved businesses. */
+  fresh?: boolean;
   verifyWebsites: boolean;
   webSearch: boolean;
   apolloKey: string;
@@ -50,6 +52,7 @@ export type Config = {
   searchProviders: string[];
   gmapsScraper: boolean;
   searchUsage?: Array<{ id: string; label: string; exact: boolean; today: number; month: number; limit: { n: number; per: "day" | "month" } | null }>;
+  directory?: { sets: number; businesses: number; areas: number; lastSaved?: string } | null;
 };
 
 /** Why each type is worth a website pitch, in a few words. */
@@ -324,6 +327,10 @@ export function SearchForm({
             <label className={`check ${form.verifyWebsites ? "" : "off"}`}>
               <input type="checkbox" checked={form.verifyWebsites && form.webSearch} disabled={!form.verifyWebsites} onChange={(e) => set("webSearch", e.target.checked)} />
               <span><b>Use web search for that</b><small>{config?.searchProviders?.length ? `Through ${config.searchProviders.slice(0, 2).join(", then ")}` : "Finds more, takes longer"}</small></span>
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={!form.fresh} onChange={(e) => set("fresh", !e.target.checked)} />
+              <span><b>Reuse businesses checked recently</b><small>Starts from what's already been checked here; old ones are rechecked and new ones added</small></span>
             </label>
             <label className="check">
               <input type="checkbox" checked={form.pageSpeed} onChange={(e) => set("pageSpeed", e.target.checked)} />
