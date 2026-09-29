@@ -148,7 +148,7 @@ Run `npm run bench` before and after adding a service to see what it actually ch
 
 ## Google Maps scraper (local testing only)
 
-For testing on your own computer you can pull businesses straight from Google Maps with the open-source [gosom/google-maps-scraper](https://github.com/gosom/google-maps-scraper) (MIT licence). It returns many more businesses than OpenStreetMap, with phone, website, rating, reviews and emails, plus the owner name, price range, Zomato/Swiggy/booking links, photo count and opening hours (shown on each lead and in the CSV).
+For testing on your own computer you can pull businesses straight from Google Maps with the open-source [gosom/google-maps-scraper](https://github.com/gosom/google-maps-scraper) (MIT licence). It returns many more businesses than OpenStreetMap, with phone, website, rating and reviews, plus the owner name, price range, Zomato/Swiggy/booking links, photo count and opening hours (shown on each lead and in the CSV).
 
 **Only for local testing.** It reads the Google Maps website directly, which is against Google's terms, and heavy use gets your internet connection blocked by Google for a while. The app switches it off automatically in any live/production build. For the live product use the official `GOOGLE_PLACES_API_KEY`.
 
@@ -157,7 +157,7 @@ For testing on your own computer you can pull businesses straight from Google Ma
 3. Add `GMAPS_SCRAPER_URL=http://localhost:8090` to `.env.local` and restart `npm run dev`.
 4. A dashed **"Google Maps (scraper) · Testing only"** card appears under *Where to look*.
 
-Each business type becomes one scraper job. The scraper runs them one after another, about 2–4 minutes each, so start with 1–3 business types. Open http://localhost:8090 to watch its jobs. Results go through the same merging, website checks and scoring as every other source. Stop it with `docker compose down` when you're done testing.
+Each business type becomes one scraper job. The scraper runs them one after another, about 1–3 minutes each (its own email search is off: the app reads every website for emails anyway). **The search doesn't wait for it:** businesses from the other sources are shown and checked straight away; when the scraper finishes, its new businesses are added and checked, and ones already in the list get their Google rating, reviews, owner and (if missing) website. Only a search with the scraper as its only source waits for it. Open http://localhost:8090 to watch its jobs. Results go through the same merging, website checks and scoring as every other source. Stop it with `docker compose down` when you're done testing.
 
 ## Instagram setup (about 15 minutes, free)
 
@@ -248,7 +248,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 209 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 212 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

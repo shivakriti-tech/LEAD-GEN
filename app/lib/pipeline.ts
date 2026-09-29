@@ -55,6 +55,32 @@ export interface Deps {
 }
 
 /** Runs one lead search end to end, reporting progress as it goes. */
+/**
+ * A late Google Maps scraper result for a business already in the list: fill in what it adds.
+ * Returns true when it brought a website the business didn't have, so it needs checking again.
+ */
+function absorbLate(l: Lead, g: Lead): boolean {
+  for (const s of g.sources) if (!l.sources.includes(s)) l.sources.push(s);
+  l.rating ??= g.rating;
+  l.reviews ??= g.reviews;
+  l.owner ??= g.owner;
+  l.mapsUrl ??= g.mapsUrl;
+  l.orderLinks ??= g.orderLinks;
+  l.photos ??= g.photos;
+  l.openHours ??= g.openHours;
+  l.about ??= g.about;
+  for (const p of g.phones) if (!l.phones.includes(p)) l.phones.push(p);
+  l.phone ??= g.phone;
+  for (const e of g.emails) if (!l.emails.includes(e)) l.emails.push(e);
+  const newSite = !!g.website && !isSocialHost(domainOf(g.website)) && (!l.website || isSocialHost(domainOf(l.website))) && l.audit?.status !== "ok";
+  if (newSite) {
+    l.website = g.website;
+    l.websiteCheck = { via: "source", tried: [...(l.websiteCheck?.tried ?? []), "website from Google Maps"] };
+    l.pending = true;
+  }
+  return newSite;
+}
+
 export async function runSearch(params: SearchParams, deps: Deps, emit: (e: ProgressEvent) => void, signal?: AbortSignal): Promise<{ search: SearchRecord; leads: Lead[] }> {
   const stopped = () => !!signal?.aborted;
   const log = (message: string, level: "info" | "warn" | "error" = "info") => emit({ type: "log", level, message });
@@ -186,6 +212,37 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
       emit({ type: "stage", stage: "search", done: ++done, total });
     };
 
+    // Google Maps scraper (local testing only): one business type at a time, minutes each. It runs
+    // alongside everything else; if it's still going when the others finish, their businesses are
+    // checked meanwhile and its own are added when it's done.
+    const gmapsRaw: RawPlace[] = [];
+    let gmapsDone = !(useGmaps && liveCats.length);
+    const gmapsP: Promise<void> = gmapsDone
+      ? Promise.resolve()
+      : (async () => {
+          log(`Google Maps scraper (testing only): searching ${liveCats.length} business type${liveCats.length > 1 ? "s" : ""}, one after another (about 1–3 minutes each).`);
+          try {
+            const results = await deps.gmaps({
+              baseUrl: deps.keys.gmapsScraper!,
+              city: params.city,
+              max: params.perCategory,
+              requests: liveCats.map((c) => ({ category: c.label, keyword: `${c.google} in ${place}` })),
+              onProgress: (m) => !stopped() && log(m),
+            });
+            for (const r of results) {
+              gmapsRaw.push(...r.places);
+              if (r.error) log(`Google Maps scraper failed for ${r.category}: ${r.error}`, "warn");
+              else log(`Google Maps scraper: ${r.places.length} × ${r.category} in ${place}`);
+            }
+          } catch (e) {
+            log(`Google Maps scraper failed: ${msg(e)}`, "warn");
+          }
+          gmapsDone = true;
+          emit({ type: "stage", stage: "search", done: ++done, total });
+        })();
+    /** Resolves when the scraper is done, or at once when the search is stopped. */
+    const untilScraperDone = () => Promise.race([gmapsP, new Promise<void>((r) => (signal?.aborted ? r() : signal?.addEventListener("abort", () => r(), { once: true })))]);
+
     // All sources at once, each at a pace its server accepts (public OpenStreetMap servers allow ~2 at a time).
     const group = (srcs: string[]) => jobs.filter((j) => srcs.includes(j.src));
     await Promise.all([
@@ -193,33 +250,26 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
       mapLimit(group(["osm"]), 2, runJob),
       mapLimit(group(["web", "instagram", "facebook"]), 3, runJob),
       // Google Maps scraper (local testing only): one business type at a time, minutes each.
-      useGmaps && liveCats.length
-        ? (async () => {
-            log(`Google Maps scraper (testing only): searching ${liveCats.length} business type${liveCats.length > 1 ? "s" : ""}. About 2–4 minutes each.`);
-            const results = await deps.gmaps({
-              baseUrl: deps.keys.gmapsScraper!,
-              city: params.city,
-              max: params.perCategory,
-              requests: liveCats.map((c) => ({ category: c.label, keyword: `${c.google} in ${place}` })),
-              onProgress: (m) => log(m),
-            });
-            for (const r of results) {
-              raw.push(...r.places);
-              if (r.error) log(`Google Maps scraper failed for ${r.category}: ${r.error}`, "warn");
-              else log(`Google Maps scraper: ${r.places.length} × ${r.category} in ${place}`);
-            }
-            emit({ type: "stage", stage: "search", done: ++done, total });
-          })()
-        : Promise.resolve(),
     ]);
+    let lateScraper = false;
+    if (!gmapsDone && !raw.length && !saved.size) {
+      log("Waiting for the Google Maps scraper: it's the only source still searching.");
+      await untilScraperDone();
+    }
+    if (gmapsDone) raw.push(...gmapsRaw.splice(0));
+    else if (!stopped()) {
+      lateScraper = true;
+      log(`Checking the ${raw.length} results found so far. The Google Maps scraper keeps going: its businesses are added as soon as it finishes.`);
+    }
     if (googleRequests) log(`Used ${googleRequests} Google Places request${googleRequests > 1 ? "s" : ""} (1,000 free per month).`);
     search.counts.found = raw.length;
 
     // 2. merge + drop closed
+    /** Ways two results can be the same business: place id, map id, phone, own website, name in the city. */
+    const keysOf = (l: Lead) => [l.placeId && `g:${l.placeId}`, l.osmId && `o:${l.osmId}`, ...[l.phone, ...l.phones].filter(Boolean).map((p) => `p:${p!.replace(/\D/g, "").slice(-10)}`), l.website && !isSocialHost(domainOf(l.website)) && `w:${domainOf(l.website)}`, `n:${simplifyName(l.name)}|${(l.city ?? "").toLowerCase()}`].filter(Boolean) as string[];
     let leads = mergePlaces(raw);
     if (saved.size) {
       // saved businesses first; a live result that's one of them is dropped, the rest are new since last time
-      const keysOf = (l: Lead) => [l.placeId && `g:${l.placeId}`, l.osmId && `o:${l.osmId}`, ...[l.phone, ...l.phones].filter(Boolean).map((p) => `p:${p!.replace(/\D/g, "").slice(-10)}`), l.website && !isSocialHost(domainOf(l.website)) && `w:${domainOf(l.website)}`, `n:${simplifyName(l.name)}|${(l.city ?? "").toLowerCase()}`].filter(Boolean) as string[];
       const known = new Set<string>();
       const fromDir: Lead[] = [];
       for (const e of saved.values())
@@ -240,21 +290,24 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     emit({ type: "stage", stage: "dedupe", done: 1, total: 1 });
 
     // 2b. chains: same name at several places in this search, or a brand tag on the map
-    const byName = new Map<string, Lead[]>();
-    for (const l of leads) {
-      const k = simplifyName(l.name);
-      if (k) byName.set(k, [...(byName.get(k) ?? []), l]);
-    }
-    for (const group of byName.values()) {
-      for (const l of group) {
-        if (group.length >= 2) l.chain = { outlets: group.length, reason: `${group.length} outlets with this name in this search` };
-        else {
-          const reason = chainReason(l);
-          if (reason) l.chain = { outlets: 1, reason };
+    const markChains = () => {
+      const byName = new Map<string, Lead[]>();
+      for (const l of leads) {
+        const k = simplifyName(l.name);
+        if (k) byName.set(k, [...(byName.get(k) ?? []), l]);
+      }
+      for (const group of byName.values()) {
+        for (const l of group) {
+          if (group.length >= 2) l.chain = { outlets: group.length, reason: `${group.length} outlets with this name in this search` };
+          else {
+            const reason = chainReason(l);
+            if (reason) l.chain = { outlets: 1, reason };
+          }
         }
       }
-    }
-    const chains = leads.filter((l) => l.chain).length;
+      return leads.filter((l) => l.chain).length;
+    };
+    const chains = markChains();
     if (chains) log(`${chains} look like chain or franchise outlets. They're kept but scored low: head office decides their website.`);
 
     // 3. Show every business now, then check each one and update it as soon as it's done.
@@ -296,27 +349,28 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
       emit({ type: "stage", stage: "enrich", done: ++checked, total: leads.length });
       progress.soon();
     };
+    const checkOne = async (l: Lead) => {
+      if (stopNow()) return;
+      const before = l.saved ? { website: l.website, phone: l.phone, audit: l.audit } : undefined;
+      try {
+        await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: siteSearch, numberSearch: siteSearch ? numberSearch : undefined, state }, deps);
+      } catch (e) {
+        l.websiteCheck?.tried.push(`check failed: ${msg(e)}`);
+      }
+      l.checkedAt = (deps.now?.() ?? new Date()).toISOString();
+      if (before) {
+        const c = whatChanged(before, l);
+        if (c.length) {
+          l.changes = c;
+          changed++;
+        }
+      }
+      finish(l);
+    };
     // shown one after another at a readable pace (about 20 seconds at most for the whole list)
     const pace = deps.revealMs ?? Math.max(150, Math.min(700, Math.round(20_000 / Math.max(1, ready.length))));
     await Promise.all([
-      mapLimit(byPhone(toCheck), 8, async (l) => {
-        if (stopNow()) return;
-        const before = l.saved ? { website: l.website, phone: l.phone, audit: l.audit } : undefined;
-        try {
-          await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: siteSearch, numberSearch: siteSearch ? numberSearch : undefined, state }, deps);
-        } catch (e) {
-          l.websiteCheck?.tried.push(`check failed: ${msg(e)}`);
-        }
-        l.checkedAt = (deps.now?.() ?? new Date()).toISOString();
-        if (before) {
-          const c = whatChanged(before, l);
-          if (c.length) {
-            l.changes = c;
-            changed++;
-          }
-        }
-        finish(l);
-      }),
+      mapLimit(byPhone(toCheck), 8, checkOne),
       (async () => {
         for (const l of byPhone(ready)) {
           if (stopNow()) return;
@@ -325,6 +379,44 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
         }
       })(),
     ]);
+    // 3a. the Google Maps scraper finished after the others: add its new businesses and check them;
+    // ones already in the list get its rating, reviews and owner (and its website, then a recheck)
+    if (lateScraper && !stopped()) {
+      if (!gmapsDone) log(`Checked the ${checked} businesses found so far. The Google Maps scraper is still searching…`);
+      await untilScraperDone();
+      if (gmapsDone && gmapsRaw.length && !stopped()) {
+        const byKey = new Map<string, Lead>();
+        for (const l of leads) for (const k of keysOf(l)) byKey.set(k, l);
+        const added: Lead[] = [], again: Lead[] = [], gone = new Set<Lead>();
+        let known = 0;
+        for (const g of mergePlaces(gmapsRaw)) {
+          const hit = keysOf(g).map((k) => byKey.get(k)).find(Boolean);
+          if (hit) {
+            known++;
+            if (g.businessStatus === "CLOSED_PERMANENTLY") gone.add(hit);
+            else {
+              if (absorbLate(hit, g)) again.push(hit);
+              Object.assign(hit, score(hit));
+            }
+            continue;
+          }
+          if (g.businessStatus === "CLOSED_PERMANENTLY") continue;
+          g.websiteCheck = { via: g.website && !isSocialHost(domainOf(g.website)) ? "source" : "none_found", tried: [g.sources.map((x) => SOURCE_LABEL[x]).join(" + ")] };
+          Object.assign(g, score(g));
+          g.pending = true;
+          added.push(g);
+          for (const k of keysOf(g)) byKey.set(k, g);
+        }
+        leads = [...leads.filter((l) => !gone.has(l)), ...added];
+        markChains();
+        search.counts.found += gmapsRaw.length;
+        search.counts.afterDedupe = leads.length;
+        log(`Google Maps scraper added ${added.length} new business${added.length === 1 ? "" : "es"}${known ? `; ${known} were already in the list and got their Google rating and reviews` : ""}${gone.size ? ` (${gone.size} marked permanently closed, removed)` : ""}.`);
+        emit({ type: "leads", leads });
+        progress.soon();
+        await mapLimit(byPhone([...added, ...again]), 8, checkOne);
+      }
+    }
     if (recheck) log(`Rechecked ${recheck} saved business${recheck === 1 ? "" : "es"} last checked over a week ago: ${changed ? `${changed} changed (marked in the list)` : "no changes"}.`);
     await progress.flush();
     const found = leads.filter((l) => l.websiteCheck?.via === "domain_guess" || l.websiteCheck?.via === "web_search").length;

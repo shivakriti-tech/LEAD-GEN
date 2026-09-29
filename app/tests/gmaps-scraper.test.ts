@@ -38,7 +38,7 @@ describe("Google Maps scraper (testing only)", () => {
       calls.push(`${init?.method ?? "GET"} ${url.replace("http://localhost:8090", "")}`);
       if (init?.method === "POST") {
         const body = JSON.parse(String(init.body));
-        expect(body).toMatchObject({ keywords: ["furniture shop in Vadodara"], lang: "en", depth: 2, email: true });
+        expect(body).toMatchObject({ keywords: ["furniture shop in Vadodara"], lang: "en", depth: 2, email: false }); // the app reads websites for emails itself
         return new Response(JSON.stringify({ id: "job-1" }), { status: 201 });
       }
       if (init?.method === "DELETE") return new Response("", { status: 200 });

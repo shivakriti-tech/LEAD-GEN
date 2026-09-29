@@ -152,6 +152,8 @@ export interface GmapsDeps {
  * The scraper itself works through its queue one job after another, so queuing all of them at once
  * only made the later ones hit our time limit before they had even started.
  * `max` sets how far the scraper scrolls the results (about 15 per scroll).
+ * Its own email search is off (it opened every business's website, most of each job's time):
+ * the app reads every website for emails anyway.
  */
 /** How long a queued job may wait before we decide the scraper isn't picking jobs up. */
 const PENDING_LIMIT_MIN = 5;
@@ -198,7 +200,7 @@ export async function gmapsScrapeBatch(
       const res = await f(`${opts.baseUrl}/api/v1/jobs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: `lead-autopilot ${req.keyword}`, keywords: [req.keyword], lang: "en", depth, email: true, max_time: maxTimeSec, zoom: 15 }),
+        body: JSON.stringify({ name: `lead-autopilot ${req.keyword}`, keywords: [req.keyword], lang: "en", depth, email: false, max_time: maxTimeSec, zoom: 15 }),
       });
       const j = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
       if (!res.ok || !j.id) throw new Error(j.message || `HTTP ${res.status}`);
