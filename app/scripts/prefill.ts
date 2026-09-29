@@ -53,7 +53,8 @@ async function main() {
   });
   const started = Date.now();
   const r = await runPrefill({ city: VADODARA.city, jobs, deps: { ...defaultDeps(noStore), directory }, sources, log: (m) => console.log(m), signal: ctrl.signal });
-  console.log(`\nDone in ${Math.round((Date.now() - started) / 60_000)} min: ${r.saved} businesses saved to .data/directory${r.failed ? `, ${r.failed} search${r.failed === 1 ? "" : "es"} failed (run again later)` : ""}.`);
+  console.log(`\nDone in ${Math.round((Date.now() - started) / 60_000)} min: ${r.saved} businesses saved to .data/directory${r.failed ? `, ${r.failed} search${r.failed === 1 ? "" : "es"} failed` : ""}.`);
+  if (r.failed || r.missed) console.log(`${r.missed ? `${r.missed} business type${r.missed === 1 ? "" : "s"} couldn't be listed because the map servers were busy. ` : ""}Run npm run prefill again later: only what's missing is done again.`);
 }
 
 main().catch((e) => {

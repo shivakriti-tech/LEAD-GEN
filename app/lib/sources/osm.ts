@@ -16,9 +16,12 @@ function boxAround(lat: number, lng: number, half: number): BBox {
   return { south: lat - half, north: lat + half, west: lng - half, east: lng + half };
 }
 
-/** Whole-city boxes can be huge; cap at ~0.35° (≈ 38 km) around the centre to keep Overpass fast. */
-function capBox(b: BBox, cap = 0.35): BBox {
+/** Whole-city boxes can be huge; cap at ~0.35° (≈ 38 km) around the centre to keep Overpass fast. Tiny ones are widened. */
+export function capBox(b: BBox, cap = 0.35, min = 0.024): BBox {
   const cLat = (b.south + b.north) / 2, cLng = (b.west + b.east) / 2;
+  // a neighbourhood that the geocoder knows only as a point gets at least ~2.6 km across
+  if (b.north - b.south < min) b = { ...b, south: cLat - min / 2, north: cLat + min / 2 };
+  if (b.east - b.west < min) b = { ...b, west: cLng - min / 2, east: cLng + min / 2 };
   return {
     south: Math.max(b.south, cLat - cap / 2),
     north: Math.min(b.north, cLat + cap / 2),
@@ -92,7 +95,7 @@ export function buildOverpassQuery(filters: string[], box: BBox, limit: number):
   return `[out:json][timeout:40];(${parts});out center tags ${Math.max(1, limit)};`;
 }
 
-interface OsmEl {
+export interface OsmEl {
   type: "node" | "way" | "relation";
   id: number;
   lat?: number;
@@ -124,24 +127,54 @@ export function osmToRaw(el: OsmEl, category: string, city: string): RawPlace | 
   };
 }
 
-const OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+/** Public Overpass servers (see wiki.openstreetmap.org/wiki/Overpass_API). Each allows ~2 queries at a time per computer. */
+export const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
+let nextEndpoint = 0;
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * Run an Overpass query. A busy server says so in several ways: HTTP 429/503/504, a timeout, or
+ * HTTP 200 with a "runtime error" remark and no data. That last one used to look like "no businesses
+ * here"; now all of them count as failures. Queries start on a different server each time (so
+ * parallel ones spread out), try every server, then wait and try them all once more.
+ */
+export async function overpass(query: string, opts: { endpoints?: string[]; sleep?: (ms: number) => Promise<void>; timeoutMs?: number } = {}): Promise<OsmEl[]> {
+  const eps = opts.endpoints ?? OVERPASS_ENDPOINTS;
+  const sleep = opts.sleep ?? wait;
+  const start = nextEndpoint++;
+  let errors: string[] = [];
+  for (let round = 0; round < 2; round++) {
+    if (round) await sleep(10_000);
+    errors = [];
+    for (let k = 0; k < eps.length; k++) {
+      const ep = eps[(start + k) % eps.length];
+      const host = new URL(ep).host;
+      try {
+        const res = await fetchWithTimeout(ep, { method: "POST", body: "data=" + encodeURIComponent(query), headers: { "Content-Type": "application/x-www-form-urlencoded" } }, opts.timeoutMs ?? 50_000);
+        if (!res.ok) throw new Error(`HTTP ${res.status}${res.status === 429 ? " too many requests" : res.status === 503 || res.status === 504 ? " busy" : ""}`);
+        const json = (await res.json()) as { elements?: OsmEl[]; remark?: string };
+        if (json.remark && /runtime error|timed out|rate_limited|out of memory|too many/i.test(json.remark)) throw new Error("busy");
+        if (!Array.isArray(json.elements)) throw new Error("unexpected answer");
+        return json.elements;
+      } catch (e) {
+        const m = e instanceof Error ? e.message : String(e);
+        errors.push(`${host}: ${/abort/i.test(m) ? "timed out" : m}`);
+      }
+    }
+  }
+  throw new Error(`map servers are busy (${errors.join("; ")}). Try again in a few minutes`);
+}
 
 export async function osmSearch(opts: { place: string; box?: BBox; filters: string[]; category: string; city: string; max: number }): Promise<RawPlace[]> {
   const box = opts.box ?? (await geocodeBBox(opts.place)).box;
-  const q = buildOverpassQuery(opts.filters, box, opts.max * 2);
-  let lastErr: unknown;
-  for (const ep of OVERPASS_ENDPOINTS) {
-    try {
-      const res = await fetchWithTimeout(ep, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" } }, 45_000);
-      if (!res.ok) throw new Error(`Overpass ${res.status}`);
-      const json = (await res.json()) as { elements: OsmEl[] };
-      const out = json.elements.map((e) => osmToRaw(e, opts.category, opts.city)).filter((x): x is RawPlace => !!x);
-      // prefer entries that have some way to contact them
-      out.sort((a, b) => Number(!!b.phone || !!b.website) - Number(!!a.phone || !!a.website));
-      return out.slice(0, opts.max);
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr instanceof Error ? lastErr : new Error("Overpass failed");
+  const elements = await overpass(buildOverpassQuery(opts.filters, box, opts.max * 2));
+  const out = elements.map((e) => osmToRaw(e, opts.category, opts.city)).filter((x): x is RawPlace => !!x);
+  // prefer entries that have some way to contact them
+  out.sort((a, b) => Number(!!b.phone || !!b.website) - Number(!!a.phone || !!a.website));
+  return out.slice(0, opts.max);
 }

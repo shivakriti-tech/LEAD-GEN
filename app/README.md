@@ -86,7 +86,9 @@ npm run prefill -- --web                  also find websites by web search (uses
 npm run prefill -- --google               also use Google Places (uses your Google quota)
 ```
 
-By default it uses free sources only. It takes a while (the free map servers are slow); leave it running, or press Ctrl+C and run it again later: finished areas are kept and fresh ones are skipped. Run it once a week to keep the data fresh. *Setup* shows how many businesses are saved.
+By default it uses free sources only. It takes a while: the free map (OpenStreetMap) servers are shared by everyone and are often busy. The app spreads its requests over four of them, retries once, and waits a minute when they're overloaded. A business type that still couldn't be listed isn't saved, so just run `npm run prefill` again later: only what's missing is done again. Press Ctrl+C any time; finished areas are kept. Run it once a week to keep the data fresh.
+
+The free map has no Google ratings, so prefilled website leads rarely score as *strong* on their own. Searches rescore them every time, and with a Google key they get ratings too (or run the prefill with `--google`). *Setup* shows how many businesses are saved.
 
 ## How a search works
 
@@ -245,7 +247,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 199 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 206 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

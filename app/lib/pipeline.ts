@@ -148,6 +148,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     const usedSources = [useGoogle && "google", useOsm && "osm", useIg && "instagram", useFb && "facebook", useWeb && "web"].filter(Boolean) as string[];
     if (!useGoogle && !useOsm && !useIg && !useFb && !useWeb && !useGmaps && saved.size < cats.length) throw new Error("No lead source is available.");
     let done = 0, googleRequests = 0;
+    const failedJobs = new Set<string>(); // "source:category" that errored, so the directory doesn't claim them
     const total = jobs.length + (useGmaps ? 1 : 0);
     emit({ type: "stage", stage: "search", done, total });
 
@@ -179,6 +180,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
           log(`${j.src === "instagram" ? "Instagram" : "Facebook"} (web search): ${r.length} × ${j.c.label} profiles in ${place}`);
         }
       } catch (e) {
+        failedJobs.add(`${j.src}:${j.c.key}`);
         log(`${SOURCE_LABEL[j.src]} failed for ${j.c.label}: ${msg(e)}`, "warn");
       }
       emit({ type: "stage", stage: "search", done: ++done, total });
@@ -434,7 +436,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
       const savedAt = (deps.now?.() ?? new Date()).toISOString();
       for (const c of cats) {
         const mine = leads.filter((l) => l.category === c.label && !l.pending);
-        const sources = [...new Set([...(saved.get(c.key)?.sources ?? []), ...usedSources])];
+        const sources = [...new Set([...(saved.get(c.key)?.sources ?? []), ...usedSources.filter((s) => !failedJobs.has(`${s}:${c.key}`))])];
         if (mine.length) await deps.directory.put({ city: params.city, area: params.area, category: c.key, savedAt, sources, leads: mine.map((l) => forDirectory(l)) }).catch((e) => log(`Couldn't save to the lead directory: ${msg(e)}`, "warn"));
       }
     }

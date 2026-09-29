@@ -62,10 +62,19 @@ export async function runPrefill(opts: {
   perCategory?: number;
   log: (m: string) => void;
   signal?: AbortSignal;
-}): Promise<{ saved: number; failed: number }> {
-  let saved = 0, failed = 0;
+  /** Pause between searches, and longer when the map servers are overloaded (tests pass 0). */
+  pauseMs?: number;
+  busyPauseMs?: number;
+}): Promise<{ saved: number; failed: number; missed: number }> {
+  let saved = 0, failed = 0, missed = 0;
+  const pause = (ms: number) => new Promise<void>((r) => {
+    if (!ms || opts.signal?.aborted) return r();
+    const t = setTimeout(r, ms);
+    opts.signal?.addEventListener("abort", () => (clearTimeout(t), r()), { once: true });
+  });
   for (const [i, j] of opts.jobs.entries()) {
     if (opts.signal?.aborted) break;
+    if (i) await pause(opts.pauseMs ?? 3_000);
     const params: SearchParams = {
       sells: j.offer,
       client: j.offer === "logistics" ? { services: ["customs", "freight", "courier", "forwarding", "warehousing"] } : undefined,
@@ -82,7 +91,17 @@ export async function runPrefill(opts: {
     opts.log(`[${i + 1}/${opts.jobs.length}] ${j.area}: ${j.categories.join(", ")}`);
     let result: { search: SearchRecord; leads: Lead[] };
     try {
-      result = await runSearch(params, { ...opts.deps, store: noStore, revealMs: 0 }, (e) => e.type === "log" && e.level !== "info" && opts.log(`   ${e.message}`), opts.signal);
+      let mapFails = 0;
+      result = await runSearch(params, { ...opts.deps, store: noStore, revealMs: 0 }, (e) => {
+        if (e.type !== "log" || e.level === "info") return;
+        if (/^OpenStreetMap listing failed/.test(e.message)) mapFails++;
+        opts.log(`   ${e.message}`);
+      }, opts.signal);
+      missed += mapFails;
+      if (mapFails >= Math.max(2, j.categories.length / 2) && i < opts.jobs.length - 1) {
+        opts.log("   Map servers are overloaded: waiting a minute before the next area…");
+        await pause(opts.busyPauseMs ?? 60_000);
+      }
     } catch (e) {
       failed++;
       opts.log(`   failed: ${e instanceof Error ? e.message : e}`);
@@ -96,5 +115,5 @@ export async function runPrefill(opts: {
     saved += result.leads.length;
     opts.log(`   saved ${result.leads.length} businesses (${result.search.counts.hot} strong leads)`);
   }
-  return { saved, failed };
+  return { saved, failed, missed };
 }
