@@ -38,6 +38,7 @@ Restart `npm run dev` after changing `.env.local`.
 
 ## Using the Lead Finder screen
 
+- **Home** (the first screen once you have searches) greets you with what to do today ("5 follow-ups due · 4 top leads not messaged yet") and shows: **Your week/month** (messages sent each day, with replies, vs the period before), your **Pipeline** (contacted, replied, meetings, each with a 14-day trend), a dark **Follow up today** card (tap *Start* for the list), **Reply rate** and **Won** (₹, from the deal value you enter when you mark a lead Won), a tip based on your own results, **Message next** (top leads from all searches you haven't messaged, with WhatsApp ready) and **Recent activity**. Every status change is saved with its date so these numbers are real; leads saved before this rebuild their history from their dates. Switch between Home and *Find leads* in the side panel (or the tabs at the top on a phone).
 - **New search** asks three questions. *Where should we look?* (an area and city; recent places are one tap). *What kind of business?* (cards with why each type is worth pitching; after a few searches they show your own results, e.g. "Last time: 7 of 13 had no working site", and a *Pitches well* tag). *Keep only the useful ones*: hide businesses you've already messaged (in any search, matched by phone number and Google listing), skip chains, only with a phone, only 4★ and above. These start as filters on the results, so nothing is thrown away. Sources and website checks are under *More options*.
 - **The summary box** beside the form (a bar at the bottom on a phone) shows what you picked, an estimate from your own past searches ("about 7 businesses, 4 worth messaging first"), how many free web searches you have left, and warns if you ran the same search recently, with a link to open it.
 - **While it runs** you see a checklist (finding businesses → checking each one → speed → scoring) with live counts and "Already spotted 3 without a working website". Leads appear in the list as they're checked and you can message them and change their status straight away. *Stop* keeps everything found so far.
@@ -205,7 +206,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 180 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 184 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

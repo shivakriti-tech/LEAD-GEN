@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Lead } from "@/lib/types";
 import { EMAIL_KIND_LABEL } from "@/lib/enrich/email";
-import { emailLink, localDate, mapsLink, scoreSummary, shortAddress, telLink, whatsappNumber } from "@/lib/outreach";
+import { emailLink, localDate, mapsLink, scoreSummary, shortAddress, statusOf, telLink, whatsappNumber } from "@/lib/outreach";
 import type { FollowUpPatch, Touched } from "@/lib/followups";
 import { fmtPhone } from "./LeadList";
 import { usePitch, YourDetails } from "./pitch";
@@ -123,6 +123,25 @@ export function LeadPanel({
               <input type="date" min={localDate()} value={l.followUp?.followUpOn ?? ""} onChange={(e) => onFollowUp({ followUpOn: e.target.value || null })} />
             </label>
           </div>
+          {statusOf(l) === "won" && (
+            <label className="field deal">
+              <span className="lbl">Deal value (₹)</span>
+              <input
+                key={l.id}
+                type="number"
+                min="0"
+                step="500"
+                inputMode="numeric"
+                placeholder="e.g. 15000"
+                defaultValue={l.followUp?.value ?? ""}
+                onBlur={(e) => {
+                  const v = e.target.value ? Number(e.target.value) : null;
+                  if (v !== (l.followUp?.value ?? null)) onFollowUp({ value: v });
+                }}
+              />
+              <span className="sub">Shows as "Won" on Home.</span>
+            </label>
+          )}
           <textarea
             aria-label="Your note"
             placeholder="Your note, e.g. “Spoke to Dr. Shah, call back Monday”"

@@ -22,3 +22,8 @@ export const IconLink = () => <I d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7
 export const IconCheck = () => <I d="m5 12 4.5 4.5L19 7" />;
 export const IconCross = () => <I d="M7 7l10 10M17 7 7 17" />;
 export const IconSearch = () => <I d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm5-2 4 4" />;
+export const IconHome = () => <I d="M4 11 12 4l8 7v9h-5v-6H9v6H4z" />;
+export const IconUp = () => <I d="M7 17 17 7M9 7h8v8" />;
+export const IconDown = () => <I d="M7 7l10 10M17 9v8H9" />;
+export const IconArrow = () => <I d="M5 12h14m-5-5 5 5-5 5" />;
+export const IconBell = () => <I d="M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 21h4" />;

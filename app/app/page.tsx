@@ -8,13 +8,14 @@ import { mergeFollowUp, touchedElsewhere, type CategoryStat, type DueLead, type 
 import type { FollowUp, KeepOnly, Lead, ProgressEvent, SearchParams, SearchRecord, Tier } from "@/lib/types";
 import { DEFAULT_FORM, DEFAULT_KEEP, SearchForm, sourceInfo, type Config, type FormState } from "./_ui/SearchForm";
 import { LeadList, Skeleton } from "./_ui/LeadList";
-import { FollowUpsToday } from "./_ui/FollowUps";
+import { HomeView } from "./_ui/HomeView";
+import type { HomeData, HomeLead } from "@/lib/home";
 import { BulkBar } from "./_ui/BulkBar";
 import { LeadPanel } from "./_ui/LeadPanel";
 import { RunPanel } from "./_ui/RunPanel";
 import { SetupPanel } from "./_ui/SetupPanel";
 import { PitchCtx, type PitchPrefs } from "./_ui/pitch";
-import { IconCheck, IconDownload, IconEdit, IconHistory, IconSearch, IconSettings } from "./_ui/icons";
+import { IconCheck, IconDownload, IconEdit, IconHistory, IconHome, IconSearch, IconSettings } from "./_ui/icons";
 
 type LogLine = { level: "info" | "warn" | "error"; message: string };
 type Sort = "score" | "reviews" | "name" | "status";
@@ -104,7 +105,10 @@ export default function LeadFinder() {
   const [pitchId, setPitchId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [pipe, setPipe] = useState<{ due: DueLead[]; contactedThisWeek: number; touched?: Record<string, Touched>; stats?: Record<string, CategoryStat> } | null>(null);
-  const [toast, setToast] = useState<{ text: string; lead?: Lead; next?: Lead } | null>(null);
+  const [toast, setToast] = useState<{ text: string; lead?: Lead; next?: Lead; sid?: string } | null>(null);
+  /** Home (your numbers, what to do today) or Find leads. Starts on Home once you have searches. */
+  const [view, setView] = useState<"home" | "leads" | null>(null);
+  const [home, setHome] = useState<HomeData | null>(null);
   const [panelHidden, setPanelHidden] = useState(false);
   const wide = useWide("(min-width: 1280px)");
   const [setupOpen, setSetupOpen] = useState(false);
@@ -115,17 +119,44 @@ export default function LeadFinder() {
       .then((r) => r.json())
       .then((c: Config) => setConfig(c))
       .catch(() => {});
-    loadHistory();
+    // links like /?view=leads&s=<search>&lead=<lead> open that search (and lead)
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("s")) openSearch(q.get("s")!, q.get("lead") ?? undefined);
+    else if (q.get("view") === "leads") setView("leads");
+    loadHistory(true);
     loadPipeline();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** Follow-ups due, contacted keys and type stats, plus the Home numbers. */
   function loadPipeline() {
     fetch(`/api/pipeline?today=${localDate()}`).then((r) => r.json()).then((d) => d.due && setPipe(d)).catch(() => {});
+    fetch(`/api/home?today=${localDate()}&tz=${new Date().getTimezoneOffset()}`).then((r) => r.json()).then((d) => d.days && setHome(d)).catch(() => {});
   }
 
-  function loadHistory() {
-    fetch("/api/searches").then((r) => r.json()).then((d) => setHistory(d.searches ?? [])).catch(() => {});
+  function loadHistory(first = false) {
+    fetch("/api/searches")
+      .then((r) => r.json())
+      .then((d) => {
+        setHistory(d.searches ?? []);
+        if (first) setView((v) => v ?? (d.searches?.length ? "home" : "leads"));
+      })
+      .catch(() => first && setView((v) => v ?? "leads"));
+  }
+
+  // keep the address bar in step, so a reload comes back to the same place
+  useEffect(() => {
+    if (!view) return;
+    const url = view === "home" ? "/" : searchId ? `/?view=leads&s=${searchId}` : "/?view=leads";
+    if (window.location.pathname + window.location.search !== url) window.history.replaceState(null, "", url);
+  }, [view, searchId]);
+
+  function goHome() {
+    setView("home");
+    setOpenId(null);
+    setSelected(new Set());
+    loadPipeline();
+    window.scrollTo({ top: 0 });
   }
 
   /** Clear every filter, then start from the search's "keep only" choices if given. */
@@ -145,6 +176,7 @@ export default function LeadFinder() {
 
   async function openSearch(id: string, leadId?: string) {
     setRecentOpen(false);
+    setView("leads");
     const r = await fetch(`/api/searches/${id}`);
     if (!r.ok) return;
     const d = await r.json();
@@ -166,6 +198,7 @@ export default function LeadFinder() {
   }
 
   function newSearch() {
+    setView("leads");
     setSearch(null);
     setSearchId(null);
     setParams(null);
@@ -260,6 +293,7 @@ export default function LeadFinder() {
     } finally {
       setRunning(false);
       loadHistory();
+      loadPipeline();
     }
   }
 
@@ -338,7 +372,7 @@ export default function LeadFinder() {
   function onSent(lead: Lead) {
     if (statusOf(lead) === "new") setToast({ text: `Sent to ${lead.name}?`, lead, next: nextAfter(lead.id) });
   }
-  const markContacted = (lead: Lead) => saveFollowUp(lead, { status: "contacted", followUpOn: addDays(3) });
+  const markContacted = (lead: Lead, sid?: string) => saveFollowUp(lead, { status: "contacted", followUpOn: addDays(3) }, sid ?? searchId);
 
   useEffect(() => {
     if (!toast) return;
@@ -395,7 +429,7 @@ export default function LeadFinder() {
 
   const showForm = editing || (!leads.length && !searchRunning && !search);
   const openLead = leads.find((l) => l.id === openId) ?? null;
-  const docked = wide && !showForm && leads.length > 0 && !panelHidden;
+  const docked = view === "leads" && wide && !showForm && leads.length > 0 && !panelHidden;
   const touchedOf = useCallback((l: Lead) => touchedElsewhere(l, searchId, pipe?.touched), [searchId, pipe?.touched]);
   /** The next lead in the list still worth messaging (checked, not contacted yet). */
   function nextAfter(id: string | null): Lead | undefined {
@@ -481,7 +515,8 @@ export default function LeadFinder() {
           <small>working name</small>
         </div>
         <nav className="nav" aria-label="Modules">
-          <a href="/" aria-current="page">Lead Finder</a>
+          <button className="nav-btn" aria-current={view === "home" ? "page" : undefined} onClick={goHome}><IconHome /> Home</button>
+          <button className="nav-btn" aria-current={view === "leads" ? "page" : undefined} onClick={() => setView("leads")}><IconSearch /> Find leads</button>
           <details className="soon">
             <summary>Coming soon</summary>
             <span>Business Brain</span>
@@ -507,10 +542,26 @@ export default function LeadFinder() {
       <main>
         <div className="mobile-bar">
           <b className="m-brand">Lead Autopilot</b>
+          <nav className="mtabs" aria-label="Screens">
+            <button aria-current={view === "home" ? "page" : undefined} onClick={goHome}>Home</button>
+            <button aria-current={view === "leads" ? "page" : undefined} onClick={() => setView("leads")}>Leads</button>
+          </nav>
           <button className="icon-btn" onClick={() => setRecentOpen(true)} aria-label="Recent searches"><IconHistory /></button>
           <button className="icon-btn" onClick={() => setSetupOpen(true)} aria-label="Sources and setup"><IconSettings /></button>
         </div>
 
+        {view !== "leads" ? (
+          <HomeView
+            data={view ? home : null}
+            due={pipe?.due ?? []}
+            onNewSearch={newSearch}
+            onOpenSearch={(id) => openSearch(id)}
+            onOpenLead={(sid, id) => openSearch(sid, id)}
+            onUpdate={(sid, lead, p) => saveFollowUp(lead, p, sid)}
+            onSent={(l: HomeLead) => statusOf(l as unknown as Lead) === "new" && setToast({ text: `Sent to ${l.name}?`, lead: l as unknown as Lead, sid: l.searchId })}
+          />
+        ) : (
+        <>
         <div className="top">
           <div>
             {showForm ? (
@@ -544,14 +595,6 @@ export default function LeadFinder() {
             <button className="btn" onClick={newSearch} disabled={searchRunning}><IconSearch /> New search</button>
           )}
         </div>
-
-        {pipe && pipe.due.length > 0 && (
-          <FollowUpsToday
-            due={pipe.due}
-            onUpdate={(sid, lead, p) => saveFollowUp(lead, p, sid)}
-            onOpen={(sid, id) => (sid === searchId ? setOpenId(id) : openSearch(sid, id))}
-          />
-        )}
 
         {showForm ? (
           <SearchForm
@@ -713,9 +756,11 @@ export default function LeadFinder() {
               <li><b>Pick a city and business types.</b> The app searches maps and the web for local businesses.</li>
               <li><b>It checks each one</b>: does it have a website, is it working, fast and mobile-friendly, how to reach them.</li>
               <li><b>Message the best ones first</b>: each lead has the reason to pitch and a WhatsApp message already written in your voice (set your name once), in English or Hinglish.</li>
-              <li><b>Keep track</b>: mark who you've messaged, set a follow-up date, and they come back under <i>Follow up today</i>.</li>
+              <li><b>Keep track</b>: mark who you've messaged, set a follow-up date, and they come back under <i>Follow up today</i> on Home.</li>
             </ol>
           </section>
+        )}
+        </>
         )}
       </main>
 
@@ -748,7 +793,7 @@ export default function LeadFinder() {
             <button
               className="btn sm primary"
               onClick={() => {
-                markContacted(toast.lead!);
+                markContacted(toast.lead!, toast.sid);
                 setToast({ text: `${toast.lead!.name} marked contacted · follow up in 3 days` });
               }}
             >

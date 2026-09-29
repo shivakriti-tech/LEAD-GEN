@@ -12,6 +12,10 @@ export interface FollowUp {
   /** When they were first moved past "New": what "contacted this week" counts. */
   contactedAt?: string;
   updatedAt: string;
+  /** Each status change with its time (newest last), for the Home charts. */
+  history?: Array<{ status: FollowUpStatus; at: string }>;
+  /** Deal value in rupees, when you win it. */
+  value?: number;
 }
 
 /** One business as a source returns it, before merging. */

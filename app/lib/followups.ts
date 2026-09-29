@@ -7,12 +7,27 @@ export interface FollowUpPatch {
   status?: string;
   note?: string;
   followUpOn?: string | null;
+  /** Deal value in rupees; null clears it. */
+  value?: number | null;
+}
+
+/** A lead's status changes. Older saves have no history: rebuild what we can from its dates. */
+export function historyOf(fu?: FollowUp): NonNullable<FollowUp["history"]> {
+  if (!fu) return [];
+  if (fu.history?.length) return fu.history;
+  const out: NonNullable<FollowUp["history"]> = [];
+  if (fu.contactedAt) out.push({ status: "contacted", at: fu.contactedAt });
+  const st = normalizeStatus(fu.status);
+  if (st !== "new" && st !== "contacted") out.push({ status: st, at: fu.updatedAt });
+  return out;
 }
 
 /** Apply a change, keeping the first-contacted time so "contacted this week" can be counted. */
 export function mergeFollowUp(prev: FollowUp | undefined, patch: FollowUpPatch, now = new Date()): FollowUp {
   const status = patch.status !== undefined ? normalizeStatus(patch.status) : normalizeStatus(prev?.status);
   const next: FollowUp = { ...prev, status, updatedAt: now.toISOString() };
+  if (patch.status !== undefined && status !== normalizeStatus(prev?.status)) next.history = [...historyOf(prev), { status, at: now.toISOString() }].slice(-30);
+  if (patch.value !== undefined) next.value = patch.value != null && patch.value > 0 ? Math.round(patch.value) : undefined;
   if (patch.note !== undefined) next.note = patch.note.slice(0, 2000) || undefined;
   if (patch.followUpOn !== undefined) next.followUpOn = patch.followUpOn && /^\d{4}-\d{2}-\d{2}$/.test(patch.followUpOn) ? patch.followUpOn : undefined;
   if (status !== "new" && !prev?.contactedAt) next.contactedAt = now.toISOString();
@@ -29,6 +44,7 @@ export const validPatch = (b: unknown): FollowUpPatch | null => {
   if (typeof x.status === "string" && [...FOLLOW_UP.map((s) => s.key as string), "interested", "not_fit"].includes(x.status)) out.status = x.status;
   if (typeof x.note === "string") out.note = x.note;
   if (x.followUpOn === null || typeof x.followUpOn === "string") out.followUpOn = x.followUpOn as string | null;
+  if (x.value === null || (typeof x.value === "number" && Number.isFinite(x.value) && x.value >= 0 && x.value < 1e10)) out.value = x.value as number | null;
   return out;
 };
 
