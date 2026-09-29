@@ -29,6 +29,8 @@ export interface HomeData {
   days: HomeDay[];
   /** Leads in each status now. */
   byStatus: Record<string, number>;
+  /** Follow-ups set for today and the next 6 days (open leads only). */
+  upcoming: Array<{ date: string; n: number }>;
   /** Recent status changes, newest first. */
   recent: Array<{ status: string; at: string; lead: HomeLead }>;
   /** Top leads not messaged yet (in any search), best first. */
@@ -67,6 +69,7 @@ export async function homeData(store: Store, opts: { today: string; tz: number }
   };
 
   const byStatus: Record<string, number> = {};
+  const upcoming = Array.from({ length: 7 }, (_, i) => ({ date: new Date(start.getTime() + i * 86_400_000).toISOString().slice(0, 10), n: 0 }));
   const recent: HomeData["recent"] = [];
   const waiting: HomeLead[] = [];
   const contacted = new Set<string>();
@@ -84,6 +87,11 @@ export async function homeData(store: Store, opts: { today: string; tz: number }
       total++;
       const st = statusOf(l);
       byStatus[st] = (byStatus[st] ?? 0) + 1;
+      const on = l.followUp?.followUpOn;
+      if (on && st !== "won" && st !== "lost") {
+        const u = upcoming.find((x) => x.date === on);
+        if (u) u.n++;
+      }
       if (st === "new") {
         if (!l.pending && l.tier === "hot") waiting.push(slim(l, s.id, place));
         continue;
@@ -123,6 +131,7 @@ export async function homeData(store: Store, opts: { today: string; tz: number }
   return {
     today,
     days: [...days.values()],
+    upcoming,
     byStatus,
     recent: recent.slice(0, 8),
     waiting: fresh.slice(0, 6),

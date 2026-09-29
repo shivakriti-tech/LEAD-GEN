@@ -24,34 +24,38 @@ export const PitchCtx = createContext<PitchPrefs>({
 export const usePitch = () => useContext(PitchCtx);
 
 /** Your name, what you do, your city and a link to your work: every message introduces you with these. */
-export function YourDetails({ compact }: { compact?: boolean }) {
+export function YourDetails({ compact, plain }: { compact?: boolean; plain?: boolean }) {
   const { me, setMe } = usePitch();
   const [open, setOpen] = useState(!me.name);
   const set = (k: keyof Sender, v: string) => setMe({ ...me, [k]: v });
+  const fields = (
+    <div className="you-grid">
+      <label className="field">
+        <span className="lbl">Your name</span>
+        <input type="text" value={me.name ?? ""} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Divy" autoComplete="name" />
+      </label>
+      <label className="field">
+        <span className="lbl">What you do</span>
+        <input type="text" value={me.work ?? ""} onChange={(e) => set("work", e.target.value)} placeholder="web developer" />
+      </label>
+      <label className="field">
+        <span className="lbl">Your city</span>
+        <input type="text" value={me.city ?? ""} onChange={(e) => set("city", e.target.value)} placeholder="e.g. Vadodara" />
+      </label>
+      <label className="field">
+        <span className="lbl">Link to your work <span className="opt">optional</span></span>
+        <input type="text" value={me.link ?? ""} onChange={(e) => set("link", e.target.value)} placeholder="yoursite.com or an Instagram page" inputMode="url" />
+      </label>
+    </div>
+  );
+  if (plain) return fields;
   return (
     <details className={`you ${compact ? "compact" : ""}`} open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
       <summary>
         <b>Your details</b>
         <span className="sub">{me.name ? `${me.name}${me.work ? `, ${me.work}` : ""}${me.city ? `, ${me.city}` : ""}` : "Add your name so messages introduce you"}</span>
       </summary>
-      <div className="you-grid">
-        <label className="field">
-          <span className="lbl">Your name</span>
-          <input type="text" value={me.name ?? ""} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Divy" autoComplete="name" />
-        </label>
-        <label className="field">
-          <span className="lbl">What you do</span>
-          <input type="text" value={me.work ?? ""} onChange={(e) => set("work", e.target.value)} placeholder="web developer" />
-        </label>
-        <label className="field">
-          <span className="lbl">Your city</span>
-          <input type="text" value={me.city ?? ""} onChange={(e) => set("city", e.target.value)} placeholder="e.g. Vadodara" />
-        </label>
-        <label className="field">
-          <span className="lbl">Link to your work <span className="opt">optional</span></span>
-          <input type="text" value={me.link ?? ""} onChange={(e) => set("link", e.target.value)} placeholder="yoursite.com or an Instagram page" inputMode="url" />
-        </label>
-      </div>
+      {fields}
     </details>
   );
 }

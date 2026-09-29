@@ -14,8 +14,9 @@ import { BulkBar } from "./_ui/BulkBar";
 import { LeadPanel } from "./_ui/LeadPanel";
 import { RunPanel } from "./_ui/RunPanel";
 import { SetupPanel } from "./_ui/SetupPanel";
-import { PitchCtx, type PitchPrefs } from "./_ui/pitch";
-import { IconCheck, IconDownload, IconEdit, IconHistory, IconHome, IconSearch, IconSettings } from "./_ui/icons";
+import { PitchCtx, YourDetails, type PitchPrefs } from "./_ui/pitch";
+import { IconBell, IconCalendar, IconCheck, IconChevron, IconDownload, IconEdit, IconHistory, IconHome, IconPlus, IconSearch, IconSettings, IconShield } from "./_ui/icons";
+import { Popover } from "./_ui/Popover";
 
 type LogLine = { level: "info" | "warn" | "error"; message: string };
 type Sort = "score" | "reviews" | "name" | "status";
@@ -68,6 +69,7 @@ const formFromParams = (p: SearchParams, prev: FormState): FormState => ({
   webSearch: p.webSearch,
 });
 
+const initials = (name?: string) => (name?.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "You").slice(0, 3);
 const place = (p: { area?: string; city: string }) => (p.area ? `${p.area}, ${p.city}` : p.city);
 const dateShort = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 
@@ -113,6 +115,7 @@ export default function LeadFinder() {
   const wide = useWide("(min-width: 1280px)");
   const [setupOpen, setSetupOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
+  const [focusDue, setFocusDue] = useState(0);
 
   useEffect(() => {
     fetch("/api/config")
@@ -150,6 +153,12 @@ export default function LeadFinder() {
     const url = view === "home" ? "/" : searchId ? `/?view=leads&s=${searchId}` : "/?view=leads";
     if (window.location.pathname + window.location.search !== url) window.history.replaceState(null, "", url);
   }, [view, searchId]);
+
+  /** Home, scrolled to the follow-up list. */
+  function showFollowUps() {
+    goHome();
+    setFocusDue((n) => n + 1);
+  }
 
   function goHome() {
     setView("home");
@@ -508,53 +517,68 @@ export default function LeadFinder() {
 
   return (
     <PitchCtx.Provider value={pitch}>
-    <div className="shell">
-      <aside className="side">
-        <div className="brand">
-          <b>Lead Autopilot</b>
-          <small>working name</small>
-        </div>
-        <nav className="nav" aria-label="Modules">
-          <button className="nav-btn" aria-current={view === "home" ? "page" : undefined} onClick={goHome}><IconHome /> Home</button>
-          <button className="nav-btn" aria-current={view === "leads" ? "page" : undefined} onClick={() => setView("leads")}><IconSearch /> Find leads</button>
-          <details className="soon">
-            <summary>Coming soon</summary>
-            <span>Business Brain</span>
-            <span>Outreach</span>
-            <span>Conversations</span>
-            <span>Handed to you</span>
-            <span>Credits</span>
-          </details>
-        </nav>
-        <div className="history-wrap">
-          <div className="side-lbl">Recent searches</div>
-          {recentList}
-        </div>
-        <button className="side-foot" onClick={() => setSetupOpen(true)}>
-          <IconSettings />
-          <span>
-            <b>Sources & setup</b>
-            <small>{config ? `${ready} sources ready · ${config.store === "supabase" ? "saving to Supabase" : "saving on this computer"}` : "Loading…"}</small>
-          </span>
+    <div className="app">
+      <header className="topbar">
+        <button className="logo" onClick={goHome} aria-label="Lead Autopilot, Home">
+          <span className="logo-mark" aria-hidden="true"><i /><i /></span>
+          <b>Lead<span>Autopilot</span></b>
         </button>
+        <nav className="topnav" aria-label="Main">
+          <button className="tn" aria-current={view === "home" ? "page" : undefined} onClick={goHome}><span className="tn-ic"><IconHome /></span>Home</button>
+          <button className="tn" aria-current={view === "leads" ? "page" : undefined} onClick={() => setView("leads")}><span className="tn-ic"><IconSearch /></span>Find leads</button>
+          <Popover
+            label="Recent searches"
+            button={(open) => <button className="tn" aria-expanded={open}><span className="tn-ic"><IconHistory /></span>Searches<IconChevron /></button>}
+          >
+            {(close) => (
+              <div className="pop-list" onClick={close}>
+                <div className="pop-head"><b>Recent searches</b><span className="sub">Open one, or download it as CSV</span></div>
+                {recentList}
+              </div>
+            )}
+          </Popover>
+          <button className="tn" onClick={() => setSetupOpen(true)}><span className="tn-ic"><IconSettings /></span>Setup</button>
+        </nav>
+        <div className="top-actions">
+          <button className="round" onClick={showFollowUps} aria-label={`Follow-ups due: ${pipe?.due.length ?? 0}`} title="Follow up today">
+            <IconBell />
+            {(pipe?.due.length ?? 0) > 0 && <span className="badge">{pipe?.due.length ?? 0}</span>}
+          </button>
+          <Popover
+            label="Your details"
+            align="right"
+            button={() => <button className="avatar" aria-label="Your details" title="Your details">{initials(pitch.me.name)}</button>}
+          >
+            {() => (
+              <div className="pop-me">
+                <b>Your details</b>
+                <span className="sub">Every message introduces you with these.</span>
+                <YourDetails plain />
+                <span className="sub">{config ? `${ready} sources ready · ${config.store === "supabase" ? "saving to Supabase" : "saving on this computer"}` : ""}</span>
+              </div>
+            )}
+          </Popover>
+        </div>
+      </header>
+
+      <aside className="rail" aria-label="Quick actions">
+        <div className="rail-group">
+          <button className="round" onClick={newSearch} title="New search" aria-label="New search"><IconPlus /></button>
+          <button className="round" onClick={showFollowUps} title="Follow up today" aria-label="Follow up today"><IconCalendar /></button>
+          <button className="round" onClick={() => setRecentOpen(true)} title="Recent searches" aria-label="Recent searches"><IconHistory /></button>
+          <button className="round" onClick={() => (leads.length ? exportLeads(leads) : setView("leads"))} title={leads.length ? "Export this search (CSV)" : "Find leads"} aria-label="Export this search"><IconDownload /></button>
+        </div>
+        <button className="round" onClick={() => setSetupOpen(true)} title="Sources & setup" aria-label="Sources and setup"><IconShield /></button>
       </aside>
 
       <main>
-        <div className="mobile-bar">
-          <b className="m-brand">Lead Autopilot</b>
-          <nav className="mtabs" aria-label="Screens">
-            <button aria-current={view === "home" ? "page" : undefined} onClick={goHome}>Home</button>
-            <button aria-current={view === "leads" ? "page" : undefined} onClick={() => setView("leads")}>Leads</button>
-          </nav>
-          <button className="icon-btn" onClick={() => setRecentOpen(true)} aria-label="Recent searches"><IconHistory /></button>
-          <button className="icon-btn" onClick={() => setSetupOpen(true)} aria-label="Sources and setup"><IconSettings /></button>
-        </div>
-
         {view !== "leads" ? (
           <HomeView
             data={view ? home : null}
             due={pipe?.due ?? []}
+            focusDue={focusDue}
             onNewSearch={newSearch}
+            onFindLeads={() => setView("leads")}
             onOpenSearch={(id) => openSearch(id)}
             onOpenLead={(sid, id) => openSearch(sid, id)}
             onUpdate={(sid, lead, p) => saveFollowUp(lead, p, sid)}
@@ -817,6 +841,12 @@ export default function LeadFinder() {
         </div>
       )}
       {setupOpen && <SetupPanel config={config} onClose={() => setSetupOpen(false)} />}
+      <nav className="bottomnav" aria-label="Main">
+        <button aria-current={view === "home" ? "page" : undefined} onClick={goHome}><IconHome /><span>Home</span></button>
+        <button aria-current={view === "leads" ? "page" : undefined} onClick={() => setView("leads")}><IconSearch /><span>Find leads</span></button>
+        <button onClick={showFollowUps}><IconCalendar /><span>Follow up</span>{(pipe?.due.length ?? 0) > 0 && <i className="badge">{pipe!.due.length}</i>}</button>
+        <button onClick={() => setRecentOpen(true)}><IconHistory /><span>Searches</span></button>
+      </nav>
       {recentOpen && (
         <>
           <div className="scrim" onClick={() => setRecentOpen(false)} />
