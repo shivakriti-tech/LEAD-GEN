@@ -69,3 +69,33 @@ describe("a slow Google Maps scraper doesn't hold up the search", () => {
     expect(Date.now() - started).toBeLessThan(2000);
   });
 });
+
+describe("businesses show up while the sources are still searching", () => {
+  it("sends what's found so far, and the final list keeps the same leads (and any status set meanwhile)", async () => {
+    let openOsm!: () => void;
+    const osmGate = new Promise<void>((r) => (openOsm = r));
+    const events: ProgressEvent[] = [];
+    const d: Deps = {
+      ...deps(Promise.resolve(), { audits: [] }),
+      previewMs: 0,
+      osm: async ({ category, city }) => (await osmGate, [{ source: "osm", sourceId: "node/9", name: "Map Only Dental", category, city, phone: "+91 97000 44444" }]),
+    };
+    const run = runSearch(params({ sources: { ...params().sources, osm: true, gmaps: false } }), d, (e) => {
+      events.push(e);
+      if (e.type === "leads" && e.leads.length === 1 && !e.leads[0].followUp) {
+        // you mark the first business while the map is still searching
+        e.leads[0].followUp = { status: "contacted", updatedAt: "2026-09-30T10:00:00Z" } as never;
+        setTimeout(openOsm, 5);
+      }
+    });
+    const r = await run;
+    const lists = events.filter((e) => e.type === "leads") as Array<{ leads: { id: string; name: string }[] }>;
+    const firstEnrich = events.findIndex((e) => e.type === "stage" && (e as { stage: string }).stage === "enrich");
+    expect(events.findIndex((e) => e.type === "leads")).toBeLessThan(firstEnrich);
+    expect(lists[0].leads.map((l) => l.name)).toEqual(["Aum Dental Care"]); // only Google had answered
+    const aum = r.leads.find((l) => l.name === "Aum Dental Care")!;
+    expect(aum.id).toBe(lists[0].leads[0].id);
+    expect(aum.followUp?.status).toBe("contacted");
+    expect(r.leads.map((l) => l.name).sort()).toEqual(["Aum Dental Care", "Map Only Dental"]);
+  });
+});

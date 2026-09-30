@@ -44,7 +44,7 @@ export function RunPanel({
   const cur = stage ? STEP_OF[stage.stage] ?? 0 : 0;
   const sawSocial = stage?.stage === "social" || log.some((l) => /Instagram profile/.test(l.message) && /Reading/.test(l.message));
   const steps = [
-    { i: 0, label: "Finding businesses on maps and the web", n: leads.length ? `${leads.length} found` : stage?.stage === "search" && stage.total ? `${stage.done} of ${stage.total} searches` : "" },
+    { i: 0, label: "Finding businesses on maps and the web", n: [leads.length ? `${leads.length} found${stage?.stage === "search" ? " so far" : ""}` : "", stage?.stage === "search" && stage.total ? `${stage.done} of ${stage.total} searches` : ""].filter(Boolean).join(" · ") },
     { i: 1, label: "Checking each website and contact", n: leads.length ? `${checked.length} of ${leads.length}` : "" },
     ...(sawSocial ? [{ i: 2, label: "Reading Instagram profiles", n: stage?.stage === "social" ? `${stage.done} of ${stage.total}` : "" }] : []),
     ...(params?.pageSpeed ? [{ i: 3, label: "Testing mobile speed", n: stage?.stage === "speed" ? `${stage.done} of ${stage.total}` : "" }] : []),

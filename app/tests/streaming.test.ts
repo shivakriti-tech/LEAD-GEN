@@ -151,8 +151,9 @@ describe("streaming search", () => {
     expect(search.status).toBe("done");
     expect(overlap).toBe(true); // Google and OpenStreetMap ran at the same time
 
-    const first = events.findIndex((e) => e.type === "leads");
     const firstLead = events.findIndex((e) => e.type === "lead");
+    // found-so-far lists may come first; the full list is the last one sent before checking starts
+    const first = events.slice(0, firstLead).map((e) => e.type).lastIndexOf("leads");
     expect(first).toBeGreaterThan(-1);
     expect(firstLead).toBeGreaterThan(first);
     const all = events[first] as Extract<ProgressEvent, { type: "leads" }>;

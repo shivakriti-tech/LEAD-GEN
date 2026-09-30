@@ -49,6 +49,8 @@ export interface Deps {
   directory?: Directory;
   /** Pause (ms) between showing saved businesses that don't need a recheck, so results arrive at a readable pace. */
   revealMs?: number;
+  /** While sources are still searching, show what's been found at most this often (ms). */
+  previewMs?: number;
   keys: { gmapsScraper?: string; google?: string; pageSpeed?: string; apollo?: string; brave?: string; metaToken?: string; igUserId?: string; fbPageSearch?: boolean; phoneSearch?: "auto" | "on" | "off" };
   store: Store;
   now?: () => Date;
@@ -146,6 +148,39 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
 
     // 1. search
     const raw: RawPlace[] = [];
+    /** Ways two results can be the same business: place id, map id, phone, own website, name in the city. */
+    const keysOf = (l: Lead) => [l.placeId && `g:${l.placeId}`, l.osmId && `o:${l.osmId}`, ...[l.phone, ...l.phones].filter(Boolean).map((p) => `p:${p!.replace(/\D/g, "").slice(-10)}`), l.website && !isSocialHost(domainOf(l.website)) && `w:${domainOf(l.website)}`, `n:${simplifyName(l.name)}|${(l.city ?? "").toLowerCase()}`].filter(Boolean) as string[];
+    /** Give `to` the ids (and any status you set) of the same businesses in `from`, so the list on screen stays put. */
+    const carry = (from: Lead[], to: Lead[]) => {
+      const byKey = new Map<string, Lead>();
+      for (const l of from) for (const k of keysOf(l)) byKey.set(k, l);
+      const used = new Set<string>();
+      for (const l of to) {
+        const m = keysOf(l).map((k) => byKey.get(k)).find((x) => x && !used.has(x.id));
+        if (!m) continue;
+        used.add(m.id);
+        l.id = m.id;
+        if (m.followUp) l.followUp = m.followUp;
+      }
+    };
+    // While the sources are still searching, show what's been found so far (not yet checked).
+    let previewLeads: Lead[] = [];
+    let lastPreview = 0, previewedAt = 0;
+    const preview = () => {
+      const every = deps.previewMs ?? 4000;
+      if (stopped() || raw.length === previewedAt || Date.now() - lastPreview < every) return;
+      lastPreview = Date.now();
+      previewedAt = raw.length;
+      const next = mergePlaces(raw).filter((l) => l.businessStatus !== "CLOSED_PERMANENTLY");
+      for (const l of next) {
+        l.websiteCheck = { via: l.website && !isSocialHost(domainOf(l.website)) ? "source" : "none_found", tried: [l.sources.map((x) => SOURCE_LABEL[x]).join(" + ")] };
+        Object.assign(l, score(l));
+        l.pending = true;
+      }
+      carry(previewLeads, next);
+      previewLeads = next;
+      emit({ type: "leads", leads: next });
+    };
     const fbApi = params.sources.facebook && deps.keys.fbPageSearch && !!deps.keys.metaToken;
     const useIg = params.sources.instagram && !!webSearch;
     const useFb = params.sources.facebook && (fbApi || !!webSearch);
@@ -210,6 +245,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
         log(`${SOURCE_LABEL[j.src]} failed for ${j.c.label}: ${msg(e)}`, "warn");
       }
       emit({ type: "stage", stage: "search", done: ++done, total });
+      preview();
     };
 
     // Google Maps scraper (local testing only): one business type at a time, minutes each. It runs
@@ -265,8 +301,6 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     search.counts.found = raw.length;
 
     // 2. merge + drop closed
-    /** Ways two results can be the same business: place id, map id, phone, own website, name in the city. */
-    const keysOf = (l: Lead) => [l.placeId && `g:${l.placeId}`, l.osmId && `o:${l.osmId}`, ...[l.phone, ...l.phones].filter(Boolean).map((p) => `p:${p!.replace(/\D/g, "").slice(-10)}`), l.website && !isSocialHost(domainOf(l.website)) && `w:${domainOf(l.website)}`, `n:${simplifyName(l.name)}|${(l.city ?? "").toLowerCase()}`].filter(Boolean) as string[];
     let leads = mergePlaces(raw);
     if (saved.size) {
       // saved businesses first; a live result that's one of them is dropped, the rest are new since last time
@@ -285,6 +319,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     }
     const closed = leads.filter((l) => l.businessStatus === "CLOSED_PERMANENTLY").length;
     leads = leads.filter((l) => l.businessStatus !== "CLOSED_PERMANENTLY");
+    if (previewLeads.length) carry(previewLeads, leads);
     search.counts.afterDedupe = leads.length;
     log(`${raw.length} results → ${leads.length} unique businesses${closed ? ` (${closed} permanently closed removed)` : ""}.`);
     emit({ type: "stage", stage: "dedupe", done: 1, total: 1 });

@@ -96,7 +96,7 @@ The free map has no Google ratings, so prefilled website leads rarely score as *
 1. Searches Google Maps, OpenStreetMap, search engines (local businesses with their own website, through SearXNG/Tavily), and Instagram business profiles and Facebook Pages for each business type in the city/area. Search-engine results are only kept if the site is a local business: directories, national online stores, news sites and chains are skipped, and the homepage must mention the city or area.
 2. Merges duplicates (same phone, same website, same Instagram/Facebook profile, same name within 150 m, or the exact same name in the same city for social results) and drops permanently closed businesses.
 3. Marks chains: the same name at 2+ places in the search, a brand tag on the map, or a website that talks about outlets/franchising. Chains stay in the list but score low.
-4. **Shows every business right away,** marked "checking…", then checks them 8 at a time and updates each one on screen as soon as it's done. The search keeps running and saves as it goes if you close the tab; open it again from *Recent searches* to watch its progress and log. **Stop** ends it early and keeps everything checked so far. Every search, finished or not, can be exported to CSV (unchecked businesses are marked in a "Checked" column). A search cut off by closing the app shows as *stopped*.
+4. **Shows businesses as they're found:** while the sources are still searching, the list fills in every few seconds with what's been found so far (step 1 shows "N found so far · 5 of 12 searches"). Then it **shows every business,** marked "checking…", then checks them 8 at a time and updates each one on screen as soon as it's done. The search keeps running and saves as it goes if you close the tab; open it again from *Recent searches* to watch its progress and log. **Stop** ends it early and keeps everything checked so far. Every search, finished or not, can be exported to CSV (unchecked businesses are marked in a "Checked" column). A search cut off by closing the app shows as *stopped*.
 5. **Doesn't trust "no website" from the map.** For every business without a website it tries likely web addresses (teapost.com, teapost.in…), a web search for the name (and its phone number, with `PHONE_SEARCH=on`), and only accepts a page that shows the business name plus its phone number or its area. Each lead shows what was checked.
 6. Opens each website (plus up to 2 contact/about pages): emails, phones, WhatsApp, Instagram/Facebook, owner name, year founded, the agency that built it, HTTPS, mobile-ready, copyright year, site builder, parked/broken pages.
    Emails are ranked (an owner's own address before info@) and checked for a mail server, so a dead address is never the one shown first.
@@ -248,7 +248,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 212 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 213 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```
