@@ -32,5 +32,6 @@ function sameText(a: string, b: string): boolean {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // the WhatsApp webhook is called by Meta, not a person: it checks Meta's signature instead
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/whatsapp/webhook).*)"],
 };
