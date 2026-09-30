@@ -5,13 +5,13 @@ import type { Lead } from "@/lib/types";
 import { phoneKind, PHONE_KIND_LABEL } from "@/lib/util";
 import { EMAIL_KIND_LABEL } from "@/lib/enrich/email";
 import { MAILBOX_LABEL } from "@/lib/enrich/verifyEmail";
-import { emailLink, linkedinOf, localDate, mapsLink, scoreSummary, shortAddress, statusOf, telLink, whatsappNumber } from "@/lib/outreach";
+import { canContact, emailLink, linkedinOf, localDate, mapsLink, STEP_LABEL, scoreSummary, shortAddress, statusOf, telLink, whatsappNumber } from "@/lib/outreach";
 import type { FollowUpPatch, Touched } from "@/lib/followups";
 import { fmtPhone } from "./LeadList";
 import { usePitch, YourDetails } from "./pitch";
 import { DueChip, StatusMenu } from "./StatusMenu";
 import { PitchBox } from "./PitchBox";
-import { IconCheck, IconClose, IconCopy, IconCross, IconMail, IconMap, IconPhone } from "./icons";
+import { IconCheck, IconClose, IconCopy, IconCross, IconMail, IconMap, IconPhone, IconWhatsApp } from "./icons";
 
 const SOURCE_NAME: Record<string, string> = { google: "Google Maps", osm: "OpenStreetMap", apollo: "Apollo", instagram: "Instagram", facebook: "Facebook", web: "Search engines", gmaps: "Google Maps (scraper)" };
 const VIA: Record<string, string> = { source: "Listed by the source", domain_guess: "Found by trying likely web addresses", web_search: "Found by web search", instagram_bio: "Found through its Instagram bio", none_found: "No website found" };
@@ -41,6 +41,8 @@ export function LeadPanel({
   docked,
   onClose,
   onFollowUp,
+  searchId,
+  waApi,
   draft,
   setDraft,
   onSent,
@@ -52,6 +54,9 @@ export function LeadPanel({
   docked: boolean;
   onClose: () => void;
   onFollowUp: (p: FollowUpPatch) => void;
+  /** The search this lead is in, and whether the WhatsApp Business API is set up. */
+  searchId?: string | null;
+  waApi?: boolean;
   draft?: string;
   setDraft: (t: string | undefined) => void;
   onSent: () => void;
@@ -154,6 +159,30 @@ export function LeadPanel({
             onBlur={() => note !== (l.followUp?.note ?? "") && onFollowUp({ note })}
             rows={2}
           />
+        </section>
+
+        <section className="dsec">
+          <h3>Messages & consent</h3>
+          {l.followUp?.optedOut ? (
+            <p className="pitch-warn">Asked not to be contacted ({l.followUp.optedOut.via}): no more messages on any channel. <button className="linkish" onClick={() => onFollowUp({ optOut: false })}>Undo</button></p>
+          ) : (
+            <div className="row gap wrap">
+              {l.followUp?.optedIn ? (
+                <span className="tag good" title={`Since ${new Date(l.followUp.optedIn.at).toLocaleDateString("en-IN")}`}>Agreed to WhatsApp ({l.followUp.optedIn.via}) <button className="linkish" onClick={() => onFollowUp({ optIn: false })}>Undo</button></span>
+              ) : (
+                <button className="btn sm" onClick={() => onFollowUp({ optIn: { via: "said yes, marked by you" } })} title="They said yes to WhatsApp messages: the WhatsApp API may message them">They agreed to WhatsApp</button>
+              )}
+              <button className="btn sm danger-ghost" onClick={() => onFollowUp({ optOut: { via: "marked by you" } })}>Asked not to be contacted</button>
+            </div>
+          )}
+          {!!l.followUp?.touches?.length && (
+            <ul className="touches">
+              {l.followUp.touches.map((t, i) => (
+                <li key={i}><b>{TOUCH_LABEL[t.channel]}</b><span>{STEP_LABEL[t.step] ?? `Message ${t.step + 1}`}{t.subject ? ` · ${t.subject}` : ""}</span><span className="sub">{new Date(t.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span></li>
+              ))}
+            </ul>
+          )}
+          {waApi && searchId && !l.followUp?.optedOut && <WaSendBox lead={l} searchId={searchId} />}
         </section>
 
         {next && (
@@ -274,5 +303,44 @@ export function LeadPanel({
       <div className="scrim" onClick={onClose} />
       <aside className="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title">{body}</aside>
     </>
+  );
+}
+
+const TOUCH_LABEL: Record<string, string> = { email: "Email", whatsapp: "WhatsApp", call: "Call", linkedin: "LinkedIn" };
+
+/** Send through the WhatsApp Business API: only for leads who replied or opted in (WhatsApp's rules). */
+function WaSendBox({ lead, searchId }: { lead: Lead; searchId: string }) {
+  const can = canContact(lead, "whatsapp_api");
+  const [open, setOpen] = useState(false);
+  const [templates, setTemplates] = useState<Array<{ name: string; language: string; body?: string; params: number }> | null>(null);
+  const [pick, setPick] = useState("");
+  const [params, setParams] = useState<string[]>([]);
+  const [text, setText] = useState("");
+  const [msg, setMsg] = useState("");
+  if (!can.ok) return <p className="sub">WhatsApp API: {can.why}. Say hello from your own phone first (Reach them → WhatsApp).</p>;
+  const load = () => fetch("/api/outreach/whatsapp").then((r) => r.json()).then((d) => setTemplates(d.templates ?? [])).catch(() => setTemplates([]));
+  const tpl = templates?.find((t) => `${t.name}|${t.language}` === pick);
+  const send = async (body: object) => {
+    setMsg("Sending…");
+    const r = await fetch("/api/outreach/whatsapp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ searchId, leadId: lead.id, ...body }) }).then((x) => x.json());
+    setMsg(r.ok ? "Sent on WhatsApp." : r.error);
+  };
+  if (!open) return <button className="btn sm wa" onClick={() => { setOpen(true); load(); }}><IconWhatsApp /> Send with WhatsApp API</button>;
+  return (
+    <div className="wa-box">
+      <label className="field">
+        <span className="lbl">Approved template <span className="opt">needed after 24 hours without a message from them</span></span>
+        <select value={pick} onChange={(e) => { setPick(e.target.value); const t = templates?.find((x) => `${x.name}|${x.language}` === e.target.value); setParams(Array.from({ length: t?.params ?? 0 }, (_, i) => (i === 0 ? lead.owner?.name?.split(/\s+/)[0] ?? lead.name : ""))); }}>
+          <option value="">{templates === null ? "Loading…" : templates.length ? "Pick a template" : "No approved templates"}</option>
+          {templates?.map((t) => <option key={`${t.name}|${t.language}`} value={`${t.name}|${t.language}`}>{t.name} ({t.language})</option>)}
+        </select>
+      </label>
+      {tpl?.body && <p className="sub">{tpl.body}</p>}
+      {params.map((p, i) => <input key={i} type="text" aria-label={`Variable ${i + 1}`} placeholder={`{{${i + 1}}}`} value={p} onChange={(e) => setParams(params.map((x, j) => (j === i ? e.target.value : x)))} />)}
+      {tpl && <button className="btn sm wa" disabled={params.some((p) => !p.trim())} onClick={() => send({ template: { name: tpl.name, language: tpl.language, params } })}><IconWhatsApp /> Send template</button>}
+      <label className="field"><span className="lbl">Or a reply <span className="opt">only within 24 hours of their last message</span></span><textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} /></label>
+      <button className="btn sm" disabled={!text.trim()} onClick={() => send({ text })}>Send reply</button>
+      {msg && <p className="sub">{msg}</p>}
+    </div>
   );
 }

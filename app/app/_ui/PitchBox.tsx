@@ -69,7 +69,9 @@ export function PitchBox({
       />
       {flagged.length > 0 && <p className="pitch-warn">{clientName ?? "This client"} never says: {flagged.map((x) => `"${x}"`).join(", ")}. Change it before sending.</p>}
       <div className="pitch-foot">
-        {wa ? (
+        {lead.followUp?.optedOut ? (
+          <span className="pitch-warn">Asked not to be contacted: don't message them.</span>
+        ) : wa ? (
           <a className={`btn wa ${big ? "send" : ""}`} href={wa} target="_blank" rel="noreferrer" onClick={onSent}><IconWhatsApp /> Send on WhatsApp</a>
         ) : (
           <span className="sub">No mobile number for WhatsApp: copy it and send another way.</span>

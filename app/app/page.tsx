@@ -8,6 +8,7 @@ import { mergeFollowUp, touchedElsewhere, type CategoryStat, type DueLead, type 
 import type { FollowUp, KeepOnly, Lead, ProgressEvent, SearchParams, SearchRecord, Tier } from "@/lib/types";
 import { DEFAULT_CATS, DEFAULT_FORM, DEFAULT_KEEP, SearchForm, sourceInfo, type Config, type FormState } from "./_ui/SearchForm";
 import { ClientsView } from "./_ui/ClientsView";
+import { OutreachView } from "./_ui/OutreachView";
 import { brainServices, type ClientBrain } from "@/lib/brain";
 import { LeadList, Skeleton } from "./_ui/LeadList";
 import { HomeView } from "./_ui/HomeView";
@@ -17,7 +18,7 @@ import { LeadPanel } from "./_ui/LeadPanel";
 import { RunPanel } from "./_ui/RunPanel";
 import { SetupPanel } from "./_ui/SetupPanel";
 import { PitchCtx, YourDetails, type PitchPrefs } from "./_ui/pitch";
-import { IconReport, IconBell, IconCalendar, IconCheck, IconChevron, IconDownload, IconEdit, IconHistory, IconHome, IconPlus, IconSearch, IconSettings, IconShield, IconUser } from "./_ui/icons";
+import { IconReport, IconBell, IconCalendar, IconCheck, IconChevron, IconDownload, IconEdit, IconHistory, IconHome, IconPlus, IconSearch, IconSettings, IconSend, IconShield, IconUser } from "./_ui/icons";
 import { Popover } from "./_ui/Popover";
 
 type LogLine = { level: "info" | "warn" | "error"; message: string };
@@ -119,7 +120,7 @@ export default function LeadFinder() {
   const [pipe, setPipe] = useState<{ due: DueLead[]; contactedThisWeek: number; touched?: Record<string, Touched>; stats?: Record<string, CategoryStat> } | null>(null);
   const [toast, setToast] = useState<{ text: string; lead?: Lead; next?: Lead; sid?: string } | null>(null);
   /** Home (your numbers, what to do today) or Find leads. Starts on Home once you have searches. */
-  const [view, setView] = useState<"home" | "leads" | "clients" | null>(null);
+  const [view, setView] = useState<"home" | "leads" | "clients" | "outreach" | null>(null);
   const [home, setHome] = useState<HomeData | null>(null);
   const [panelHidden, setPanelHidden] = useState(false);
   const wide = useWide("(min-width: 1280px)");
@@ -152,6 +153,7 @@ export default function LeadFinder() {
     if (q.get("s")) openSearch(q.get("s")!, q.get("lead") ?? undefined);
     else if (q.get("view") === "leads") setView("leads");
     else if (q.get("view") === "clients") setView("clients");
+    else if (q.get("view") === "outreach") setView("outreach");
     loadHistory(true);
     loadPipeline();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,7 +178,7 @@ export default function LeadFinder() {
   // keep the address bar in step, so a reload comes back to the same place
   useEffect(() => {
     if (!view) return;
-    const url = view === "home" ? "/" : view === "clients" ? "/?view=clients" : searchId ? `/?view=leads&s=${searchId}` : "/?view=leads";
+    const url = view === "home" ? "/" : view === "clients" ? "/?view=clients" : view === "outreach" ? "/?view=outreach" : searchId ? `/?view=leads&s=${searchId}` : "/?view=leads";
     if (window.location.pathname + window.location.search !== url) window.history.replaceState(null, "", url);
   }, [view, searchId]);
 
@@ -230,6 +232,24 @@ export default function LeadFinder() {
     setError("");
     setPanelHidden(false);
     resetFilters(d.search.params.keep);
+  }
+
+  /** Selected leads → the email queue or LinkedIn tasks; says how many went in and why others didn't. */
+  async function outreach(kind: "email" | "linkedin") {
+    if (!searchId || !selected.size) return;
+    const ids = [...selected];
+    const sender = pitch.send ?? pitch.me;
+    const texts = kind === "email" ? Object.fromEntries(ids.filter((id) => drafts[id]).map((id) => [id, drafts[id]])) : undefined;
+    const r = await fetch(kind === "email" ? "/api/outreach/email/queue" : `/api/outreach/linkedin?today=${localDate()}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ searchId, leadIds: ids, sender, lang: prefs.lang, tone: prefs.tone ?? "friendly", followUps: true, texts, clientId: params?.clientId }),
+    }).then((x) => x.json()).catch(() => ({ error: "Couldn't reach the app" }));
+    if (r.error) return setToast({ text: r.error });
+    const n = kind === "email" ? r.queued : r.added;
+    const why = [...new Set((r.skipped ?? []).map((x: { why: string }) => x.why))].slice(0, 2).join("; ");
+    setToast({ text: `${n} ${kind === "email" ? `email${n === 1 ? "" : "s"} queued` : `LinkedIn task${n === 1 ? "" : "s"} added`}${r.skipped?.length ? ` · ${r.skipped.length} skipped (${why})` : ""}` });
+    if (n) setSelected(new Set());
   }
 
   /** Fill the search form for one client: their offer, services, business types, city and area. */
@@ -597,6 +617,7 @@ export default function LeadFinder() {
               </div>
             )}
           </Popover>
+          <button className="tn" aria-current={view === "outreach" ? "page" : undefined} onClick={() => setView("outreach")}><span className="tn-ic"><IconSend /></span>Outreach</button>
           <button className="tn" aria-current={view === "clients" ? "page" : undefined} onClick={() => setView("clients")}><span className="tn-ic"><IconUser /></span>Clients</button>
           <button className="tn" onClick={() => setSetupOpen(true)}><span className="tn-ic"><IconSettings /></span>Setup</button>
         </nav>
@@ -633,7 +654,9 @@ export default function LeadFinder() {
       </aside>
 
       <main>
-        {view === "clients" ? (
+        {view === "outreach" ? (
+          <OutreachView />
+        ) : view === "clients" ? (
           <ClientsView ai={config?.ai ?? null} onFindLeads={searchForClient} />
         ) : view !== "leads" ? (
           <HomeView
@@ -840,6 +863,8 @@ export default function LeadFinder() {
               lead={openLead}
               onClose={() => setPanelHidden(true)}
               onFollowUp={(p) => saveFollowUp(openLead, p)}
+              searchId={searchId}
+              waApi={!!config?.whatsapp}
               draft={drafts[openLead.id]}
               setDraft={(t) => setDrafts((d) => { const n = { ...d }; if (t === undefined) delete n[openLead.id]; else n[openLead.id] = t; return n; })}
               onSent={() => onSent(openLead)}
@@ -873,6 +898,8 @@ export default function LeadFinder() {
           lead={openLead}
           onClose={() => setOpenId(null)}
           onFollowUp={(p) => saveFollowUp(openLead, p)}
+          searchId={searchId}
+          waApi={!!config?.whatsapp}
           draft={drafts[openLead.id]}
           setDraft={(t) => setDrafts((d) => { const n = { ...d }; if (t === undefined) delete n[openLead.id]; else n[openLead.id] = t; return n; })}
           onSent={() => onSent(openLead)}
@@ -888,6 +915,8 @@ export default function LeadFinder() {
         onExport={() => exportLeads(leads.filter((l) => selected.has(l.id)))}
         onDelete={deleteSelected}
         onClear={() => setSelected(new Set())}
+        onEmail={searchId ? () => outreach("email") : undefined}
+        onLinkedIn={searchId ? () => outreach("linkedin") : undefined}
       />
       {toast && (
         <div className="toast" role="status">
@@ -923,7 +952,7 @@ export default function LeadFinder() {
       <nav className="bottomnav" aria-label="Main">
         <button aria-current={view === "home" ? "page" : undefined} onClick={goHome}><IconHome /><span>Home</span></button>
         <button aria-current={view === "leads" ? "page" : undefined} onClick={() => setView("leads")}><IconSearch /><span>Find leads</span></button>
-        <button onClick={showFollowUps}><IconCalendar /><span>Follow up</span>{(pipe?.due.length ?? 0) > 0 && <i className="badge">{pipe!.due.length}</i>}</button>
+        <button aria-current={view === "outreach" ? "page" : undefined} onClick={() => setView("outreach")}><IconSend /><span>Outreach</span></button>
         <button onClick={() => setRecentOpen(true)}><IconHistory /><span>Searches</span></button>
         <button aria-current={view === "clients" ? "page" : undefined} onClick={() => setView("clients")}><IconUser /><span>Clients</span></button>
       </nav>

@@ -50,6 +50,10 @@ export type Config = {
   emailVerify?: string | null;
   /** "Gemini" / "Claude" when an AI reads client websites. */
   ai?: string | null;
+  /** WhatsApp Business API set up (token + phone number id). */
+  whatsapp?: boolean;
+  /** Sending mailboxes set up (MAILBOX_n). */
+  mailboxes?: number;
   store: "local" | "supabase";
   contact: boolean;
   meta: boolean;

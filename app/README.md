@@ -108,6 +108,48 @@ In that search, messages introduce you as being from the client ("I'm Divy from 
 
 Profiles are saved in `.data/clients` (or the `clients` table in Supabase: run the latest `supabase/schema.sql`). `BRAIN_AI=off` turns AI reading off even with a key. Either way the answer is checked against the profile format (Gemini is asked once more if it doesn't fit) and prices not on the site are dropped.
 
+## Outreach (email, WhatsApp, LinkedIn)
+
+In a search, tick leads and press **Email** or **LinkedIn** in the bar at the bottom. Everything is on the **Outreach** screen. Every lead keeps a history of what was sent (on its panel, under *Messages & consent*), and **anyone who asked not to be contacted gets nothing more on any channel**.
+
+**Email: your own mailboxes, sent slowly.**
+
+- Add sending mailboxes to `.env.local`, one per line, and restart:
+  ```
+  MAILBOX_1=smtps://divy%40getshree.in:your-app-password@smtp.zoho.in:465?name=Divy%20Shah
+  MAILBOX_2=smtps://asha%40getshree.in:your-app-password@smtp.gmail.com:465?name=Asha
+  ```
+  `%40` is @, `%20` a space. Use an app password. Optional: `start=2026-10-01` (when you started using it), `max=40` (most per day), `imap=imap.host` (if the inbox server isn't guessed right).
+- **Use a separate sending domain** (e.g. getshreelogistics.in), not the client's main one. Outreach → Email checks each domain's MX, SPF, DKIM and DMARC records and says exactly what to add. It warns if a mailbox uses a client's main domain.
+- **Warm-up:** a new mailbox sends 5 emails on day one, 3 more each day, up to 40. There are 3–7 minutes between emails from one mailbox, only Monday–Saturday 10:00–18:30 IST, spread over your mailboxes. (A warm-up service that trades real replies helps a new domain too; this only paces your own sending.)
+- **Follow-ups:** first message, then a follow-up after 3 days, then a last short one after 4 more. Follow-ups come from the same mailbox as a reply in the same email thread. Before each one, the app checks that mailbox's inbox: if the lead replied, the follow-up is cancelled and the lead is marked Replied. Every email ends with who it's from and "just reply and say so" to stop, and carries a List-Unsubscribe header.
+- A mailbox whose password fails is paused (press *Check sign-in* after fixing it). The queue only runs while the app is running.
+
+**WhatsApp: only people who replied or opted in.** WhatsApp's rules only allow business messages to people who agreed to them, and numbers that message strangers through the API get banned. So:
+
+- A **first hello** to a new lead goes from **your own phone** (the WhatsApp button, as before).
+- The **WhatsApp Business API** (Meta's Cloud API, direct, no reseller) is for leads who replied or opted in. Mark "They agreed to WhatsApp" on a lead, or it's set automatically when they message the number.
+  - Within 24 hours of their last message you can reply freely.
+  - After that, only an approved template (WhatsApp Manager → Message templates).
+- Setup in `.env.local`:
+  - `WHATSAPP_TOKEN` (a System user's permanent token);
+  - `WHATSAPP_PHONE_NUMBER_ID`;
+  - `WHATSAPP_WABA_ID` (to list templates);
+  - `WHATSAPP_VERIFY_TOKEN` (any secret);
+  - `WHATSAPP_APP_SECRET`.
+- For replies, point the Meta app's webhook at `https://your-app-address/api/whatsapp/webhook`. The app must be reachable from the internet: hosted, or through a tunnel while testing.
+  - Every event must be signed with your app secret; unsigned ones are refused.
+  - A reply marks the lead Replied and opted in.
+  - "STOP", "band karo" or "mat bhejo" opts them out everywhere.
+
+**LinkedIn: a daily task list for your team.** LinkedIn restricts accounts that send automatically, so people do the clicks.
+
+- Add your team with a daily limit each (15 connection requests a day keeps an account inside LinkedIn's ~100 a week).
+- Tasks are shared out Monday–Saturday.
+  - A lead with a personal profile → *Connect*, with a note under 200 characters ready to copy.
+  - A lead with only a company page → *Find the owner, then connect*.
+- *Done* records it on the lead; *Replied* marks the lead Replied.
+
 ## How a search works
 
 1. Searches Google Maps, OpenStreetMap, search engines (local businesses with their own website, through SearXNG/Tavily), and Instagram business profiles and Facebook Pages for each business type in the city/area. Search-engine results are only kept if the site is a local business: directories, national online stores, news sites and chains are skipped, and the homepage must mention the city or area.
@@ -272,7 +314,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 241 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 262 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

@@ -5,6 +5,8 @@ import { providersFromEnv, searchUsage } from "@/lib/enrich/searchProviders";
 import { gmapsScraperUrl } from "@/lib/sources/gmapsScraper";
 import { verifierName } from "@/lib/enrich/verifyEmail";
 import { aiName } from "@/lib/brainAnalyze";
+import { waConfig } from "@/lib/whatsapp";
+import { mailboxesFromEnv } from "@/lib/mail/mailboxes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +22,8 @@ export async function GET() {
     apollo: !!process.env.APOLLO_API_KEY,
     // which AI reads client websites for the Business Brain ("Gemini" / "Claude"), or null for the basic reader
     ai: aiName() ?? null,
+    whatsapp: !!waConfig(),
+    mailboxes: mailboxesFromEnv().mailboxes.length,
     emailVerify: verifierName() ?? null, // "ZeroBounce" / "MillionVerifier" when a key is set
     store: getStore().kind,
     contact: !!crawlerContact(),

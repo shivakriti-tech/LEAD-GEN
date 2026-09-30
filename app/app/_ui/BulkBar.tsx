@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { addDays, FOLLOW_UP, type FollowUpStatus } from "@/lib/outreach";
 import type { FollowUpPatch } from "@/lib/followups";
-import { IconClose, IconDownload } from "./icons";
+import { IconClose, IconDownload, IconMail, IconUser } from "./icons";
 
 /** Appears at the bottom when leads are ticked: act on all of them at once. */
 export function BulkBar({
@@ -13,6 +13,8 @@ export function BulkBar({
   onDelete,
   onClear,
   locked,
+  onEmail,
+  onLinkedIn,
 }: {
   count: number;
   onPatch: (p: FollowUpPatch) => void;
@@ -20,6 +22,9 @@ export function BulkBar({
   onDelete: () => void;
   onClear: () => void;
   locked: boolean;
+  /** Put the selected leads in the email queue / make LinkedIn tasks for them. */
+  onEmail?: () => void;
+  onLinkedIn?: () => void;
 }) {
   const [confirm, setConfirm] = useState(false);
   if (!count) return null;
@@ -56,6 +61,8 @@ export function BulkBar({
             <option value={addDays(7)}>Next week</option>
             <option value="clear">Clear date</option>
           </select>
+          {onEmail && <button type="button" className="btn sm" onClick={onEmail} title="Queue their next email (first message, then follow-ups)"><IconMail /> Email</button>}
+          {onLinkedIn && <button type="button" className="btn sm" onClick={onLinkedIn} title="Make LinkedIn tasks for your team"><IconUser /> LinkedIn</button>}
           <button type="button" className="btn sm" onClick={onExport}><IconDownload /> Export</button>
           <button type="button" className="btn sm danger-ghost" onClick={() => setConfirm(true)} disabled={locked} title={locked ? "You can delete leads once the search has finished" : undefined}>Delete</button>
         </>
