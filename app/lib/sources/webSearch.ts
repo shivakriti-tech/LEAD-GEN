@@ -1,8 +1,9 @@
+import { currentCountry } from "../marketContext";
 import * as cheerio from "cheerio";
 import type { RawPlace } from "../types";
 import { CHAIN_WORDS, isDirectory, significantTokens, type SearchHit } from "../enrich/discover";
 import { fetchPublic } from "../safeFetch";
-import { domainOf, isSocialHost, normalizePhone } from "../util";
+import { domainOf, isSocialHost, normalizePhone, phonesInText } from "../util";
 
 /**
  * Search engines as a lead source (through SearXNG / Tavily / … — whatever web search is set up).
@@ -133,8 +134,9 @@ export async function webLeadSearch(
       continue;
     }
     if (CHAIN_WORDS.test(text)) { rejected.push({ domain: c.domain, why: "chain or franchise" }); continue; }
-    const phone = [...$('a[href^="tel:"]').map((_, a) => $(a).attr("href")!.replace(/^tel:/i, "")).get(), ...(text.match(/(?:\+91[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5}/g) ?? [])]
-      .map((p) => normalizePhone(p))
+    const inText = currentCountry() === "IN" ? text.match(/(?:\+91[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5}/g) ?? [] : phonesInText(text, currentCountry());
+    const phone = [...$('a[href^="tel:"]').map((_, a) => $(a).attr("href")!.replace(/^tel:/i, "")).get(), ...inText]
+      .map((p) => normalizePhone(p, currentCountry()))
       .find(Boolean);
     places.push({
       source: "web",

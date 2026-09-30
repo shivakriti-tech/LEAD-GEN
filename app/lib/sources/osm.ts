@@ -1,3 +1,4 @@
+import { currentMarket } from "../marketContext";
 import type { RawPlace } from "../types";
 import { crawlerContact, fetchWithTimeout } from "../util";
 import { CITY_CENTRES } from "./cityCentres";
@@ -31,7 +32,7 @@ export function capBox(b: BBox, cap = 0.35, min = 0.024): BBox {
 }
 
 async function viaNominatim(place: string): Promise<BBox> {
-  const q = new URLSearchParams({ format: "json", limit: "1", countrycodes: "in", q: place });
+  const q = new URLSearchParams({ format: "json", limit: "1", countrycodes: currentMarket().cc, q: place });
   const contact = crawlerContact();
   if (contact) q.set("email", contact);
   const res = await fetchWithTimeout(`https://nominatim.openstreetmap.org/search?${q}`, { headers: { "Accept-Language": "en" } }, 12_000);
@@ -43,11 +44,11 @@ async function viaNominatim(place: string): Promise<BBox> {
 }
 
 async function viaPhoton(place: string): Promise<BBox> {
-  const q = new URLSearchParams({ q: `${place}, India`, limit: "1", lang: "en" });
+  const q = new URLSearchParams({ q: `${place}, ${currentMarket().name}`, limit: "1", lang: "en" });
   const res = await fetchWithTimeout(`https://photon.komoot.io/api/?${q}`, {}, 12_000);
   if (!res.ok) throw new Error(`Photon ${res.status}`);
   const json = (await res.json()) as { features?: Array<{ geometry: { coordinates: [number, number] }; properties: { extent?: [number, number, number, number]; type?: string; countrycode?: string } }> };
-  const f = json.features?.find((x) => !x.properties.countrycode || x.properties.countrycode === "IN");
+  const f = json.features?.find((x) => !x.properties.countrycode || x.properties.countrycode === currentMarket().code);
   if (!f) throw new Error(`Photon couldn't find "${place}"`);
   const ext = f.properties.extent; // [minLon, maxLat, maxLon, minLat]
   if (ext) return { west: ext[0], north: ext[1], east: ext[2], south: ext[3] };
@@ -67,13 +68,14 @@ function viaBuiltIn(place: string): BBox {
  * list of Indian city centres, so one blocked server doesn't stop the search.
  */
 export async function geocodeBBox(place: string, onWarn?: (m: string) => void): Promise<{ box: BBox; via: string }> {
-  const key = place.toLowerCase().trim();
+  const key = `${currentMarket().code}|${place.toLowerCase().trim()}`;
   const hit = bboxCache.get(key);
   if (hit) return hit;
   const tries: Array<[string, () => Promise<BBox> | BBox]> = [
     ["Nominatim", () => viaNominatim(place)],
     ["Photon", () => viaPhoton(place)],
-    ["built-in city list", () => viaBuiltIn(place)],
+    // the built-in list only knows Indian cities
+    ...(currentMarket().code === "IN" ? [["built-in city list", () => viaBuiltIn(place)] as [string, () => BBox]] : []),
   ];
   const errors: string[] = [];
   for (const [via, fn] of tries) {

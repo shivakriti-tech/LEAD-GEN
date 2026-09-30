@@ -1,7 +1,8 @@
 import * as cheerio from "cheerio";
 import type { TradeHints, WebsiteAudit, GrowthHints } from "../types";
 import { fetchPublic } from "../safeFetch";
-import { domainOf, isMobile, isSocialHost, normalizePhone } from "../util";
+import { domainOf, isMobile, isSocialHost, normalizePhone, phonesInText } from "../util";
+import { currentCountry } from "../marketContext";
 
 const FREE_BUILDERS: Array<[RegExp, string]> = [
   [/\.wixsite\.com$/, "Wix free site"],
@@ -113,7 +114,7 @@ export function parsePage(html: string, pageUrl: string) {
         if (!item || typeof item !== "object") continue;
         ownerName ??= personName(item.founder) ?? personName(item.owner);
         if (item.email && !BAD_EMAIL.test(String(item.email))) emails.add(String(item.email).toLowerCase());
-        if (item.telephone) { const p = normalizePhone(String(item.telephone)); if (p) phones.add(p); }
+        if (item.telephone) { const p = normalizePhone(String(item.telephone), currentCountry()); if (p) phones.add(p); }
         if (item.foundingDate) extractedFoundingYear = extractedFoundingYear ?? parseYearFromString(String(item.foundingDate));
       }
     } catch {}
@@ -130,21 +131,23 @@ export function parsePage(html: string, pageUrl: string) {
   // --- Phones ---
   // 1. tel: links
   $('a[href^="tel:"]').each((_, a) => {
-    const p = normalizePhone(($(a).attr("href") || "").replace(/^tel:/i, ""));
+    const p = normalizePhone(($(a).attr("href") || "").replace(/^tel:/i, ""), currentCountry());
     if (p) phones.add(p);
   });
   // 2. schema.org itemProp telephone
   $('[itemprop="telephone"]').each((_, el) => {
-    const p = normalizePhone($(el).attr("content") || $(el).text() || "");
+    const p = normalizePhone($(el).attr("content") || $(el).text() || "", currentCountry());
     if (p) phones.add(p);
   });
-  // 3. Mobile numbers in text
-  for (const m of text.match(IN_MOBILE_RE) ?? []) {
+  // 3. Numbers written in the text: other countries' formats through libphonenumber
+  if (currentCountry() !== "IN") for (const p of phonesInText(text, currentCountry())) phones.add(p);
+  // Indian mobile numbers in text
+  for (const m of currentCountry() === "IN" ? text.match(IN_MOBILE_RE) ?? [] : []) {
     const p = normalizePhone(m);
     if (p) phones.add(p);
   }
   // 4. Landline numbers in text
-  for (const m of text.match(IN_LANDLINE_RE) ?? []) {
+  for (const m of currentCountry() === "IN" ? text.match(IN_LANDLINE_RE) ?? [] : []) {
     const p = normalizePhone(m);
     if (p) phones.add(p);
   }
@@ -162,12 +165,12 @@ export function parsePage(html: string, pageUrl: string) {
     const h = u.hostname.replace(/^www\./, "");
     if (!whatsapp && (h === "wa.me" || h === "api.whatsapp.com")) {
       const num = h === "wa.me" ? u.pathname.slice(1).split("?")[0] : u.searchParams.get("phone") || "";
-      whatsapp = normalizePhone(num) ?? undefined;
+      whatsapp = normalizePhone(num, currentCountry()) ?? undefined;
     }
     // whatsapp:// protocol links
     if (!whatsapp && /^whatsapp:/i.test(href)) {
       const phoneParam = href.match(/phone=(\d+)/)?.[1] || href.match(/send\?phone=(\d+)/)?.[1];
-      if (phoneParam) whatsapp = normalizePhone(phoneParam) ?? undefined;
+      if (phoneParam) whatsapp = normalizePhone(phoneParam, currentCountry()) ?? undefined;
     }
     for (const [k, host] of [["instagram", "instagram.com"], ["facebook", "facebook.com"], ["linkedin", "linkedin.com"], ["youtube", "youtube.com"], ["x", "x.com"], ["twitter", "twitter.com"]] as const) {
       if (!socials[k] && (h === host || h.endsWith("." + host)) && u.pathname.length > 1) socials[k] = u.toString();
@@ -183,7 +186,7 @@ export function parsePage(html: string, pageUrl: string) {
     ];
     for (const re of waWidgetPatterns) {
       for (const m of allHtml.matchAll(re)) {
-        const candidate = normalizePhone(m[1]);
+        const candidate = normalizePhone(m[1], currentCountry());
         if (candidate && isMobile(candidate)) { whatsapp = candidate; break; }
       }
       if (whatsapp) break;

@@ -1,3 +1,4 @@
+import { countryKey, currentCountry, withCountry } from "./marketContext";
 import { categoryByKey } from "./categories";
 import { mergePlaces } from "./dedupe";
 import { auditWebsite } from "./enrich/crawl";
@@ -23,7 +24,7 @@ import { domainAcceptsMail } from "./enrich/mx";
 import type { WebsiteAudit } from "./types";
 import type { Store } from "./store";
 import type { Lead, ProgressEvent, RawPlace, SearchParams, SearchRecord } from "./types";
-import { domainOf, isSocialHost, mapLimit, normalizePhone, simplifyName, uid } from "./util";
+import { domainOf, isSocialHost, mapLimit, normalizePhone, simplifyName, uid, phonesInText } from "./util";
 
 export interface Deps {
   google: typeof googleTextSearch;
@@ -90,7 +91,12 @@ function absorbLate(l: Lead, g: Lead): boolean {
   return newSite;
 }
 
-export async function runSearch(params: SearchParams, deps: Deps, emit: (e: ProgressEvent) => void, signal?: AbortSignal): Promise<{ search: SearchRecord; leads: Lead[] }> {
+export function runSearch(params: SearchParams, deps: Deps, emit: (e: ProgressEvent) => void, signal?: AbortSignal): Promise<{ search: SearchRecord; leads: Lead[] }> {
+  // every lookup in this search (map, Google, search engines, phones) uses the search's country
+  return withCountry(params.country, () => runSearchIn(params, deps, emit, signal));
+}
+
+async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressEvent) => void, signal?: AbortSignal): Promise<{ search: SearchRecord; leads: Lead[] }> {
   const stopped = () => !!signal?.aborted;
   const log = (message: string, level: "info" | "warn" | "error" = "info") => emit({ type: "log", level, message });
   const search: SearchRecord = {
@@ -354,6 +360,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
 
     // 3. Show every business now, then check each one and update it as soon as it's done.
     for (const l of leads) {
+      l.country ??= currentCountry();
       if (!l.saved) l.websiteCheck = { via: l.website && !isSocialHost(domainOf(l.website)) ? "source" : "none_found", tried: [l.sources.map((x) => SOURCE_LABEL[x]).join(" + ")] };
       Object.assign(l, score(l));
       l.pending = true;
@@ -487,8 +494,8 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
             else {
               Object.assign(ig, { name: p.name, bio: p.bio, website: p.website, followers: p.followers, posts: p.posts, lastPostAt: p.lastPostAt, checked: "api" as const });
               if (l.sources.length === 1 && l.sources[0] === "instagram" && p.name) l.name = p.name;
-              for (const m of (p.bio ?? "").match(/(?:\+91[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5}/g) ?? []) {
-                const ph = normalizePhone(m);
+              for (const m of currentCountry() === "IN" ? (p.bio ?? "").match(/(?:\+91[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5}/g) ?? [] : phonesInText(p.bio ?? "", currentCountry())) {
+                const ph = normalizePhone(m, currentCountry());
                 if (ph && !l.phones.includes(ph)) l.phones.push(ph);
               }
               l.phone ??= l.phones[0];
@@ -548,7 +555,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
           const o = await deps.apollo(deps.keys.apollo!, domainOf(l.website)!);
           if (o) {
             l.company = { employees: o.employees, linkedin: o.linkedin, foundedYear: o.foundedYear };
-            const p = normalizePhone(o.phone);
+            const p = normalizePhone(o.phone, currentCountry());
             if (p && !l.phones.includes(p)) l.phones.push(p);
             if (!l.sources.includes("apollo")) l.sources.push("apollo");
           }
@@ -769,14 +776,14 @@ const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 function withCache(stats: CacheStats) {
   const mode = cacheMode();
   if (mode === "off") return null;
-  const search = (fn: (q: string) => Promise<SearchHit[]>) => cached("websearch", fn, (q: string) => q.trim().toLowerCase(), (hits) => (hits.length ? 7 * DAY : 0), stats);
+  const search = (fn: (q: string) => Promise<SearchHit[]>) => cached("websearch", fn, (q: string) => countryKey(q.trim().toLowerCase()), (hits) => (hits.length ? 7 * DAY : 0), stats);
   if (mode === "search") return { search, audit: undefined, discover: undefined };
   const leadKey = (l: Lead, area?: string) => [simplifyName(l.name), l.phone ?? "", l.city ?? "", area ?? "", l.address ?? ""].join("|").toLowerCase();
   return {
-    audit: cached("audit", auditWebsite, (w?: string) => (w ?? "").trim().toLowerCase(), (a: WebsiteAudit) => (a.status === "ok" || a.status === "social_only" ? 7 * DAY : a.status === "down" ? DAY : 0), stats),
+    audit: cached("audit", auditWebsite, (w?: string) => countryKey((w ?? "").trim().toLowerCase()), (a: WebsiteAudit) => (a.status === "ok" || a.status === "social_only" ? 7 * DAY : a.status === "down" ? DAY : 0), stats),
     // discovery depends on whether web search was allowed, so that's part of the key
     discover: ((l, area, d) =>
-      cached("discover", (_l: Lead) => discoverWebsite(l, area, d), () => `${leadKey(l, area)}|${d?.search ? "search" : "guess"}${d?.numberSearch ? "+phone" : ""}`, (r) => (r.website ? 7 * DAY : r.tried.some((t) => /failed|captcha|No web search/i.test(t)) ? 0 : 3 * DAY), stats)(l)) as typeof discoverWebsite,
+      cached("discover", (_l: Lead) => discoverWebsite(l, area, d), () => countryKey(`${leadKey(l, area)}|${d?.search ? "search" : "guess"}${d?.numberSearch ? "+phone" : ""}`), (r) => (r.website ? 7 * DAY : r.tried.some((t) => /failed|captcha|No web search/i.test(t)) ? 0 : 3 * DAY), stats)(l)) as typeof discoverWebsite,
     search,
   };
 }

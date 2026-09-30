@@ -164,6 +164,8 @@ export interface Sender {
   company?: string;
   usp?: string;
   priceLine?: string;
+  /** Your business postal address: US and Canadian law require it in every marketing email. */
+  address?: string;
 }
 
 /** Your details, with a client's Business Brain on top when the search is for one. */

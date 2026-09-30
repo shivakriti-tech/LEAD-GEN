@@ -1,3 +1,4 @@
+import { currentMarket } from "../marketContext";
 import * as cheerio from "cheerio";
 import { lookup } from "node:dns/promises";
 import type { Lead } from "../types";
@@ -230,7 +231,7 @@ export function candidateDomains(name: string, city?: string, category?: string)
   );
   // DNS is checked before any page loads, so a few more guesses cost almost nothing
   const out: string[] = [];
-  for (const s of stems) for (const tld of ["com", "in", "co.in"]) out.push(`${s}.${tld}`);
+  for (const s of stems) for (const tld of currentMarket().tlds.slice(0, 3)) out.push(`${s}.${tld}`);
   return [...new Set(out)].slice(0, 27);
 }
 
@@ -271,7 +272,7 @@ export async function duckDuckGoSearch(query: string): Promise<SearchHit[]> {
 
 /** Brave Search API (optional key; about 1,000 free queries a month). */
 export async function braveSearch(query: string, apiKey: string): Promise<SearchHit[]> {
-  const r = await fetchWithTimeout(`https://api.search.brave.com/res/v1/web/search?${new URLSearchParams({ q: query, country: "in", count: "10" })}`, {
+  const r = await fetchWithTimeout(`https://api.search.brave.com/res/v1/web/search?${new URLSearchParams({ q: query, country: currentMarket().cc, count: "10" })}`, {
     headers: { Accept: "application/json", "X-Subscription-Token": apiKey },
   }, 12_000);
   if (!r.ok) throw new Error(`Brave Search ${r.status}`);

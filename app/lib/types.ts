@@ -140,6 +140,8 @@ export interface Signal {
 export type Tier = "hot" | "warm" | "cold";
 
 export interface Lead {
+  /** Country the lead is in (ISO code); older leads: India. */
+  country?: string;
   id: string;
   name: string;
   category: string;
@@ -208,6 +210,8 @@ export interface SearchParams {
   client?: { name?: string; services: LogisticsService[] };
   /** The client (Business Brain) the search is for; its name is in client.name. */
   clientId?: string;
+  /** Country to search in (ISO code, default IN). */
+  country?: import("./markets").CountryCode;
   categories: string[]; // preset keys
   city: string;
   area?: string;

@@ -1,3 +1,4 @@
+import { currentMarket } from "../marketContext";
 import type { SearchHit } from "./discover";
 import { braveSearch, duckDuckGoSearch } from "./discover";
 import { fetchWithTimeout } from "../util";
@@ -38,7 +39,7 @@ const DEFAULT_ORDER: ProviderId[] = ["google_cse", "serper", "searxng", "tavily"
 export async function serperSearch(query: string, apiKey: string): Promise<SearchHit[]> {
   const res = await fetchWithTimeout(
     "https://google.serper.dev/search",
-    { method: "POST", headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" }, body: JSON.stringify({ q: query, gl: "in", hl: "en", num: 10 }) },
+    { method: "POST", headers: { "X-API-KEY": apiKey, "Content-Type": "application/json" }, body: JSON.stringify({ q: query, gl: currentMarket().cc, hl: "en", num: 10 }) },
     15_000,
   );
   if (!res.ok) {
@@ -50,7 +51,7 @@ export async function serperSearch(query: string, apiKey: string): Promise<Searc
 }
 
 export async function googleCseSearch(query: string, key: string, cx: string): Promise<SearchHit[]> {
-  const res = await fetchWithTimeout(`https://www.googleapis.com/customsearch/v1?${new URLSearchParams({ key, cx, q: query, gl: "in", num: "10" })}`, { headers: { Accept: "application/json" } }, 15_000);
+  const res = await fetchWithTimeout(`https://www.googleapis.com/customsearch/v1?${new URLSearchParams({ key, cx, q: query, gl: currentMarket().cc, num: "10" })}`, { headers: { Accept: "application/json" } }, 15_000);
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
     const m = j.error?.message ?? `HTTP ${res.status}`;

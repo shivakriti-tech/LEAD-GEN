@@ -1,3 +1,4 @@
+import { isCountry, type CountryCode } from "@/lib/markets";
 import { defaultDeps, runSearch } from "@/lib/pipeline";
 import { getStore } from "@/lib/store";
 import type { LogisticsService, ProgressEvent, SearchParams } from "@/lib/types";
@@ -28,6 +29,7 @@ export async function POST(req: Request) {
       : clientId && body.client?.name ? { name: String(body.client.name).trim().slice(0, 80), services: [] }
       : undefined,
     clientId,
+    country: isCountry(body.country) ? (String(body.country).toUpperCase() as CountryCode) : "IN",
     categories: (Array.isArray(body.categories) ? body.categories : []).filter((c) => valid.has(c)).slice(0, 8),
     city: String(body.city ?? "").trim().slice(0, 80),
     area: body.area ? String(body.area).trim().slice(0, 80) : undefined,

@@ -824,3 +824,4 @@ label.check input { width: auto; }
 .wa-box { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 12px; border-radius: 14px; background: var(--ground); }
 .wa-box .btn { align-self: flex-start; }
 .wa-box p { margin: 0; }
+.you-grid .wide { grid-column: 1 / -1; }

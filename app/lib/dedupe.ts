@@ -1,3 +1,4 @@
+import { currentCountry } from "./marketContext";
 import type { Lead, RawPlace } from "./types";
 import { facebookPage, instagramHandle, socialKey } from "./sources/social";
 import { domainOf, isSocialHost, metres, normalizePhone, simplifyName, uid } from "./util";
@@ -14,7 +15,7 @@ export function mergePlaces(raw: RawPlace[]): Lead[] {
   const bySocial = new Map<string, Lead>();
 
   for (const r of raw) {
-    const phone = normalizePhone(r.phone);
+    const phone = normalizePhone(r.phone, currentCountry());
     const dom = domainOf(r.website);
     const domKey = dom && !isSocialHost(dom) ? dom : undefined;
     const simple = simplifyName(r.name);

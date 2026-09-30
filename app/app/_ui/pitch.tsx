@@ -51,6 +51,10 @@ export function YourDetails({ compact, plain }: { compact?: boolean; plain?: boo
         <span className="lbl">Link to your work <span className="opt">optional</span></span>
         <input type="text" value={me.link ?? ""} onChange={(e) => set("link", e.target.value)} placeholder="yoursite.com or an Instagram page" inputMode="url" />
       </label>
+      <label className="field wide">
+        <span className="lbl">Business postal address <span className="opt">needed in emails to the US and Canada (their law)</span></span>
+        <input type="text" value={me.address ?? ""} onChange={(e) => set("address", e.target.value)} placeholder="e.g. 4th floor, Alkapuri Arcade, Vadodara 390007, India" autoComplete="street-address" />
+      </label>
     </div>
   );
   if (plain) return fields;

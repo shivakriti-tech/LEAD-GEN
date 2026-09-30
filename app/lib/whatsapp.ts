@@ -1,3 +1,4 @@
+import { isMobile } from "./util";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -125,7 +126,7 @@ export const withinWindow = (log: Pick<WaLog, "lastInbound">, phone: string, now
 export function waPlan(l: Pick<Lead, "followUp" | "phone" | "phones" | "audit">, log: Pick<WaLog, "lastInbound">, now = Date.now()): { ok: boolean; why?: string; number?: string; freeText?: boolean } {
   const can = canContact(l, "whatsapp_api");
   if (!can.ok) return { ok: false, why: can.why };
-  const number = l.audit?.whatsapp ?? [l.phone, ...(l.phones ?? [])].find((p) => p && /^\+91[6-9]\d{9}$/.test(p));
+  const number = l.audit?.whatsapp ?? [l.phone, ...(l.phones ?? [])].find((p) => isMobile(p));
   if (!number) return { ok: false, why: "No mobile number" };
   return { ok: true, number, freeText: withinWindow(log, number, now) };
 }

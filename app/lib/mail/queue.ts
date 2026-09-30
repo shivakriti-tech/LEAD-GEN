@@ -3,8 +3,9 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Lead } from "../types";
 import type { FollowUpPatch } from "../followups";
-import { canContact, followUpAfter, MAX_STEPS, messageForStep, nextStep, statusOf, type Lang, type Sender, type Tone } from "../outreach";
+import { CADENCE, canContact, followUpAfter, MAX_STEPS, messageForStep, nextStep, statusOf, type Lang, type Sender, type Tone } from "../outreach";
 import { dailyCap, inSendWindow, istParts, type Mailbox } from "./mailboxes";
+import { inOfficeHours } from "../markets";
 
 /**
  * The email send queue. Emails wait here and go out one at a time: in Indian business hours, from a
@@ -27,6 +28,9 @@ export interface EmailItem {
   /** Who it's from (your details with the client's Business Brain), as it was when queued. */
   sender: Sender;
   clientId?: string;
+  /** Where the lead is: emails go in their office hours (their time zone, their working week). */
+  country?: string;
+  lng?: number;
   /** Your own text for this email; otherwise it's written when it's sent. */
   subject?: string;
   body?: string;
@@ -112,8 +116,11 @@ export function subjectFor(l: Pick<Lead, "name" | "pitchFor">): string {
 /** The line under every email: who it's from and how to stop them. */
 export function footer(sender: Sender, mailbox: Pick<Mailbox, "email">): string {
   const who = [sender.name, sender.company].filter(Boolean).join(", ");
-  return `\n\n--\n${who ? `${who}\n` : ""}${mailbox.email}\nIf you'd rather not get these emails, just reply and say so, and we won't email again.`;
+  return `\n\n--\n${who ? `${who}\n` : ""}${sender.address ? `${sender.address}\n` : ""}${mailbox.email}\nIf you'd rather not get these emails, just reply and say so, and we won't email again.`;
 }
+
+/** US (CAN-SPAM) and Canadian (CASL) law: marketing email must carry the sender's postal address. */
+export const NEEDS_ADDRESS = new Set(["US", "CA"]);
 
 /** Access to leads (in saved searches) for the queue: read one, and record what happened. */
 export interface LeadAccess {
@@ -151,6 +158,10 @@ export function enqueue(d: QueueData, r: EnqueueRequest, now = new Date()): Enqu
       skip(can.why!);
       continue;
     }
+    if (NEEDS_ADDRESS.has(l.country ?? "IN") && !r.sender.address?.trim()) {
+      skip("Emails to the US and Canada must include your postal address: add it under Your details");
+      continue;
+    }
     if (d.items.some((i) => i.searchId === r.searchId && i.leadId === l.id && i.status === "queued")) {
       skip("Already in the queue");
       continue;
@@ -174,6 +185,8 @@ export function enqueue(d: QueueData, r: EnqueueRequest, now = new Date()): Enqu
       tone: r.tone,
       sender: r.sender,
       clientId: r.clientId,
+      country: l.country ?? "IN",
+      lng: l.lng,
       body: step === 0 ? r.texts?.[l.id]?.slice(0, 5000) : undefined,
       followUps: r.followUps,
       mailbox: prev?.mailbox,
@@ -210,12 +223,15 @@ export async function tick(deps: SendDeps): Promise<{ did: "sent" | "skipped" | 
   const now = deps.now?.() ?? new Date();
   const rand = deps.rand ?? Math.random;
   if (!deps.mailboxes.length) return { did: "idle", detail: "No mailboxes set up" };
-  if (!inSendWindow(now)) return { did: "idle", detail: "Outside sending hours (Mon–Sat, 10:00–18:30 IST)" };
   const today = istParts(now).date;
 
   const d = await deps.store.read();
   for (const m of deps.mailboxes) d.mailboxes[m.email] ??= { startedOn: m.start ?? today, sent: {} };
-  const due = d.items.filter((i) => i.status === "queued" && Date.parse(i.notBefore) <= now.getTime()).sort((a, b) => a.notBefore.localeCompare(b.notBefore));
+  // due now, and within office hours where the lead is (India: Mon–Sat 10:00–18:30 as before)
+  const officeHours = (i: EmailItem) => (!i.country || i.country === "IN" ? inSendWindow(now) : inOfficeHours(now, i.country, i.lng));
+  const queuedDue = d.items.filter((i) => i.status === "queued" && Date.parse(i.notBefore) <= now.getTime()).sort((a, b) => a.notBefore.localeCompare(b.notBefore));
+  const due = queuedDue.filter(officeHours);
+  if (queuedDue.length && !due.length) return { did: "idle", detail: "Waiting for office hours where the leads are" };
   const room = (m: Mailbox) => {
     const st = d.mailboxes[m.email];
     return !st.error && (st.sent[today] ?? 0) < dailyCap(m, m.start ?? st.startedOn, today) && (!st.nextAt || Date.parse(st.nextAt) <= now.getTime());
@@ -276,7 +292,9 @@ export async function tick(deps: SendDeps): Promise<{ did: "sent" | "skipped" | 
       const when = followUpAfter(item.step, now);
       if (it.followUps && when && item.step + 1 < MAX_STEPS) {
         const minutes = 15 + Math.floor(rand() * 150);
-        x.items.push({ ...it, id: randomUUID(), createdAt: sentAt, step: item.step + 1, subject: undefined, body: undefined, inReplyTo: messageId, references: [...(item.references ?? []), messageId], notBefore: new Date(Date.parse(`${when}T10:00:00+05:30`) + minutes * 60_000).toISOString(), status: "queued", reason: undefined, sentAt: undefined, messageId: undefined, sentSubject: undefined });
+        // India: from 10:00 IST on that day; elsewhere: the same number of days later (office hours are checked when it's due)
+        const notBefore = !item.country || item.country === "IN" ? Date.parse(`${when}T10:00:00+05:30`) + minutes * 60_000 : now.getTime() + CADENCE[item.step] * 86_400_000 + minutes * 60_000;
+        x.items.push({ ...it, id: randomUUID(), createdAt: sentAt, step: item.step + 1, subject: undefined, body: undefined, inReplyTo: messageId, references: [...(item.references ?? []), messageId], notBefore: new Date(notBefore).toISOString(), status: "queued", reason: undefined, sentAt: undefined, messageId: undefined, sentSubject: undefined });
       }
     });
     await deps.leads.patch(item.searchId, item.leadId, { touch: { channel: "email", messageId, subject, to: item.to }, followUpOn: followUpAfter(item.step, now) });

@@ -1,3 +1,5 @@
+import { findPhoneNumbersInText, parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js/min";
+import { mobileIn } from "./markets";
 /** A real contact email from .env.local, or undefined if it's missing or still the placeholder. */
 export function crawlerContact(): string | undefined {
   const c = (process.env.CRAWLER_CONTACT || "").trim();
@@ -35,15 +37,24 @@ export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, i:
 }
 
 /**
- * Normalise Indian phone numbers to +91XXXXXXXXXX (mobile, 10 digits after +91)
- * or +91XXXXXXXXXXX (landline with STD code, 10–11 digits after +91).
+ * Normalise a phone number to +<country code><number>. Indian numbers follow India's rules
+ * (mobile 10 digits, landline with STD code, 1800 toll-free); other countries' through
+ * libphonenumber, read as a number of `country` when it has no +code.
  * Returns undefined if it doesn't look valid.
  */
-export function normalizePhone(input?: string): string | undefined {
+export function normalizePhone(input?: string, country = "IN"): string | undefined {
   if (!input) return undefined;
+  const cc = country.toUpperCase();
   let d = input.replace(/[^\d+]/g, "");
+  if (cc !== "IN" && !d.startsWith("+91") && !d.startsWith("0091")) {
+    const p = parsePhoneNumberFromString(input, cc as CountryCode);
+    return p?.isValid() ? p.number : undefined;
+  }
   if (d.startsWith("+")) {
-    if (!d.startsWith("+91")) return d.length >= 9 ? d : undefined; // keep foreign numbers as-is
+    if (!d.startsWith("+91")) {
+      const p = parsePhoneNumberFromString(d);
+      return p?.isValid() ? p.number : undefined;
+    }
     d = d.slice(3);
   } else if (d.startsWith("0091")) d = d.slice(4);
   else if (d.startsWith("91") && d.length === 12) d = d.slice(2);
@@ -59,25 +70,30 @@ export function normalizePhone(input?: string): string | undefined {
   return undefined;
 }
 
-/** True if the number is an Indian mobile (reachable on WhatsApp). */
-export const isMobile = (p?: string) => !!p && /^\+91[6-9]\d{9}$/.test(p);
+/** Phone numbers written in a page's text, for a country (other countries' numbers need their +code). */
+export function phonesInText(text: string, country = "IN"): string[] {
+  return [...new Set(findPhoneNumbersInText(text.slice(0, 200_000), country.toUpperCase() as CountryCode).map((x) => x.number.number as string))];
+}
+
+/** True if the number is a mobile (reachable on WhatsApp): India, the Gulf, Australia, NZ. */
+export const isMobile = (p?: string) => !!p && (/^\+91[6-9]\d{9}$/.test(p) || mobileIn(p));
 
 /** True if the number is an Indian landline (STD code + local number). */
 export const isLandline = (p?: string) => !!p && /^\+91[2-8]\d{9,10}$/.test(p) && !isMobile(p);
 
 /** Toll-free (1800) or shared-cost (1860) number: usually a call centre, not the owner. */
-export const isTollFree = (p?: string) => !!p && /^\+911(800|860)\d{6,7}$/.test(p);
+export const isTollFree = (p?: string) => !!p && (/^\+911(800|860)\d{6,7}$/.test(p) || /^\+1(800|833|844|855|866|877|888)\d{7}$/.test(p) || /^\+611[38]00\d{6}$/.test(p) || /^\+971800\d{3,7}$/.test(p));
 
-export type PhoneKind = "mobile" | "landline" | "tollfree" | "foreign";
-/** What kind of number this is: a mobile (WhatsApp, reaches a person), an office landline, toll-free, or foreign. */
+export type PhoneKind = "mobile" | "landline" | "tollfree" | "phone";
+/** What kind of number this is: a mobile (WhatsApp, reaches a person), an office landline, toll-free, or just a phone (US/Canada numbers don't say). */
 export function phoneKind(p?: string): PhoneKind | undefined {
   if (!p) return undefined;
   if (isMobile(p)) return "mobile";
   if (isTollFree(p)) return "tollfree";
   if (isLandline(p)) return "landline";
-  return p.startsWith("+") && !p.startsWith("+91") ? "foreign" : undefined;
+  return p.startsWith("+") ? "phone" : undefined;
 }
-export const PHONE_KIND_LABEL: Record<PhoneKind, string> = { mobile: "Mobile", landline: "Landline", tollfree: "Toll-free", foreign: "Foreign" };
+export const PHONE_KIND_LABEL: Record<PhoneKind, string> = { mobile: "Mobile", landline: "Landline", tollfree: "Toll-free", phone: "Phone" };
 
 export function domainOf(url?: string): string | undefined {
   if (!url) return undefined;

@@ -117,4 +117,19 @@ describe("the email queue", () => {
     expect(store.data.mailboxes["divy@getshree.in"].error).toMatch(/Sign-in failed/);
     expect(store.data.items.filter((i) => i.status === "queued")).toHaveLength(2); // still waiting, not lost
   });
+
+  it("emails a US lead only with your postal address, in their office hours, with the address in the footer", async () => {
+    const l = lead("tx", { country: "US", lng: -95.37 });
+    const { access } = world([l]);
+    const store = memoryQueueStore();
+    expect(enqueue(store.data, { searchId: "s", leads: [l], lang: "en", tone: "friendly", sender: { name: "Divy" }, followUps: false }).skipped[0].why).toMatch(/postal address/);
+    enqueue(store.data, { searchId: "s", leads: [l], lang: "en", tone: "friendly", sender: { name: "Divy", company: "Shivakriti", address: "4th floor, Alkapuri Arcade, Vadodara 390007, India" }, followUps: false }, new Date("2026-10-05T00:00:00Z"));
+    const sent: string[] = [];
+    const deps: SendDeps = { store, leads: access, mailboxes: [MB], send: async (_m, mail) => (sent.push(mail.text), { messageId: "<u1@x>" }), rand: () => 0 };
+    // Monday 11:00 in India is 00:30 in Houston: waits
+    expect(await tick({ ...deps, now: () => ist("2026-10-05T11:00:00") })).toMatchObject({ did: "idle", detail: "Waiting for office hours where the leads are" });
+    // Monday 10:00 in Houston (20:30 in India): goes
+    expect((await tick({ ...deps, now: () => new Date("2026-10-05T15:00:00Z") })).did).toBe("sent");
+    expect(sent[0]).toMatch(/Divy, Shivakriti\n4th floor, Alkapuri Arcade, Vadodara 390007, India\ndivy@getshree.in/);
+  });
 });

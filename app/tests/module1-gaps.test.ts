@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { linkedinOf } from "@/lib/outreach";
-import { normalizePhone, phoneKind } from "@/lib/util";
+import { normalizePhone, phoneKind, phonesInText } from "@/lib/util";
 import { isDisposable, looksLikeEmail } from "@/lib/enrich/email";
 import { cappedVerifier, verifierFromEnv, type EmailVerifier, type VerifyStats } from "@/lib/enrich/verifyEmail";
 import { checkEmails } from "@/lib/pipeline";
@@ -23,7 +23,22 @@ describe("phone types", () => {
     expect(phoneKind(normalizePhone("98250 12345"))).toBe("mobile");
     expect(phoneKind(normalizePhone("0265-2345678"))).toBe("landline");
     expect(phoneKind(normalizePhone("1800 123 4567"))).toBe("tollfree");
-    expect(phoneKind("+97150123456")).toBe("foreign");
+    expect(phoneKind("+15125550147")).toBe("phone"); // US numbers don't say if they're mobiles
+  });
+
+  it("reads numbers the way each country writes them", () => {
+    expect(normalizePhone("(512) 555-0147", "US")).toBe("+15125550147");
+    expect(normalizePhone("050 123 4567", "AE")).toBe("+971501234567");
+    expect(phoneKind("+971501234567")).toBe("mobile");
+    expect(normalizePhone("04 123 4567", "AE")).toBe("+97141234567");
+    expect(phoneKind("+97141234567")).toBe("phone");
+    expect(normalizePhone("0412 345 678", "AU")).toBe("+61412345678");
+    expect(phoneKind("+61412345678")).toBe("mobile");
+    expect(normalizePhone("1-800-555-0199", "US")).toBe("+18005550199");
+    expect(phoneKind("+18005550199")).toBe("tollfree");
+    expect(normalizePhone("98250 11111", "US")).toBeUndefined();
+    expect(normalizePhone("+91 98250 11111", "US")).toBe("+919825011111"); // an Indian number on a US site
+    expect(phonesInText("Call us: +1 (713) 555-0100 or 713.555.0199", "US")).toEqual(["+17135550100", "+17135550199"]);
   });
 });
 

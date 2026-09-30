@@ -17,6 +17,7 @@
     "@supabase/supabase-js": "^2.116.0",
     "cheerio": "^1.2.0",
     "imapflow": "^2.1.2",
+    "libphonenumber-js": "^1.13.14",
     "next": "^16.3.5",
     "nodemailer": "^10.0.13",
     "playwright-core": "^1.63.0",
