@@ -1,4 +1,4 @@
-import type { FollowUp, Lead } from "./types";
+import type { FollowUp, Lead, TouchChannel } from "./types";
 import type { Store } from "./store";
 import { FOLLOW_UP, isOpen, localDate, normalizeStatus, statusOf } from "./outreach";
 
@@ -9,6 +9,14 @@ export interface FollowUpPatch {
   followUpOn?: string | null;
   /** Deal value in rupees; null clears it. */
   value?: number | null;
+  /** A message you just sent them: logged as the next step, and a New lead becomes Contacted. */
+  touch?: { channel: TouchChannel; messageId?: string; subject?: string; to?: string };
+  /** A reply was found in your inbox (sets Replied unless the lead is already further along). */
+  replied?: boolean;
+  /** They agreed to WhatsApp messages (true, with where), or that's withdrawn (false). */
+  optIn?: { via: string } | false;
+  /** They asked not to be contacted: all outreach to them stops. false undoes a mistaken opt-out. */
+  optOut?: { via: string } | false;
 }
 
 /** A lead's status changes. Older saves have no history: rebuild what we can from its dates. */
@@ -24,12 +32,26 @@ export function historyOf(fu?: FollowUp): NonNullable<FollowUp["history"]> {
 
 /** Apply a change, keeping the first-contacted time so "contacted this week" can be counted. */
 export function mergeFollowUp(prev: FollowUp | undefined, patch: FollowUpPatch, now = new Date()): FollowUp {
-  const status = patch.status !== undefined ? normalizeStatus(patch.status) : normalizeStatus(prev?.status);
+  const was = normalizeStatus(prev?.status);
+  const status =
+    patch.status !== undefined ? normalizeStatus(patch.status)
+    : patch.replied && ["new", "contacted"].includes(was) ? "replied"
+    : patch.touch && was === "new" ? "contacted"
+    : was;
   const next: FollowUp = { ...prev, status, updatedAt: now.toISOString() };
-  if (patch.status !== undefined && status !== normalizeStatus(prev?.status)) next.history = [...historyOf(prev), { status, at: now.toISOString() }].slice(-30);
+  if (patch.replied && !prev?.repliedAt) next.repliedAt = now.toISOString();
+  if (status !== was) next.history = [...historyOf(prev), { status, at: now.toISOString() }].slice(-30);
   if (patch.value !== undefined) next.value = patch.value != null && patch.value > 0 ? Math.round(patch.value) : undefined;
   if (patch.note !== undefined) next.note = patch.note.slice(0, 2000) || undefined;
-  if (patch.followUpOn !== undefined) next.followUpOn = patch.followUpOn && /^\d{4}-\d{2}-\d{2}$/.test(patch.followUpOn) ? patch.followUpOn : undefined;
+  if (patch.touch) {
+    const touches = prev?.touches ?? [];
+    next.touches = [...touches, { ...patch.touch, step: touches.length, at: now.toISOString() }].slice(-20);
+  }
+  if (patch.optIn !== undefined) next.optedIn = patch.optIn ? prev?.optedIn ?? { at: now.toISOString(), via: patch.optIn.via.slice(0, 60) } : undefined;
+  if (patch.optOut !== undefined) next.optedOut = patch.optOut ? prev?.optedOut ?? { at: now.toISOString(), via: patch.optOut.via.slice(0, 60) } : undefined;
+  // someone who asked not to be contacted gets no more reminders
+  if (next.optedOut) delete next.followUpOn;
+  if (patch.followUpOn !== undefined && !next.optedOut) next.followUpOn = patch.followUpOn && /^\d{4}-\d{2}-\d{2}$/.test(patch.followUpOn) ? patch.followUpOn : undefined;
   if (status !== "new" && !prev?.contactedAt) next.contactedAt = now.toISOString();
   if (status === "new") delete next.contactedAt;
   // closed leads need no reminder
@@ -45,6 +67,17 @@ export const validPatch = (b: unknown): FollowUpPatch | null => {
   if (typeof x.note === "string") out.note = x.note;
   if (x.followUpOn === null || typeof x.followUpOn === "string") out.followUpOn = x.followUpOn as string | null;
   if (x.value === null || (typeof x.value === "number" && Number.isFinite(x.value) && x.value >= 0 && x.value < 1e10)) out.value = x.value as number | null;
+  const t = x.touch as Record<string, unknown> | undefined;
+  if (t && typeof t === "object" && ["whatsapp", "email", "call", "linkedin"].includes(t.channel as string)) {
+    const str = (v: unknown, n: number) => (typeof v === "string" && v ? v.slice(0, n) : undefined);
+    out.touch = { channel: t.channel as TouchChannel, messageId: str(t.messageId, 300), subject: str(t.subject, 300), to: str(t.to, 200) };
+  }
+  if (x.replied === true) out.replied = true;
+  const via = (v: unknown) => (v && typeof v === "object" && typeof (v as { via?: unknown }).via === "string" ? { via: (v as { via: string }).via } : undefined);
+  if (x.optIn === false) out.optIn = false;
+  else if (via(x.optIn)) out.optIn = via(x.optIn);
+  if (x.optOut === false) out.optOut = false;
+  else if (via(x.optOut)) out.optOut = via(x.optOut);
   return out;
 };
 

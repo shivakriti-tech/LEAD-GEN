@@ -16,6 +16,25 @@ export interface FollowUp {
   history?: Array<{ status: FollowUpStatus; at: string }>;
   /** Deal value in rupees, when you win it. */
   value?: number;
+  /** Every message you sent them, oldest first: step 0 is the first message, 1 and 2 the follow-ups. */
+  touches?: Touch[];
+  /** When a reply was noticed in your inbox (email replies are found automatically). */
+  repliedAt?: string;
+  /** They agreed to WhatsApp messages from the client (replied on WhatsApp, or said yes): the WhatsApp API may message them. */
+  optedIn?: { at: string; via: string };
+  /** They asked not to be contacted (STOP, unsubscribe, "not interested, don't message"): every channel stops. */
+  optedOut?: { at: string; via: string };
+}
+
+export type TouchChannel = "whatsapp" | "email" | "call" | "linkedin";
+export interface Touch {
+  channel: TouchChannel;
+  step: number;
+  at: string;
+  /** Email only: its Message-ID (follow-ups reply in the same thread) and subject. */
+  messageId?: string;
+  subject?: string;
+  to?: string;
 }
 
 /** One business as a source returns it, before merging. */

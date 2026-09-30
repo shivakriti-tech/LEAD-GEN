@@ -367,6 +367,51 @@ export function followUpMessage(l: Lead, lang: Lang, sender?: string | Sender): 
     : `Hi ${greetName(l, "en")}, just following up on my message about a website for ${l.name}. Happy to send 2–3 sample designs if you'd like to see them. – ${from}`;
 }
 
+/* ---------- the follow-up schedule ---------- */
+
+/** Days to wait after each message: first message → 3 days → follow-up 1 → 4 days → last follow-up → stop. */
+export const CADENCE = [3, 4];
+/** A first message and two follow-ups, then no more. */
+export const MAX_STEPS = CADENCE.length + 1;
+/** Which message is next for this lead: 0 first, 1 follow-up, 2 last follow-up, 3+ done. */
+export const nextStep = (l: Pick<Lead, "followUp">) => l.followUp?.touches?.length ?? 0;
+export const STEP_LABEL = ["First message", "Follow-up", "Last follow-up"];
+/** When to remind you after sending step `step` (YYYY-MM-DD), or null after the last one. */
+export function followUpAfter(step: number, from = new Date()): string | null {
+  return step < CADENCE.length ? addDays(CADENCE[step], from) : null;
+}
+
+/**
+ * May we contact this lead on this channel? Nobody who asked not to be contacted; nobody who's
+ * already a customer or said no. The WhatsApp API (not your own phone) only for people who opted in
+ * or replied: WhatsApp's rules, and the way to keep the number from being banned.
+ */
+export function canContact(l: Pick<Lead, "followUp">, channel: "email" | "whatsapp_api" | "whatsapp_phone" | "linkedin" | "call"): { ok: boolean; why?: string } {
+  const fu = l.followUp;
+  if (fu?.optedOut) return { ok: false, why: `Asked not to be contacted (${fu.optedOut.via})` };
+  const st = statusOf(l);
+  if (st === "won" || st === "lost") return { ok: false, why: st === "won" ? "Already a customer" : "Marked as lost" };
+  if (channel === "whatsapp_api" && !fu?.optedIn && !["replied", "meeting", "interested"].includes(st)) return { ok: false, why: "WhatsApp API messages need them to reply or opt in first" };
+  return { ok: true };
+}
+
+/** The message for a lead's next step: a first message, a follow-up, or a short last one. */
+export function messageForStep(l: Lead, lang: Lang, sender: string | Sender | undefined, tone: Exclude<Tone, "follow"> = "friendly", step = nextStep(l)): string {
+  if (step <= 0) return firstMessage(l, lang, sender, tone);
+  if (step === 1) return followUpMessage(l, lang, sender);
+  return lastFollowUp(l, lang, sender);
+}
+
+/** The last note: no pressure, easy to answer, and we stop after it. */
+export function lastFollowUp(l: Lead, lang: Lang, sender?: string | Sender): string {
+  const me = asSender(sender);
+  const from = [me.name?.trim() || (lang === "hi" ? "[aapka naam]" : "[your name]"), me.company?.trim()].filter(Boolean).join(", ");
+  const topic = l.pitchFor?.kind === "logistics" ? (lang === "hi" ? "shipping" : "shipping") : lang === "hi" ? "website" : "a website";
+  return lang === "hi"
+    ? `Namaste ${greetName(l, "hi")}, ${l.name} ke ${topic} ke baare mein ye humara aakhri message hai. Abhi zarurat na ho toh koi baat nahi. Kabhi zarurat ho toh bas yahin reply kar dijiye. – ${from}`
+    : `Hi ${greetName(l, "en")}, one last note about ${topic} for ${l.name}: if now isn't the right time, no problem at all. If it's useful later, just reply here. – ${from}`;
+}
+
 /* ---------- logistics leads (for a logistics client) ---------- */
 
 const NEED_EN: Record<LogisticsService, string> = { customs: "customs clearance", documentation: "export-import documentation", dgft: "DGFT work", icegate: "ICEGATE filing", sea: "sea freight", freight: "road transport", imports: "import handling", forwarding: "export handling", courier: "courier and parcels", warehousing: "warehousing" };
