@@ -77,7 +77,17 @@ export interface WebsiteAudit {
   designedBy?: string; // agency credit in the footer, e.g. "Designed by XYZ Web"
   /** What the site says about moving goods: exports, imports, selling online, pan-India supply. */
   trade?: TradeHints;
+  /** Growth clues on the site: the words that showed it (e.g. "current openings", "new branch"). */
+  growth?: GrowthHints;
+  /** When the website's domain was registered (from public RDAP records), YYYY-MM-DD. */
+  domainSince?: string;
   ownerName?: string; // schema.org founder/owner on the site
+}
+
+export interface GrowthHints {
+  hiring?: string;
+  opened?: string;
+  expanding?: string;
 }
 
 export interface TradeHints {

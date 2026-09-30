@@ -10,7 +10,11 @@ import { usePitch } from "./pitch";
 import { IconCheck, IconCopy, IconMail, IconMap, IconPhone, IconWhatsApp } from "./icons";
 
 export const TIER_LABEL = { hot: "Hot", warm: "Warm", cold: "Cold" } as const;
-export const fmtPhone = (p?: string) => (p && /^\+91\d{10}$/.test(p) ? `+91 ${p.slice(3, 8)} ${p.slice(8)}` : p ?? "");
+export const fmtPhone = (p?: string) =>
+  !p ? ""
+  : /^\+911(800|860)\d{6,7}$/.test(p) ? `${p.slice(3, 7)} ${p.slice(7, 10)} ${p.slice(10)}` // toll-free: 1800 123 4567
+  : /^\+91\d{10}$/.test(p) ? `+91 ${p.slice(3, 8)} ${p.slice(8)}`
+  : p;
 
 /** Score + tier. Tap it to see what the score is made of. */
 export function ScoreBadge({ lead, size = "md" }: { lead: Lead; size?: "sm" | "md" }) {

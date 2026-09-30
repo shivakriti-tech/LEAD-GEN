@@ -1,4 +1,5 @@
 import type { Lead, Signal, Tier } from "../types";
+import { growthSentence, growthSignals } from "./growth";
 
 /**
  * Opportunity score for clients who sell website development.
@@ -27,6 +28,7 @@ export function scoreWebsiteDev(lead: Lead, now = new Date()): { signals: Signal
   }
   const since = a?.foundedYear;
   if (since && now.getFullYear() - since >= 5) add("established", `Running since ${since}`, 5);
+  if (!lead.chain) s.push(...growthSignals(lead, "website", now));
 
   const ig = lead.social?.instagram;
   const noWorkingSite = !a || a.status !== "ok";
@@ -47,7 +49,9 @@ export function scoreWebsiteDev(lead: Lead, now = new Date()): { signals: Signal
 
   const score = Math.max(0, Math.min(100, s.reduce((t, x) => t + x.points, 0)));
   const tier: Tier = score >= 65 ? "hot" : score >= 40 ? "warm" : "cold";
-  return { signals: s, score, tier, whyNow: whyNow(lead, s) };
+  const growth = lead.chain ? "" : growthSentence(lead, s, "website");
+  const base = whyNow(lead, s);
+  return { signals: s, score, tier, whyNow: growth ? `${base.replace(/ Low priority for a website pitch\.$/, "")} ${growth}` : base };
 }
 
 function socialName(a: NonNullable<Lead["audit"]>): string {

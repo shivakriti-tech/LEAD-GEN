@@ -33,6 +33,7 @@ With no keys at all it already works: leads come from OpenStreetMap (free) and e
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Save searches in a real database instead of the `.data` folder | supabase.com → new project → SQL Editor → run `supabase/schema.sql` → Project Settings → API |
 | `CRAWLER_CONTACT` | Your email in the crawler's User-Agent (OpenStreetMap asks for one) | Any address you check |
 | `PDF_BROWSER` | Only if the *Report* PDF says no Chrome or Edge was found: the full path to Chrome, Edge or Chromium | e.g. `C:\Program Files\Google\Chrome\Application\chrome.exe` |
+| `EMAIL_VERIFY`, `EMAIL_VERIFY_KEY` | Checks the best email on each lead at mailbox level (does it exist, or does the domain accept any address). `zerobounce` (100 free checks a month) or `millionverifier` (cheapest for bulk). Up to 50 checks a search (`EMAIL_VERIFY_MAX` to change), answers remembered 30 days. Without it, every email's domain is still checked for a mail server | https://www.zerobounce.net or https://www.millionverifier.com → API key |
 | `APP_PASSWORD` | Password-protects the whole app (the browser asks; any user name). **Set it before putting the app online**: saved searches hold phone numbers and emails, and every search spends your API quota | Any long password |
 
 Restart `npm run dev` after changing `.env.local`.
@@ -98,8 +99,8 @@ The free map has no Google ratings, so prefilled website leads rarely score as *
 3. Marks chains: the same name at 2+ places in the search, a brand tag on the map, or a website that talks about outlets/franchising. Chains stay in the list but score low.
 4. **Shows businesses as they're found:** while the sources are still searching, the list fills in every few seconds with what's been found so far (step 1 shows "N found so far · 5 of 12 searches"). Then it **shows every business,** marked "checking…", then checks them 8 at a time and updates each one on screen as soon as it's done. The search keeps running and saves as it goes if you close the tab; open it again from *Recent searches* to watch its progress and log. **Stop** ends it early and keeps everything checked so far. Every search, finished or not, can be exported to CSV (unchecked businesses are marked in a "Checked" column). A search cut off by closing the app shows as *stopped*.
 5. **Doesn't trust "no website" from the map.** For every business without a website it tries likely web addresses (teapost.com, teapost.in…), a web search for the name (and its phone number, with `PHONE_SEARCH=on`), and only accepts a page that shows the business name plus its phone number or its area. Each lead shows what was checked.
-6. Opens each website (plus up to 2 contact/about pages): emails, phones, WhatsApp, Instagram/Facebook, owner name, year founded, the agency that built it, HTTPS, mobile-ready, copyright year, site builder, parked/broken pages.
-   Emails are ranked (an owner's own address before info@) and checked for a mail server, so a dead address is never the one shown first.
+6. Opens each website (plus up to 2 contact/about pages): emails, phones, WhatsApp, Instagram/Facebook/LinkedIn, owner name, year founded, the agency that built it, HTTPS, mobile-ready, copyright year, site builder, parked/broken pages, and growth clues (hiring, newly opened, expanding). LinkedIn pages come only from the business's own website or Apollo: LinkedIn itself is never scraped. Phone numbers are marked Mobile · WhatsApp, Landline, Toll-free or Foreign.
+   Emails are ranked (an owner's own address before info@) and checked for a mail server, so a dead address is never the one shown first. Things that only look like emails (logo@2x.png, name@domain.com) are dropped and throwaway inboxes flagged; with `EMAIL_VERIFY_KEY` the best address is also checked at mailbox level, and if that mailbox doesn't exist the next address is checked.
 7. Instagram: with a Meta token, reads each business profile (followers, last post, bio website). A website in the bio is verified like any other; an active account with no website becomes a stronger lead.
 8. Optional: Google PageSpeed mobile score.
 9. Optional: Apollo company data (your key).
@@ -207,8 +208,14 @@ Facebook: Page search through the official API needs Meta's "Page Public Metadat
 | Has phone / has an email that can receive mail | 5 each |
 | Active on Instagram (300+ followers, posted in the last 45 days) with no working website | 10 |
 | Chain or franchise | −45 |
+| **Why now:** new business (website says "newly opened"/"grand opening", founded this year or last, or its domain was registered in the last 12 months) | 15 |
+| **Why now:** expanding (website mentions a new branch, outlet, showroom, plant…) | 10 |
+| **Why now:** hiring (website shows openings, "we're hiring", walk-in interviews; a plain Careers link doesn't count) | 5 |
+| **Why now:** low Google rating (under 3.8★ with 15+ reviews): a pitch angle | 5 |
 
-Hot ≥ 65 · Warm 40–64 · Cold < 40. Tune it in `lib/score/websiteDev.ts`.
+Hot ≥ 65 · Warm 40–64 · Cold < 40. Tune it in `lib/score/websiteDev.ts`; the why-now signals are in `lib/score/growth.ts`.
+
+**Why-now signals** come with their evidence (the words on the website, the year, the domain date), are added to the "why now" line and shown as a tag (Expanding, New business, Hiring, Low rating). For a logistics client they count too: new business +10 (no fixed logistics partner yet), expanding +15 (more freight soon), hiring +5; a low rating doesn't count there. A domain registered this year doesn't count as "new" when the business is years old (founded year or an old © year on its site). Domain dates come from public RDAP records (free, no key; `DOMAIN_AGE=off` to skip).
 
 ## Project layout
 
@@ -248,7 +255,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 213 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 225 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

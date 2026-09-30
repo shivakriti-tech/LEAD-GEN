@@ -1,4 +1,5 @@
 import type { Lead, LogisticsService, Signal, Tier } from "../types";
+import { growthSentence, growthSignals } from "./growth";
 
 /**
  * Score for a logistics client: how likely this business ships goods regularly, and which of the
@@ -108,6 +109,7 @@ export function scoreLogistics(lead: Lead, services: LogisticsService[] = ALL_SE
   }
   const since = lead.audit?.foundedYear ?? lead.company?.foundedYear;
   if (since && now.getFullYear() - since >= 5) add("established", `Running since ${since}`, 5);
+  if (!s.some((x) => x.key === "competitor")) s.push(...growthSignals(lead, "logistics", now));
   if ((lead.reviews ?? 0) >= 20) add("busy", `${lead.reviews} Google reviews`, 5);
   if (lead.company?.employees && lead.company.employees >= 20) add("size", `About ${lead.company.employees} employees`, 10);
   if (lead.chain) add("chain", "Big brand or chain: often has a logistics contract already", -10);
@@ -120,7 +122,8 @@ export function scoreLogistics(lead: Lead, services: LogisticsService[] = ALL_SE
   const score = Math.max(0, Math.min(100, s.reduce((a, x) => a + x.points, 0)));
   const tier: Tier = score >= 60 ? "hot" : score >= 30 ? "warm" : "cold";
   const list = ALL_SERVICES.filter((x) => needs.has(x));
-  return { signals: s, score, tier, whyNow: whyNow(lead, s, list, t.countries), pitchFor: { kind: "logistics", needs: list } };
+  const growth = s.some((x) => x.key === "competitor") ? "" : growthSentence(lead, s, "logistics");
+  return { signals: s, score, tier, whyNow: [whyNow(lead, s, list, t.countries), growth].filter(Boolean).join(" "), pitchFor: { kind: "logistics", needs: list } };
 }
 
 const join = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);

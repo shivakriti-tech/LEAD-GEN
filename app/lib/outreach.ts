@@ -1,4 +1,5 @@
 import type { FollowUpStatus as AnyStatus, Lead, LogisticsService } from "./types";
+import { growthChip } from "./score/growth";
 import { domainOf, isMobile } from "./util";
 
 /**
@@ -121,6 +122,8 @@ export function issueChips(l: Lead): Array<{ label: string; kind: "bad" | "warn"
     else if (s === "social_only") out.push({ label: `Only ${socialName(l)}`, kind: "bad" });
     else if (s === "down") out.push({ label: "Website broken", kind: "bad" });
   }
+  const grow = growthChip(l.signals);
+  if (grow) out.push(grow);
   const keys = new Set(l.signals.map((x) => x.key));
   if (keys.has("not_mobile")) out.push({ label: "Not mobile-friendly", kind: "warn" });
   if (keys.has("very_slow") || keys.has("slow")) out.push({ label: `Slow on mobile${l.audit?.pageSpeed ? ` (${l.audit.pageSpeed.score})` : ""}`, kind: "warn" });
@@ -128,7 +131,7 @@ export function issueChips(l: Lead): Array<{ label: string; kind: "bad" | "warn"
   if (keys.has("stale")) out.push({ label: `Not updated since ${l.audit?.copyrightYear}`, kind: "warn" });
   if (keys.has("free_builder")) out.push({ label: "Free builder site", kind: "warn" });
   if (keys.has("ig_active")) out.push({ label: "Active on Instagram", kind: "good" });
-  if (s === "ok" && out.length === 0 && !l.pending) out.push({ label: "Website looks fine", kind: "good" });
+  if (s === "ok" && out.length === (grow ? 1 : 0) && !l.pending) out.push({ label: "Website looks fine", kind: "good" });
   return out.slice(0, 3);
 }
 
@@ -353,6 +356,8 @@ function fitChips(l: Lead): Array<{ label: string; kind: "bad" | "warn" | "good"
   const k = new Set(l.signals.map((x) => x.key));
   const out: Array<{ label: string; kind: "bad" | "warn" | "good" | "plain" }> = [];
   if (k.has("competitor")) out.push({ label: "Logistics company", kind: "bad" });
+  const grow = growthChip(l.signals);
+  if (grow) out.push(grow);
   if (k.has("exports")) out.push({ label: "Exporter", kind: "good" });
   if (k.has("imports")) out.push({ label: "Importer", kind: "good" });
   if (k.has("pan_india")) out.push({ label: "Pan-India", kind: "good" });

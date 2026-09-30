@@ -17,6 +17,7 @@ import { mergeBySocial, rememberSocial } from "./dedupe";
 import { cached, cacheMode, DAY, type CacheStats } from "./cache";
 import { forDirectory, localDirectory, RECHECK_AFTER, whatChanged, type Directory, type DirectoryEntry } from "./directory";
 import { classifyEmail, isDisposable, looksLikeEmail, rankEmails, usable } from "./enrich/email";
+import { domainRegisteredOn, registrableDomain } from "./enrich/domainAge";
 import { cappedVerifier, verifierFromEnv, type EmailVerifier, type MailboxCheck, type VerifyStats } from "./enrich/verifyEmail";
 import { domainAcceptsMail } from "./enrich/mx";
 import type { WebsiteAudit } from "./types";
@@ -48,6 +49,8 @@ export interface Deps {
   /** Mailbox-level email check through a service (EMAIL_VERIFY_KEY); at most `emailVerifyCap` a search (default 50). */
   emailVerify?: EmailVerifier;
   emailVerifyCap?: number;
+  /** When a website's domain was registered (public RDAP records); a young domain hints at a new business. */
+  domainAge?: (host: string) => Promise<string | null | undefined>;
   cacheStats?: CacheStats;
   /** Saved businesses from earlier searches and the prefill. Leave out to always search live. */
   directory?: Directory;
@@ -499,6 +502,11 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
                   l.website = v.finalUrl ?? link;
                   l.websiteCheck = { ...l.websiteCheck!, via: "instagram_bio", evidence: v.evidence };
                   l.audit = await deps.audit(l.website);
+  const host = domainOf(l.audit.finalUrl ?? l.website);
+  if (deps.domainAge && l.audit.status === "ok" && !l.audit.freeSubdomain && host && !isSocialHost(host)) {
+    const since = await deps.domainAge(host).catch(() => undefined);
+    if (since) l.audit = { ...l.audit, domainSince: since };
+  }
                 }
               } else if (!link && noWorkingSite) l.websiteCheck?.tried.push("Instagram profile has no website link");
             }
@@ -635,7 +643,7 @@ const logTo = (emit: Emit) => (message: string, level: "info" | "warn" | "error"
 export async function qualifyLead(
   l: Lead,
   opts: { area?: string; verify: boolean; search?: (q: string) => Promise<SearchHit[]>; numberSearch?: (q: string) => Promise<SearchHit[]>; state?: { searchBroken: boolean }; verifyEmail?: (email: string) => Promise<MailboxCheck | undefined> },
-  deps: Pick<Deps, "discover" | "audit" | "mx">,
+  deps: Pick<Deps, "discover" | "audit" | "mx" | "domainAge">,
 ): Promise<void> {
   const state = opts.state ?? { searchBroken: false };
   l.websiteCheck ??= { via: l.website && !isSocialHost(domainOf(l.website)) ? "source" : "none_found", tried: [l.sources.map((x) => SOURCE_LABEL[x]).join(" + ")] };
@@ -739,6 +747,13 @@ export async function checkEmails(leads: Lead[], mx?: typeof domainAcceptsMail, 
   }
 }
 
+/** Registration dates don't change: keep them 90 days (a registry that didn't answer, 3 days). */
+function withDomainCache(fn: (host: string) => Promise<string | undefined>): (host: string) => Promise<string | null> {
+  const f = async (host: string) => (await fn(host)) ?? null;
+  if (cacheMode() === "off") return f;
+  return cached("domain-age", f, (h: string) => registrableDomain(h) ?? h, (r) => (r ? 90 : 3) * DAY);
+}
+
 /** Mailbox checks cost credits: remember an answer for 30 days ("couldn't confirm" isn't kept). */
 function withMailboxCache(v?: EmailVerifier): EmailVerifier | undefined {
   if (!v || cacheMode() === "off") return v;
@@ -793,6 +808,8 @@ export function defaultDeps(store: Store): Deps {
     apollo: apolloEnrichDomain,
     mx: domainAcceptsMail,
     emailVerify: withMailboxCache(verifierFromEnv()),
+    // DOMAIN_AGE=off skips the registration-date lookup
+    domainAge: /^(off|0|false|no)$/i.test(process.env.DOMAIN_AGE || "") ? undefined : withDomainCache(domainRegisteredOn),
     emailVerifyCap: Math.max(0, Number(process.env.EMAIL_VERIFY_MAX) || 50),
     cacheStats,
     // LEAD_DIRECTORY=off: every search runs fully live and nothing is saved for later searches

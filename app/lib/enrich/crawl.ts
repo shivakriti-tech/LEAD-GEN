@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import type { TradeHints, WebsiteAudit } from "../types";
+import type { TradeHints, WebsiteAudit, GrowthHints } from "../types";
 import { fetchPublic } from "../safeFetch";
 import { domainOf, isMobile, isSocialHost, normalizePhone } from "../util";
 
@@ -67,6 +67,21 @@ export function tradeHints(text: string, hosts: string[], html = ""): TradeHints
     dealers: /\b(dealer(s|ship)?|distributor(s|ship)?) (network|across|in \d+|enquiry)|become (a|our) (dealer|distributor)/i.test(t),
   };
   return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== false && v !== undefined)) as TradeHints;
+}
+
+/**
+ * Growth clues on a page, with the words that showed them. A plain "Careers" link doesn't count
+ * (almost every company has one); open roles, "we're hiring" or a walk-in interview do.
+ */
+export function growthHints(text: string): GrowthHints {
+  const t = text.slice(0, 400_000);
+  const find = (re: RegExp) => t.match(re)?.[0].replace(/\s+/g, " ").trim();
+  const out: GrowthHints = {
+    hiring: find(/\b(we('re| are) hiring|now hiring|hiring now|current (job )?openings|job openings|open positions|vacanc(y|ies)|walk[- ]in interview|urgent(ly)? (required|hiring)|apply now for)\b/i),
+    opened: find(/\b(newly opened|grand opening|now open(ed)?(?! (in|at) )|just opened|recently opened|opening soon|opened (in|on) (january|february|march|april|may|june|july|august|september|october|november|december) 20\d\d|inaugurat(ed|ion) (of|on))\b/i),
+    expanding: find(/\b(new (branch|outlet|showroom|store|clinic|centre|center|office|facility|plant|unit|warehouse|factory)( (opened|opening|at|in))?|second (branch|outlet|unit|plant|showroom|store|clinic)|now (open|serving) (in|at) [A-Z][a-z]+|expanding (to|into|our)|coming soon (to|in|at) [A-Z][a-z]+|opened (our|a) (new|second|third))\b/i),
+  };
+  return Object.fromEntries(Object.entries(out).filter(([, v]) => v)) as GrowthHints;
 }
 
 /** Pure HTML parser: everything we can learn from one page. Exported for tests. */
@@ -247,8 +262,9 @@ export function parsePage(html: string, pageUrl: string) {
     } catch {}
   });
   const trade = tradeHints(text, [...new Set(hosts)], html.slice(0, 300_000));
+  const growth = growthHints(text);
 
-  return { emails: [...emails], phones: sortedPhones, socials, whatsapp, mobileViewport, copyrightYear, builder, contactLinks: contactLinks.slice(0, 2), foundedYear: extractedFoundingYear, designedBy, ownerName, trade };
+  return { emails: [...emails], phones: sortedPhones, socials, whatsapp, mobileViewport, copyrightYear, builder, contactLinks: contactLinks.slice(0, 2), foundedYear: extractedFoundingYear, designedBy, ownerName, trade, growth };
 }
 
 /** Load a business website and audit it. Never throws. */
@@ -286,6 +302,7 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
   let designedBy = first.designedBy;
   let ownerName = first.ownerName;
   const trade: TradeHints = { ...first.trade };
+  const growth: GrowthHints = { ...first.growth };
 
   // look at up to 2 contact/about pages for more contacts
   for (const link of first.contactLinks) {
@@ -301,6 +318,7 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
       designedBy ??= p.designedBy;
       ownerName ??= p.ownerName;
       mergeTrade(trade, p.trade);
+      for (const [k, v] of Object.entries(p.growth) as Array<[keyof GrowthHints, string]>) growth[k] ??= v;
     } catch {}
   }
 
@@ -341,6 +359,7 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
     designedBy,
     ownerName,
     trade: Object.keys(trade).length ? trade : undefined,
+    growth: Object.keys(growth).length ? growth : undefined,
   };
 }
 
