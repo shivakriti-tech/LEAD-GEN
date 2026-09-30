@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { FollowUp, Lead, SearchRecord } from "./types";
+import type { ClientBrain } from "./brain";
 
 /**
  * Saves searches and leads to Supabase when it's configured,
@@ -18,6 +19,16 @@ export interface Store {
   /** Remove leads from a search. Returns how many were removed. */
   deleteLeads(searchId: string, ids: string[]): Promise<number>;
 }
+
+/** Business Brains: one per client you find leads for. Same place as searches (Supabase or .data). */
+export interface ClientStore {
+  listClients(): Promise<ClientBrain[]>;
+  getClient(id: string): Promise<ClientBrain | null>;
+  saveClient(c: ClientBrain): Promise<void>;
+  deleteClient(id: string): Promise<boolean>;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 let cached: Store | null = null;
 export function getStore(): Store {
@@ -156,4 +167,67 @@ function supabaseStore(db: SupabaseClient): Store {
       return count ?? 0;
     },
   };
+}
+
+function localClients(): ClientStore {
+  const clientDir = path.join(process.cwd(), ".data", "clients");
+  const getClient = async (id: string): Promise<ClientBrain | null> => {
+    if (!UUID.test(id)) return null;
+    try {
+      return JSON.parse(await fs.readFile(path.join(clientDir, `${id}.json`), "utf8")) as ClientBrain;
+    } catch {
+      return null;
+    }
+  };
+  return {
+    getClient,
+    async listClients() {
+      const names = await fs.readdir(clientDir).catch(() => [] as string[]);
+      const all = await Promise.all(names.filter((n) => n.endsWith(".json")).map((n) => getClient(n.slice(0, -5))));
+      return all.filter((c): c is ClientBrain => !!c).sort((a, b) => a.name.localeCompare(b.name));
+    },
+    async saveClient(c) {
+      if (!UUID.test(c.id)) throw new Error("Bad client id");
+      await fs.mkdir(clientDir, { recursive: true });
+      await fs.writeFile(path.join(clientDir, `${c.id}.json`), JSON.stringify(c, null, 1));
+    },
+    async deleteClient(id) {
+      if (!UUID.test(id)) return false;
+      return fs.unlink(path.join(clientDir, `${id}.json`)).then(() => true, () => false);
+    },
+  };
+}
+
+function supabaseClients(db: SupabaseClient): ClientStore {
+  return {
+    async listClients() {
+      const { data, error } = await db.from("clients").select("data").order("name").limit(500);
+      if (error) throw new Error(`Supabase: ${error.message}`);
+      return (data ?? []).map((r: any) => r.data as ClientBrain);
+    },
+    async getClient(id) {
+      if (!UUID.test(id)) return null;
+      const { data, error } = await db.from("clients").select("data").eq("id", id).maybeSingle();
+      if (error) throw new Error(`Supabase: ${error.message}`);
+      return data ? (data as any).data as ClientBrain : null;
+    },
+    async saveClient(c) {
+      const { error } = await db.from("clients").upsert({ id: c.id, name: c.name, created_at: c.createdAt, updated_at: c.updatedAt, data: c });
+      if (error) throw new Error(`Supabase: ${error.message}`);
+    },
+    async deleteClient(id) {
+      if (!UUID.test(id)) return false;
+      const { error, count } = await db.from("clients").delete({ count: "exact" }).eq("id", id);
+      if (error) throw new Error(`Supabase: ${error.message}`);
+      return (count ?? 0) > 0;
+    },
+  };
+}
+
+let cachedClients: ClientStore | null = null;
+export function getClientStore(): ClientStore {
+  if (cachedClients) return cachedClients;
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  cachedClients = url && key ? supabaseClients(createClient(url, key, { auth: { persistSession: false } })) : localClients();
+  return cachedClients;
 }

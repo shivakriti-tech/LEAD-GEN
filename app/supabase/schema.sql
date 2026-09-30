@@ -48,3 +48,13 @@ alter table public.leads enable row level security;
 -- Already created the tables before "stopped" existed? Run this once:
 -- alter table public.searches drop constraint if exists searches_status_check;
 -- alter table public.searches add constraint searches_status_check check (status in ('running','done','failed','stopped'));
+
+-- Module 2 (Business Brain): one row per client you find leads for.
+create table if not exists public.clients (
+  id uuid primary key,
+  name text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  data jsonb not null     -- the full brain as the app uses it
+);
+alter table public.clients enable row level security;

@@ -17,6 +17,8 @@ export async function GET() {
     google: !!process.env.GOOGLE_PLACES_API_KEY,
     pageSpeedKey: !!process.env.PAGESPEED_API_KEY,
     apollo: !!process.env.APOLLO_API_KEY,
+    // Claude reads client websites for the Business Brain (onboarding); without it a basic reader drafts
+    ai: !!process.env.ANTHROPIC_API_KEY && !/^(off|0|false|no)$/i.test(process.env.BRAIN_AI || ""),
     emailVerify: verifierName() ?? null, // "ZeroBounce" / "MillionVerifier" when a key is set
     store: getStore().kind,
     contact: !!crawlerContact(),
