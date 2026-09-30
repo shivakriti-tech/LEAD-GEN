@@ -634,7 +634,7 @@ export default function LeadFinder() {
 
       <main>
         {view === "clients" ? (
-          <ClientsView ai={!!config?.ai} onFindLeads={searchForClient} />
+          <ClientsView ai={config?.ai ?? null} onFindLeads={searchForClient} />
         ) : view !== "leads" ? (
           <HomeView
             data={view ? home : null}

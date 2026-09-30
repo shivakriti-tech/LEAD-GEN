@@ -68,7 +68,7 @@ export const BrainSchema = z.object({
   analysis: z
     .object({
       at: z.string(),
-      by: z.enum(["claude", "rules"]),
+      by: z.enum(["gemini", "claude", "rules"]),
       pages: z.array(z.string()).max(20),
       notes: z.array(z.string()).max(20).optional(),
     })

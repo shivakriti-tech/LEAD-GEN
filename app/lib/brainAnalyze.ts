@@ -157,7 +157,7 @@ export function draftFromRules(site: ClientSite, hint: { name?: string } = {}): 
       by: "rules",
       pages: site.pages.map((p) => p.url),
       notes: [
-        "Drafted without AI (no ANTHROPIC_API_KEY): check the services list, add prices, who they sell to and why customers pick them.",
+        "Drafted without AI (no GEMINI_API_KEY or ANTHROPIC_API_KEY): check the services list, add prices, who they sell to and why customers pick them.",
         ...(prices.length && !services.some((s) => s.price) ? [`Prices seen on the site: ${prices.slice(0, 6).map((p) => p.price).join(", ")}. Add them to the right services.`] : []),
       ],
     },
@@ -203,15 +203,134 @@ Write services in the business's own words. Keep every item short (one line). Su
 Audience categories must come from this list (key: label):
 ${CATEGORIES.map((c) => `${c.key}: ${c.label}${c.sells ? " (for logistics clients)" : ""}`).join("\n")}`;
 
-export type ClaudeDrafter = (system: string, pagesText: string) => Promise<Draft>;
+/** An AI that reads the pages and returns a draft checked against DraftSchema. */
+export interface Drafter {
+  by: "gemini" | "claude";
+  draft: (system: string, pagesText: string) => Promise<Draft>;
+}
+type DraftFn = Drafter["draft"];
+const off = (v?: string) => /^(off|0|false|no)$/i.test(v || "");
 
-/** Claude through the official SDK: structured output checked against DraftSchema. */
-export async function claudeDrafter(): Promise<ClaudeDrafter | undefined> {
-  if (!process.env.ANTHROPIC_API_KEY || /^(off|0|false|no)$/i.test(process.env.BRAIN_AI || "")) return undefined;
+/**
+ * Which AI reads client websites. BRAIN_AI=gemini | claude | off; by default Gemini when
+ * GEMINI_API_KEY is set (Google's free tier), else Claude when ANTHROPIC_API_KEY is set.
+ */
+export async function pickDrafter(env: Record<string, string | undefined> = process.env, f: typeof fetch = fetch): Promise<Drafter | undefined> {
+  const mode = (env.BRAIN_AI || "").trim().toLowerCase();
+  if (off(mode)) return undefined;
+  if (mode === "claude") return claudeDrafter(env);
+  if (mode === "gemini") return geminiDrafter(env, f);
+  return geminiDrafter(env, f) ?? (await claudeDrafter(env));
+}
+
+/** "Gemini" / "Claude" / undefined, for the Setup panel (no keys). */
+export function aiName(env: Record<string, string | undefined> = process.env): string | undefined {
+  const mode = (env.BRAIN_AI || "").trim().toLowerCase();
+  if (off(mode)) return undefined;
+  const g = !!env.GEMINI_API_KEY?.trim(), c = !!env.ANTHROPIC_API_KEY?.trim();
+  if (mode === "claude") return c ? "Claude" : undefined;
+  if (mode === "gemini") return g ? "Gemini" : undefined;
+  return g ? "Gemini" : c ? "Claude" : undefined;
+}
+
+/* ----- Gemini (Google AI Studio key; free tier) through its REST API ----- */
+
+const GEMINI = "https://generativelanguage.googleapis.com/v1beta";
+export const GEMINI_DEFAULT_MODEL = "gemini-2.5-flash";
+
+/** The answer as JSON: tolerates a ```json fence around it. */
+function jsonIn(text: string): unknown {
+  const t = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  try {
+    return JSON.parse(t);
+  } catch {
+    const a = t.indexOf("{"), b = t.lastIndexOf("}");
+    return a >= 0 && b > a ? JSON.parse(t.slice(a, b + 1)) : undefined;
+  }
+}
+
+/** Fill what a model left out (missing lists, unknown category keys) before the strict check. */
+export function normalizeDraft(x: unknown): unknown {
+  if (!x || typeof x !== "object") return x;
+  const d = { ...(x as Record<string, unknown>) };
+  for (const k of ["services", "audience_categories", "usps", "proof", "dos", "donts", "banned_phrases", "notes"]) if (!Array.isArray(d[k])) d[k] = [];
+  for (const k of ["city", "phone", "email", "audience_notes", "price_hook", "usp_line"]) if (d[k] === undefined || d[k] === "") d[k] = null;
+  const cats = new Set<string>(catKeys);
+  d.audience_categories = (d.audience_categories as unknown[]).filter((k): k is string => typeof k === "string" && cats.has(k));
+  const svc = new Set<string>(["none", ...ALL_SERVICES]);
+  d.services = (d.services as unknown[])
+    .filter((s): s is Record<string, unknown> => !!s && typeof s === "object" && typeof (s as { name?: unknown }).name === "string")
+    .map((s) => ({ name: s.name, description: typeof s.description === "string" ? s.description : null, price: typeof s.price === "string" && s.price ? s.price : null, logistics: typeof s.logistics === "string" && svc.has(s.logistics) ? s.logistics : "none" }));
+  for (const k of ["usps", "proof", "dos", "donts", "banned_phrases", "notes"]) d[k] = (d[k] as unknown[]).filter((v) => typeof v === "string");
+  return d;
+}
+
+export function geminiDrafter(env: Record<string, string | undefined> = process.env, f: typeof fetch = fetch): Drafter | undefined {
+  const key = env.GEMINI_API_KEY?.trim();
+  if (!key) return undefined;
+  let model = env.GEMINI_MODEL?.trim() || GEMINI_DEFAULT_MODEL;
+  const headers = { "Content-Type": "application/json", "x-goog-api-key": key };
+  const schema = JSON.stringify(z.toJSONSchema(DraftSchema));
+  /** Model names change: when ours is gone, pick the newest stable Flash model this key can use. */
+  const newestFlash = async (): Promise<string | undefined> => {
+    const r = await f(`${GEMINI}/models?pageSize=200`, { headers });
+    if (!r.ok) return undefined;
+    const j = (await r.json()) as { models?: Array<{ name: string; supportedGenerationMethods?: string[] }> };
+    const ver = (n: string) => Number(n.match(/gemini-(\d+(?:\.\d+)?)/)?.[1] ?? 0);
+    return (j.models ?? [])
+      .filter((m) => m.supportedGenerationMethods?.includes("generateContent") && /gemini-[\d.]+-flash$/.test(m.name.replace(/^models\//, "")))
+      .map((m) => m.name.replace(/^models\//, ""))
+      .sort((a, b) => ver(b) - ver(a))[0];
+  };
+  const call = (m: string, body: unknown) => f(`${GEMINI}/models/${encodeURIComponent(m)}:generateContent`, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(180_000) });
+  const draft: DraftFn = async (system, pagesText) => {
+    let problem = "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const body = {
+        systemInstruction: { parts: [{ text: `${system}\n\nAnswer with one JSON object matching this JSON Schema (every key present; null or [] when the site doesn't say):\n${schema}` }] },
+        contents: [{ role: "user", parts: [{ text: pagesText + (problem ? `\n\nYour last answer didn't match the schema (${problem}). Answer again with the full JSON object.` : "") }] }],
+        generationConfig: { responseMimeType: "application/json", temperature: 0.2, maxOutputTokens: 16384 },
+      };
+      let res = await call(model, body);
+      if (res.status === 404) {
+        const next = await newestFlash().catch(() => undefined);
+        if (next && next !== model) {
+          model = next;
+          res = await call(model, body);
+        }
+      }
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+        throw new Error(res.status === 429 ? "Gemini's free limit is used up for now (try again in a minute)" : `Gemini: ${j.error?.message ?? `HTTP ${res.status}`}`);
+      }
+      const j = (await res.json()) as { candidates?: Array<{ finishReason?: string; content?: { parts?: Array<{ text?: string }> } }>; promptFeedback?: { blockReason?: string } };
+      const c = j.candidates?.[0];
+      if (!c) throw new Error(`Gemini gave no answer${j.promptFeedback?.blockReason ? ` (blocked: ${j.promptFeedback.blockReason})` : ""}`);
+      if (c.finishReason === "MAX_TOKENS") throw new Error("The site was too long to read in one go");
+      if (c.finishReason && !["STOP", "FINISH_REASON_UNSPECIFIED"].includes(c.finishReason)) throw new Error(`Gemini stopped (${c.finishReason})`);
+      let parsed: unknown;
+      try {
+        parsed = jsonIn((c.content?.parts ?? []).map((p) => p.text ?? "").join(""));
+      } catch {
+        parsed = undefined;
+      }
+      const r = DraftSchema.safeParse(normalizeDraft(parsed));
+      if (r.success) return r.data;
+      problem = parsed === undefined ? "not valid JSON" : r.error.issues.slice(0, 3).map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    }
+    throw new Error(`Gemini's answer didn't match the profile format (${problem})`);
+  };
+  return { by: "gemini", draft };
+}
+
+/* ----- Claude through the official SDK: structured output checked against DraftSchema ----- */
+
+export async function claudeDrafter(env: Record<string, string | undefined> = process.env): Promise<Drafter | undefined> {
+  if (!env.ANTHROPIC_API_KEY?.trim()) return undefined;
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
   const { betaZodOutputFormat } = await import("@anthropic-ai/sdk/helpers/beta/zod");
-  const client = new Anthropic({ timeout: 180_000, maxRetries: 2 });
-  return async (system, pagesText) => {
+  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, timeout: 180_000, maxRetries: 2 });
+  const draft: DraftFn = async (system, pagesText) => {
     const res = await client.beta.messages.parse({
       model: "claude-opus-5-5",
       max_tokens: 16000,
@@ -227,6 +346,7 @@ export async function claudeDrafter(): Promise<ClaudeDrafter | undefined> {
     if (!res.parsed_output) throw new Error("Claude's answer didn't match the profile format");
     return res.parsed_output;
   };
+  return { by: "claude", draft };
 }
 
 /** Does this price text appear on the pages (same digits)? Guards against a made-up price. */
@@ -236,7 +356,7 @@ export function priceOnSite(price: string, siteText: string): boolean {
   return d.length >= 2 && siteText.replace(/[,.\s]/g, "").includes(d);
 }
 
-export function draftToBrain(d: Draft, site: ClientSite, hint: { name?: string } = {}): BrainInput {
+export function draftToBrain(d: Draft, site: ClientSite, hint: { name?: string } = {}, by: Drafter["by"] = "claude"): BrainInput {
   const text = site.pages.map((p) => p.text).join(" ");
   const dropped: string[] = [];
   const services = d.services.slice(0, 40).map((s) => {
@@ -265,7 +385,7 @@ export function draftToBrain(d: Draft, site: ClientSite, hint: { name?: string }
     sender: {},
     analysis: {
       at: new Date().toISOString(),
-      by: "claude",
+      by,
       pages: site.pages.map((p) => p.url),
       notes: [...d.notes, ...(dropped.length ? [`Prices not found on the site were left out: ${dropped.join(", ")}.`] : [])].slice(0, 20),
     },
@@ -275,21 +395,22 @@ export function draftToBrain(d: Draft, site: ClientSite, hint: { name?: string }
 export const pagesForPrompt = (site: ClientSite) =>
   site.pages.map((p) => `<page url="${p.url}">\n<title>${p.title}</title>\n<headings>${p.headings.join(" | ")}</headings>\n${p.text}\n</page>`).join("\n\n");
 
-/** Read the site and draft a brain: Claude when available (falls back to the rule-based draft if it fails). */
+/** Read the site and draft a brain with the AI when one is set up (falls back to the basic reader if it fails). */
 export async function analyzeClientSite(
   opts: { website: string; name?: string },
-  deps: { fetch?: typeof fetchPublic; drafter?: ClaudeDrafter | null } = {},
-): Promise<{ draft: BrainInput; by: "claude" | "rules"; warning?: string }> {
+  deps: { fetch?: typeof fetchPublic; drafter?: Drafter | DraftFn | null } = {},
+): Promise<{ draft: BrainInput; by: Drafter["by"] | "rules"; warning?: string }> {
   const site = await readClientSite(opts.website, deps.fetch);
-  const drafter = deps.drafter === undefined ? await claudeDrafter() : deps.drafter ?? undefined;
+  const d0 = deps.drafter === undefined ? await pickDrafter() : deps.drafter ?? undefined;
+  const drafter: Drafter | undefined = typeof d0 === "function" ? { by: "claude", draft: d0 } : d0;
   let warning: string | undefined;
   if (drafter) {
     try {
-      const d = await drafter(SYSTEM, pagesForPrompt(site));
-      const draft = draftToBrain(d, site, opts);
+      const d = await drafter.draft(SYSTEM, pagesForPrompt(site));
+      const draft = draftToBrain(d, site, opts, drafter.by);
       // make sure the draft passes the same checks a save does
       const ok = parseBrain(draft);
-      if (ok.ok) return { draft, by: "claude" };
+      if (ok.ok) return { draft, by: drafter.by };
       warning = `AI draft had a problem (${ok.error}); used the basic reader instead.`;
     } catch (e) {
       warning = `AI reading failed (${e instanceof Error ? e.message : e}); used the basic reader instead.`;

@@ -48,7 +48,8 @@ export type Config = {
   pageSpeedKey: boolean;
   apollo: boolean;
   emailVerify?: string | null;
-  ai?: boolean;
+  /** "Gemini" / "Claude" when an AI reads client websites. */
+  ai?: string | null;
   store: "local" | "supabase";
   contact: boolean;
   meta: boolean;

@@ -34,6 +34,7 @@ With no keys at all it already works: leads come from OpenStreetMap (free) and e
 | `CRAWLER_CONTACT` | Your email in the crawler's User-Agent (OpenStreetMap asks for one) | Any address you check |
 | `PDF_BROWSER` | Only if the *Report* PDF says no Chrome or Edge was found: the full path to Chrome, Edge or Chromium | e.g. `C:\Program Files\Google\Chrome\Application\chrome.exe` |
 | `EMAIL_VERIFY`, `EMAIL_VERIFY_KEY` | Checks the best email on each lead at mailbox level (does it exist, or does the domain accept any address). `zerobounce` (100 free checks a month) or `millionverifier` (cheapest for bulk). Up to 50 checks a search (`EMAIL_VERIFY_MAX` to change), answers remembered 30 days. Without it, every email's domain is still checked for a mail server | https://www.zerobounce.net or https://www.millionverifier.com → API key |
+| `GEMINI_API_KEY` | **Free.** Google Gemini reads a client's website when you add them under *Clients* and drafts their profile (services, prices, rules). Used first when set. `GEMINI_MODEL` to pick a model (default `gemini-2.5-flash`; if Google retires it, the newest Flash model is used). Google may use free-tier requests to improve its products: the app only sends the client's public web pages | https://aistudio.google.com → Get API key |
 | `ANTHROPIC_API_KEY` | Claude reads a client's website when you add them under *Clients* and drafts their profile (services, prices, rules). About ₹10–20 per client (one Claude Opus 5.5 call). Without it a basic reader drafts it | https://console.anthropic.com → API keys |
 | `APP_PASSWORD` | Password-protects the whole app (the browser asks; any user name). **Set it before putting the app online**: saved searches hold phone numbers and emails, and every search spends your API quota | Any long password |
 
@@ -98,14 +99,14 @@ The free map has no Google ratings, so prefilled website leads rarely score as *
 Each client you find leads for gets a profile under **Clients**: what they sell and for how much, who they want as customers, why people pick them, and the rules for messages sent in their name.
 
 1. **Add client** → enter their website. The app reads their home page and up to 8 service, pricing, about and contact pages, and drafts the profile:
-   - with `ANTHROPIC_API_KEY`, Claude reads the pages. It only states what the pages say: a service without a price on the site gets no price, and a price the site doesn't show is dropped (listed under *To check*);
+   - with a `GEMINI_API_KEY` (free) or `ANTHROPIC_API_KEY`, the AI reads the pages (Gemini first when both are set; `BRAIN_AI=gemini` or `claude` to choose). It only states what the pages say: a service without a price on the site gets no price, and a price the site doesn't show is dropped (listed under *To check*);
    - without the key (or if the AI call fails), a basic reader drafts it from page titles, headings and ₹ amounts.
 2. **Check it.** Nothing is saved until you press *Save client*. Fix services and prices (or *Paste a price list*: "Basic website - ₹9,999" per line), pick the business types they want, add their reasons and proof, and set the message rules: do's, don'ts, words they never use, a one-line reason to pick them, an optional price line, and who messages are signed by.
 3. **Find leads** on a client (or pick the client at the top of *New search*) fills the search with their offer, services, business types, city and area.
 
 In that search, messages introduce you as being from the client ("I'm Divy from Shree Logistics"), add their one-line reason, and the price line only if you ticked *Put the price line in first messages*. A message containing one of their "never say" words is flagged before you send it. Reports show who the leads are for.
 
-Profiles are saved in `.data/clients` (or the `clients` table in Supabase: run the latest `supabase/schema.sql`). `BRAIN_AI=off` turns AI reading off even with a key.
+Profiles are saved in `.data/clients` (or the `clients` table in Supabase: run the latest `supabase/schema.sql`). `BRAIN_AI=off` turns AI reading off even with a key. Either way the answer is checked against the profile format (Gemini is asked once more if it doesn't fit) and prices not on the site are dropped.
 
 ## How a search works
 
@@ -271,7 +272,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 236 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 241 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

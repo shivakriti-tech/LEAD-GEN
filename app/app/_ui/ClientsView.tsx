@@ -13,12 +13,12 @@ import { IconCheck, IconClose, IconEdit, IconPlus, IconSearch } from "./icons";
  */
 
 type Draft = BrainInput & { id?: string };
-type Mode = { kind: "list" } | { kind: "add" } | { kind: "edit"; draft: Draft; notes?: string[]; by?: "claude" | "rules"; warning?: string };
+type Mode = { kind: "list" } | { kind: "add" } | { kind: "edit"; draft: Draft; notes?: string[]; by?: "gemini" | "claude" | "rules"; warning?: string };
 
 const EMPTY: Draft = { name: "", offer: "website_development", services: [], audience: { categories: [], areas: [] }, usps: [], proof: [], rules: { dos: [], donts: [], bannedPhrases: [] }, pitch: { mentionPrice: false }, sender: {} };
 const OFFER_LABEL = { website_development: "Website clients", logistics: "Logistics" } as const;
 
-export function ClientsView({ ai, onFindLeads }: { ai: boolean; onFindLeads: (c: ClientBrain) => void }) {
+export function ClientsView({ ai, onFindLeads }: { ai: string | null; onFindLeads: (c: ClientBrain) => void }) {
   const [clients, setClients] = useState<ClientBrain[] | null>(null);
   const [mode, setMode] = useState<Mode>({ kind: "list" });
   const [error, setError] = useState("");
@@ -63,7 +63,7 @@ export function ClientsView({ ai, onFindLeads }: { ai: boolean; onFindLeads: (c:
       ) : !clients.length ? (
         <div className="panel empty-clients">
           <b>No clients yet</b>
-          <p className="sub">Add a client with their website: we read it and draft their services, prices and message rules for you to check.{ai ? "" : " (Add ANTHROPIC_API_KEY for AI reading; without it a basic reader drafts it.)"}</p>
+          <p className="sub">Add a client with their website: we read it and draft their services, prices and message rules for you to check.{ai ? "" : " (Add a free GEMINI_API_KEY for AI reading; without it a basic reader drafts it.)"}</p>
           <button className="btn primary" onClick={() => setMode({ kind: "add" })}><IconPlus /> Add your first client</button>
         </div>
       ) : (
@@ -96,7 +96,7 @@ export function ClientsView({ ai, onFindLeads }: { ai: boolean; onFindLeads: (c:
   );
 }
 
-function AddClient({ ai, onCancel, onDraft }: { ai: boolean; onCancel: () => void; onDraft: (d: Draft, by?: "claude" | "rules", warning?: string) => void }) {
+function AddClient({ ai, onCancel, onDraft }: { ai: string | null; onCancel: () => void; onDraft: (d: Draft, by?: "gemini" | "claude" | "rules", warning?: string) => void }) {
   const [website, setWebsite] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -133,7 +133,7 @@ function AddClient({ ai, onCancel, onDraft }: { ai: boolean; onCancel: () => voi
           <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Shree Logistics" disabled={busy} />
         </label>
         {error && <p className="note">{error}</p>}
-        <p className="sub">{ai ? "Read by Claude: services and prices are taken only from their pages; anything missing is listed for you to fill in." : "No ANTHROPIC_API_KEY: a basic reader drafts it from their page headings and prices. Add the key for a much better first draft."}</p>
+        <p className="sub">{ai ? `Read by ${ai}: services and prices are taken only from their pages; anything missing is listed for you to fill in.` : "No AI key: a basic reader drafts it from their page headings and prices. Add a free GEMINI_API_KEY (Setup) for a much better first draft."}</p>
         <div className="row gap">
           <button className="btn primary" type="submit" disabled={!website.trim() || busy}>{busy ? "Reading their website… (up to a minute)" : "Read their website"}</button>
           <button className="btn" type="button" onClick={() => onDraft({ ...EMPTY, name, website: website || undefined })} disabled={busy}>Fill in by hand</button>
@@ -156,7 +156,7 @@ function Lines({ label, hint, value, onChange, rows = 3, placeholder }: { label:
   );
 }
 
-function BrainEditor({ initial, notes, by, warning, onCancel, onSaved }: { initial: Draft; notes?: string[]; by?: "claude" | "rules"; warning?: string; onCancel: () => void; onSaved: () => void }) {
+function BrainEditor({ initial, notes, by, warning, onCancel, onSaved }: { initial: Draft; notes?: string[]; by?: "gemini" | "claude" | "rules"; warning?: string; onCancel: () => void; onSaved: () => void }) {
   const [b, setB] = useState<Draft>(() => ({ ...EMPTY, ...initial, audience: { ...EMPTY.audience!, ...initial.audience }, rules: { ...EMPTY.rules!, ...initial.rules }, pitch: { ...EMPTY.pitch!, ...initial.pitch }, sender: { ...initial.sender } }));
   const [paste, setPaste] = useState("");
   const [saving, setSaving] = useState(false);
@@ -185,7 +185,7 @@ function BrainEditor({ initial, notes, by, warning, onCancel, onSaved }: { initi
       <div className="top">
         <div>
           <h1>{initial.id ? `Edit ${initial.name}` : "Check the profile"}</h1>
-          <p>{by === "claude" ? "Drafted by Claude from their website. " : by === "rules" ? "Drafted from their website without AI. " : ""}Everything here is used for their searches and messages: fix anything that's off.</p>
+          <p>{by === "gemini" ? "Drafted by Gemini from their website. " : by === "claude" ? "Drafted by Claude from their website. " : by === "rules" ? "Drafted from their website without AI. " : ""}Everything here is used for their searches and messages: fix anything that's off.</p>
         </div>
       </div>
       {warning && <p className="note">{warning}</p>}
