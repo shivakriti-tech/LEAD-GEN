@@ -167,7 +167,7 @@ export function draftFromRules(site: ClientSite, hint: { name?: string } = {}): 
 /* ---------- Claude draft ---------- */
 
 const offerCats = (offer: "website_development" | "logistics") => CATEGORIES.filter((c) => (offer === "logistics" ? c.sells === "logistics" : !c.sells));
-const catKeys = CATEGORIES.map((c) => c.key) as [string, ...string[]];
+const catKeys = CATEGORIES.filter((c) => c.sells !== "agency").map((c) => c.key) as [string, ...string[]];
 
 export const DraftSchema = z.object({
   name: z.string().describe("The business name as the site shows it"),
@@ -201,7 +201,7 @@ const SYSTEM = `You set up a lead-generation profile ("Business Brain") for an I
 Use only what the pages say. Never invent prices, numbers, clients or certifications: leave price null when a service has no price on the site, and list what's missing in notes.
 Write services in the business's own words. Keep every item short (one line). Suggest message rules that fit the business: practical do's and don'ts for polite WhatsApp/email outreach in India, and banned phrases for claims they can't promise.
 Audience categories must come from this list (key: label):
-${CATEGORIES.map((c) => `${c.key}: ${c.label}${c.sells ? " (for logistics clients)" : ""}`).join("\n")}`;
+${CATEGORIES.filter((c) => c.sells !== "agency").map((c) => `${c.key}: ${c.label}${c.sells ? " (for logistics clients)" : ""}`).join("\n")}`;
 
 /** An AI that reads the pages and returns a draft checked against DraftSchema. */
 export interface Drafter {

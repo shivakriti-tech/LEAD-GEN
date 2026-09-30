@@ -1,9 +1,13 @@
 "use client";
 
+import { Fragment } from "react";
+
 import { CATEGORIES, categoriesFor } from "@/lib/categories";
 import type { CategoryStat } from "@/lib/followups";
 import { DEFAULT_SERVICES, SERVICE_CHIP, SERVICE_ORDER } from "@/lib/score/logistics";
-import type { KeepOnly, LogisticsService, Offer, SearchParams, SearchRecord } from "@/lib/types";
+import { AGENCY_CHIP, ALL_AGENCY } from "@/lib/score/agency";
+import { MARKETS, marketOf, type CountryCode } from "@/lib/markets";
+import type { AgencyService, KeepOnly, LogisticsService, Offer, SearchParams, SearchRecord } from "@/lib/types";
 import { IconCheck, IconSettings } from "./icons";
 
 export type Sources = SearchParams["sources"];
@@ -25,8 +29,12 @@ export interface FormState {
   client: { name: string; services: LogisticsService[] };
   /** The client (Business Brain) this search is for, if picked. */
   clientId?: string;
+  /** Country to search in. */
+  country?: CountryCode;
+  /** Your agency's services (agency searches). */
+  agency?: AgencyService[];
 }
-export const DEFAULT_CATS: Record<Offer, string[]> = { website_development: ["dentist", "salon", "cafe"], logistics: ["manufacturer", "exporter", "wholesaler"] };
+export const DEFAULT_CATS: Record<Offer, string[]> = { website_development: ["dentist", "salon", "cafe"], logistics: ["manufacturer", "exporter", "wholesaler"], agency: ["store_fashion", "store_beauty", "co_freight", "co_trucking"] };
 export const DEFAULT_KEEP: KeepOnly = { skipChains: true, needPhone: false, notContacted: true, goodRating: false };
 export const DEFAULT_FORM: FormState = {
   cats: ["dentist", "salon", "cafe"],
@@ -41,7 +49,12 @@ export const DEFAULT_FORM: FormState = {
   keep: DEFAULT_KEEP,
   sells: "website_development",
   client: { name: "", services: DEFAULT_SERVICES },
+  country: "IN",
+  agency: ALL_AGENCY,
 };
+
+/** Countries in the picker, by region. */
+const REGIONS = [...new Set(Object.values(MARKETS).map((m) => m.group))].map((g) => ({ g, list: Object.values(MARKETS).filter((m) => m.group === g) }));
 
 export type Config = {
   google: boolean;
@@ -94,6 +107,26 @@ const HINT: Record<string, string> = {
   distributor: "Warehousing and deliveries",
   online_seller: "Parcels every day",
   furniture_mfr: "Big items, trucks and packing",
+  store_fashion: "Often marketplace-only or on a stock theme",
+  store_beauty: "Repeat buyers: flows and subscriptions",
+  store_home: "Big baskets, long browsing",
+  store_jewelry: "High value: the store must look premium",
+  store_health: "Subscriptions and reorders",
+  store_pet: "Reorders every month",
+  store_sports: "Seasonal ranges, lots of products",
+  store_food: "Gift boxes and subscriptions",
+  store_online: "Brands found through web search",
+  co_freight: "Quotes, tracking and paperwork by email",
+  co_trucking: "Dispatch and loads on spreadsheets",
+  co_3pl: "Client portals and stock reports",
+  co_mining: "Sites, fleets and compliance records",
+  co_oilgas: "Field crews, jobs and invoices",
+  co_energy: "Leads, site surveys and installs",
+  co_agri: "Contracts, lots and shipments",
+  co_manufacturing: "Orders, stock and production",
+  co_construction: "Bids, projects and subcontractors",
+  co_wholesale: "Dealer orders and price lists",
+  co_equipment: "Rentals, service and parts",
 };
 
 const KEEP: Array<{ key: keyof KeepOnly; label: string; why: string }> = [
@@ -190,14 +223,20 @@ export function SearchForm({
   const keep = { ...DEFAULT_KEEP, ...form.keep };
   const sells: Offer = form.sells ?? "website_development";
   const client = form.client ?? DEFAULT_FORM.client;
-  const setOffer = (o: Offer) => o !== sells && setForm({ ...form, sells: o, cats: DEFAULT_CATS[o], client, clientId: undefined });
+  const country: CountryCode = form.country ?? "IN";
+  const market = marketOf(country);
+  const agency = form.agency ?? ALL_AGENCY;
+  // your agency's leads are international: switching to it leaves India for the US
+  const setOffer = (o: Offer) => o !== sells && setForm({ ...form, sells: o, cats: DEFAULT_CATS[o], client, clientId: undefined, country: o === "agency" && country === "IN" ? "US" : country, city: o === "agency" && country === "IN" ? "" : form.city, area: o === "agency" && country === "IN" ? "" : form.area });
+  const setCountry = (c: CountryCode) => c !== country && setForm({ ...form, country: c, city: "", area: "" });
+  const toggleAgency = (x: AgencyService) => setForm({ ...form, agency: agency.includes(x) ? agency.filter((y) => y !== x) : [...agency, x] });
   const toggleService = (x: LogisticsService) => setForm({ ...form, client: { ...client, services: client.services.includes(x) ? client.services.filter((y) => y !== x) : [...client.services, x] } });
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm({ ...form, [k]: v });
   const setSource = (k: keyof Sources, v: boolean) => setForm({ ...form, sources: { ...form.sources, [k]: v } });
   const toggleCat = (k: string) => set("cats", form.cats.includes(k) ? form.cats.filter((x) => x !== k) : form.cats.length >= 8 ? form.cats : [...form.cats, k]);
   const sources = sourceInfo(config);
   const on = sources.filter((s) => s.ready && form.sources[s.key] && s.key !== "apollo");
-  const canRun = !running && form.cats.length > 0 && form.city.trim().length > 0 && on.length > 0 && (sells !== "logistics" || client.services.length > 0);
+  const canRun = !running && form.cats.length > 0 && form.city.trim().length > 0 && on.length > 0 && (sells !== "logistics" || client.services.length > 0) && (sells !== "agency" || agency.length > 0);
 
   const picked = form.cats.map((k) => CATEGORIES.find((c) => c.key === k)?.label ?? k);
   const where = form.area.trim() || form.city.trim();
@@ -205,10 +244,10 @@ export function SearchForm({
   const est = estimate(stats, form.city, form.cats);
   const again = sameSearch(history, form);
   const filtersOn = KEEP.filter((k) => keep[k.key]).length;
-  const places = [...new Map(history.map((h) => [`${low(h.params.area)}|${low(h.params.city)}`, h.params])).values()].slice(0, 4);
+  const places = [...new Map(history.map((h) => [`${low(h.params.area)}|${low(h.params.city)}|${h.params.country ?? "IN"}`, h.params])).values()].slice(0, 4);
   const allowance = config?.searchUsage?.find((u) => u.limit && u.exact);
   const left = allowance?.limit ? allowance.limit.n - (allowance.limit.per === "day" ? allowance.today : allowance.month) : null;
-  const block = sells === "logistics" && !client.services.length ? "Pick at least one service your client offers." : !form.city.trim() ? "Enter a city to start." : !form.cats.length ? "Pick at least one business type." : !on.length ? "Turn on at least one source under More options." : "";
+  const block = sells === "logistics" && !client.services.length ? "Pick at least one service your client offers." : sells === "agency" && !agency.length ? "Pick at least one service you sell." : !form.city.trim() ? "Enter a city to start." : !form.cats.length ? "Pick at least one business type." : !on.length ? "Turn on at least one source under More options." : "";
 
   return (
     <form
@@ -240,7 +279,26 @@ export function SearchForm({
               <b>A logistics client</b>
               <span className="sub">Businesses that ship goods: factories, exporters, traders and online sellers.</span>
             </button>
+            <button type="button" role="radio" aria-checked={sells === "agency"} className={`offer ${sells === "agency" ? "on" : ""}`} onClick={() => setOffer("agency")}>
+              <b>My agency's services</b>
+              <span className="sub">Online stores and mid-size companies abroad that need a store, website, CRM / ERP or automation.</span>
+            </button>
           </div>
+          {sells === "agency" && (
+            <div className="client-box">
+              <div className="field">
+                <span className="lbl">What you build <span className="opt">leads are matched to these</span></span>
+                <div className="chips">
+                  {ALL_AGENCY.map((x) => (
+                    <button key={x} type="button" className="chip" aria-pressed={agency.includes(x)} onClick={() => toggleAgency(x)}>
+                      {agency.includes(x) && <IconCheck />} {AGENCY_CHIP[x]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {!form.clientId && <p className="sub">Tip: add your agency under Clients (with your case studies in Proof) and pick it above: messages then quote your work.</p>}
+            </div>
+          )}
           {sells === "logistics" && (
             <div className="client-box">
               <label className="field">
@@ -266,19 +324,30 @@ export function SearchForm({
           <p className="step-hint">An area works best. Leave it empty to cover the whole city.</p>
           <div className="place">
             <label className="place-f">
+              <span className="lbl">Country</span>
+              <select id="country" value={country} onChange={(e) => setCountry(e.target.value as CountryCode)}>
+                {REGIONS.map(({ g, list }) => (
+                  <optgroup key={g} label={g}>
+                    {list.map((m) => <option key={m.code} value={m.code}>{m.name}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+            <label className="place-f">
               <span className="lbl">Area</span>
-              <input id="area" type="text" value={form.area} onChange={(e) => set("area", e.target.value)} placeholder="e.g. Alkapuri" autoComplete="off" />
+              <input id="area" type="text" value={form.area} onChange={(e) => set("area", e.target.value)} placeholder={country === "IN" ? "e.g. Alkapuri" : "optional"} autoComplete="off" />
             </label>
             <label className="place-f">
               <span className="lbl">City</span>
-              <input id="city" type="text" value={form.city} onChange={(e) => set("city", e.target.value)} placeholder="e.g. Vadodara" autoComplete="off" required />
+              <input id="city" type="text" list="city-list" value={form.city} onChange={(e) => set("city", e.target.value)} placeholder={`e.g. ${market.cities[0]}`} autoComplete="off" required />
+              <datalist id="city-list">{market.cities.map((c) => <option key={c} value={c} />)}</datalist>
             </label>
           </div>
           {places.length > 0 && (
             <div className="recent">
               <span className="sub">Recent:</span>
               {places.map((p) => (
-                <button key={`${p.area}|${p.city}`} type="button" className="linkish" onClick={() => setForm({ ...form, city: p.city, area: p.area ?? "" })}>
+                <button key={`${p.area}|${p.city}`} type="button" className="linkish" onClick={() => setForm({ ...form, city: p.city, area: p.area ?? "", country: p.country ?? "IN" })}>
                   {p.area ? `${p.area}, ${p.city}` : p.city}
                 </button>
               ))}
@@ -288,20 +357,24 @@ export function SearchForm({
 
         <section className="step">
           <h2 className="step-title">What kind of business?</h2>
-          <p className="step-hint">Pick up to 8 ({form.cats.length} picked). {sells === "logistics" ? "Factories and exporters ship the most." : "Businesses that take bookings or walk-ins pitch best."}</p>
+          <p className="step-hint">Pick up to 8 ({form.cats.length} picked). {sells === "logistics" ? "Factories and exporters ship the most." : sells === "agency" ? "Online stores need a store or an upgrade; companies need systems: a CRM / ERP, portals and automation." : "Businesses that take bookings or walk-ins pitch best."}</p>
           <div className="cats">
-            {categoriesFor(sells).map((c) => {
+            {categoriesFor(sells).map((c, i, all) => {
               const onC = form.cats.includes(c.key);
               const st = statFor(stats, form.city, c.label);
               const good = st && st.s.total >= 5 && st.s.hot / st.s.total >= 0.4;
+              const head = sells === "agency" && all[i - 1]?.group !== c.group ? <h3 className="cat-group" key={`g-${c.group}`}>{c.group}</h3> : null;
               return (
-                <button key={c.key} type="button" className={`cat ${onC ? "on" : ""}`} aria-pressed={onC} onClick={() => toggleCat(c.key)} disabled={!onC && form.cats.length >= 8}>
+                <Fragment key={c.key}>
+                {head}
+                <button type="button" className={`cat ${onC ? "on" : ""}`} aria-pressed={onC} onClick={() => toggleCat(c.key)} disabled={!onC && form.cats.length >= 8}>
                   <span className="box">{onC && <IconCheck />}</span>
                   <span className="cat-txt">
                     <b>{c.label}{good && <span className="tag good">Pitches well</span>}</b>
-                    <span className="sub">{st ? `Last time${st.here ? "" : " (all cities)"}: ${sells === "logistics" ? `${st.s.hot} of ${st.s.total} were strong leads` : `${st.s.noSite} of ${st.s.total} had no working site`}` : HINT[c.key]}</span>
+                    <span className="sub">{st ? `Last time${st.here ? "" : " (all cities)"}: ${sells !== "website_development" ? `${st.s.hot} of ${st.s.total} were strong leads` : `${st.s.noSite} of ${st.s.total} had no working site`}` : HINT[c.key]}</span>
                   </span>
                 </button>
+                </Fragment>
               );
             })}
           </div>
@@ -379,8 +452,8 @@ export function SearchForm({
         <span className="k">Your search</span>
         <b className="big">{headline}</b>
         <dl>
-          <div><dt>For</dt><dd>{form.clientId && client.name.trim() ? client.name.trim() : sells === "logistics" ? client.name.trim() || "Logistics client" : "Your website service"}</dd></div>
-          <div><dt>Area</dt><dd>{form.city.trim() ? cap(form.area.trim() ? `${form.area.trim()}, ${form.city.trim()}` : `All of ${form.city.trim()}`) : "Not set"}</dd></div>
+          <div><dt>For</dt><dd>{form.clientId && client.name.trim() ? client.name.trim() : sells === "logistics" ? client.name.trim() || "Logistics client" : sells === "agency" ? "Your agency" : "Your website service"}</dd></div>
+          <div><dt>Area</dt><dd>{form.city.trim() ? `${cap(form.area.trim() ? `${form.area.trim()}, ${form.city.trim()}` : `All of ${form.city.trim()}`)}${country !== "IN" ? `, ${market.name}` : ""}` : "Not set"}</dd></div>
           <div><dt>Types</dt><dd>{picked.length ? `${picked.length} picked` : "None yet"}</dd></div>
           <div><dt>Filters on</dt><dd>{filtersOn}</dd></div>
           <div><dt>Looking through</dt><dd>{on.length ? on.map((s) => s.label).join(", ") : "Nothing"}</dd></div>

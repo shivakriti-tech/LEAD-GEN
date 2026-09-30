@@ -3,7 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Lead } from "../types";
 import type { FollowUpPatch } from "../followups";
-import { CADENCE, canContact, followUpAfter, MAX_STEPS, messageForStep, nextStep, statusOf, type Lang, type Sender, type Tone } from "../outreach";
+import { CADENCE, canContact, followUpAfter, MAX_STEPS, messageForStep, nextStep, statusOf, subjectLine, type Lang, type Sender, type Tone } from "../outreach";
 import { dailyCap, inSendWindow, istParts, type Mailbox } from "./mailboxes";
 import { inOfficeHours } from "../markets";
 
@@ -110,7 +110,7 @@ export function mutate<T>(store: QueueStore, fn: (d: QueueData) => T | Promise<T
 }
 
 export function subjectFor(l: Pick<Lead, "name" | "pitchFor">): string {
-  return l.pitchFor?.kind === "logistics" ? `Shipping and logistics for ${l.name}` : `A quick idea for ${l.name}`;
+  return subjectLine(l);
 }
 
 /** The line under every email: who it's from and how to stop them. */

@@ -5,13 +5,15 @@ import type { Lead, Signal } from "../types";
  * the evidence (the words on its website, the year, the domain date) so a client can see why.
  */
 
-export type Offer = "website" | "logistics";
+export type Offer = "website" | "logistics" | "agency";
 
 const POINTS: Record<Offer, Record<string, number>> = {
   // a new or expanding business needs a (better) website now; a low rating is a pitch angle
   website: { new_business: 15, expanding: 10, hiring: 5, low_rating: 5 },
   // new = no fixed logistics partner yet; expanding = more freight soon
   logistics: { new_business: 10, expanding: 15, hiring: 5 },
+  // growing companies outgrow spreadsheets; hiring = more manual work to automate
+  agency: { new_business: 10, expanding: 15, hiring: 10, low_rating: 5 },
 };
 
 const MONTH = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-IN", { month: "short", year: "numeric", timeZone: "UTC" });
@@ -46,6 +48,11 @@ export function growthSentence(lead: Lead, s: Signal[], offer: Offer): string {
     if (has("new_business")) out.push("It's a new business: the best time to get a proper website.");
     if (has("hiring") && out.length < 2) out.push("They're hiring, so the business is growing.");
     if (has("low_rating") && out.length < 2) out.push(`Their Google rating is ${lead.rating!.toFixed(1)}★: a good website with real reviews and photos helps win trust back.`);
+  } else if (offer === "agency") {
+    if (has("expanding")) out.push(`It's expanding ("${quote("expanding")}"): the moment systems and the website need to scale.`);
+    if (has("new_business")) out.push("It's a new business, still choosing its tools.");
+    if (has("hiring") && out.length < 2) out.push("It's hiring: more people doing work that software could take on.");
+    if (has("low_rating") && out.length < 2) out.push(`Its Google rating is ${lead.rating!.toFixed(1)}★: slow replies and order tracking are common causes.`);
   } else {
     if (has("expanding")) out.push(`It's expanding ("${quote("expanding")}"), so shipments will grow.`);
     if (has("new_business")) out.push("It's a new business, so it likely has no fixed logistics partner yet.");

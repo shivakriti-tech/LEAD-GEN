@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { Lead, SearchParams } from "@/lib/types";
 import { IconCheck, IconStop } from "./icons";
+import { hasAgencyReason } from "@/lib/score/agency";
 
 type LogLine = { level: "info" | "warn" | "error"; message: string };
 type Stage = { stage: string; done: number; total: number };
@@ -39,7 +40,8 @@ export function RunPanel({
   }, [log]);
   const checked = leads.filter((l) => !l.pending);
   const logistics = params?.sells === "logistics";
-  const noSite = logistics ? checked.filter((l) => l.signals.some((x) => x.key === "exports" || x.key === "imports")).length : checked.filter((l) => ["none", "social_only", "down"].includes(l.audit?.status ?? "none")).length;
+  const agency = params?.sells === "agency";
+  const noSite = agency ? checked.filter(hasAgencyReason).length : logistics ? checked.filter((l) => l.signals.some((x) => x.key === "exports" || x.key === "imports")).length : checked.filter((l) => ["none", "social_only", "down"].includes(l.audit?.status ?? "none")).length;
   const hot = checked.filter((l) => l.tier === "hot").length;
   const cur = stage ? STEP_OF[stage.stage] ?? 0 : 0;
   const sawSocial = stage?.stage === "social" || log.some((l) => /Instagram profile/.test(l.message) && /Reading/.test(l.message));
@@ -81,7 +83,7 @@ export function RunPanel({
       </ol>
       {running && checked.length > 0 && (
         <p className="found">
-          Already spotted <b>{noSite} {logistics ? `that export or import` : "without a working website"}</b>{hot ? <>, <b>{hot}</b> worth messaging first</> : null}. They're in the list below: you can message them now.
+          Already spotted <b>{noSite} {logistics ? `that export or import` : agency ? "with a clear reason to pitch" : "without a working website"}</b>{hot ? <>, <b>{hot}</b> worth messaging first</> : null}. They're in the list below: you can message them now.
         </p>
       )}
       {last && (running || failed) && <p className={`last-log ${last.level}`}>{last.message}</p>}

@@ -3,7 +3,7 @@ import { MAILBOX_LABEL } from "./enrich/verifyEmail";
 import { followUpLabel, linkedinOf } from "./outreach";
 import type { Lead } from "./types";
 import { phoneKind, PHONE_KIND_LABEL } from "./util";
-import { SERVICE_LABEL } from "./score/logistics";
+import { needLabels } from "./score/agency";
 
 const COLS: Array<[string, (l: Lead) => unknown]> = [
   ["Score", (l) => l.score],
@@ -32,7 +32,7 @@ const COLS: Array<[string, (l: Lead) => unknown]> = [
   ["Rating", (l) => l.rating],
   ["Reviews", (l) => l.reviews],
   ["Why now", (l) => l.whyNow],
-  ["Likely needs", (l) => l.pitchFor?.needs.map((n) => SERVICE_LABEL[n]).join("; ")],
+  ["Likely needs", (l) => needLabels(l.pitchFor).join("; ")],
   ["Exports to", (l) => l.audit?.trade?.countries?.join(" ")],
   ["Listed on", (l) => l.audit?.trade?.b2b?.join(" ")],
   ["Signals", (l) => l.signals.map((s) => s.label).join("; ")],

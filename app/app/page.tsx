@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { categoryByKey } from "@/lib/categories";
+import { hasAgencyReason } from "@/lib/score/agency";
 import { leadsToCsv } from "@/lib/csv";
 import { addDays, FOLLOW_UP, localDate, pitchText, senderFor, statusOf, toneFor, whatsappLinkWith, whatsappNumber, type FollowUpStatus, type Lang, type Sender, type Tone } from "@/lib/outreach";
 import { mergeFollowUp, touchedElsewhere, type CategoryStat, type DueLead, type FollowUpPatch, type Touched } from "@/lib/followups";
@@ -73,6 +74,8 @@ const formFromParams = (p: SearchParams, prev: FormState): FormState => ({
   sells: p.sells ?? "website_development",
   client: p.client ? { name: p.client.name ?? "", services: p.client.services.length ? p.client.services : prev.client?.services ?? DEFAULT_FORM.client.services } : prev.client ?? DEFAULT_FORM.client,
   clientId: p.clientId,
+  country: p.country ?? "IN",
+  agency: p.agency?.services ?? prev.agency,
 });
 
 const initials = (name?: string) => (name?.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "You").slice(0, 3);
@@ -255,6 +258,8 @@ export default function LeadFinder() {
   /** Fill the search form for one client: their offer, services, business types, city and area. */
   function applyClient(c: ClientBrain) {
     const services = brainServices(c);
+    // an agency search keeps its own types and place: the profile is your agency, used for its name and proof
+    if (form.sells === "agency" && c.offer !== "logistics") return setForm({ ...form, clientId: c.id, client: { ...form.client, name: c.name } });
     setForm({
       ...form,
       sells: c.offer,
@@ -333,6 +338,8 @@ export default function LeadFinder() {
       sells: form.sells ?? "website_development",
       client: form.sells === "logistics" || form.clientId ? { name: form.client?.name.trim() || undefined, services: form.sells === "logistics" ? form.client?.services ?? [] : [] } : undefined,
       clientId: form.clientId,
+      country: form.country ?? "IN",
+      agency: form.sells === "agency" ? { services: form.agency ?? [] } : undefined,
     };
     setParams(body);
     try {
@@ -406,6 +413,7 @@ export default function LeadFinder() {
 
   const searchRunning = running || search?.status === "running";
   const isLogistics = params?.sells === "logistics";
+  const isAgency = params?.sells === "agency";
 
   // statuses can change any time (even while a search runs); deleting waits until it's finished
   const locked = !!searchRunning;
@@ -474,7 +482,7 @@ export default function LeadFinder() {
     const out = leads.filter(
       (l) =>
         (tier === "all" || (!l.pending && l.tier === tier)) &&
-        (!onlyNoSite || (isLogistics ? l.signals.some((x) => x.key === "exports" || x.key === "imports") : ["none", "social_only", "down"].includes(l.audit?.status ?? ""))) &&
+        (!onlyNoSite || (isLogistics ? l.signals.some((x) => x.key === "exports" || x.key === "imports") : isAgency ? hasAgencyReason(l) : ["none", "social_only", "down"].includes(l.audit?.status ?? ""))) &&
         (!needPhone || l.phone || l.phones.length) &&
         (!needWa || whatsappNumber(l)) &&
         (!needEmail || l.email) &&
@@ -492,7 +500,7 @@ export default function LeadFinder() {
       status: (a, b) => (b.followUp?.updatedAt ?? "").localeCompare(a.followUp?.updatedAt ?? ""),
     };
     return out.sort((a, b) => Number(!!a.pending) - Number(!!b.pending) || cmp[sort](a, b));
-  }, [leads, tier, onlyNoSite, needPhone, needWa, needEmail, notContacted, skipChains, goodRating, status, contactedWeek, q, sort, searchId, pipe?.touched, isLogistics]);
+  }, [leads, tier, onlyNoSite, needPhone, needWa, needEmail, notContacted, skipChains, goodRating, status, contactedWeek, q, sort, searchId, pipe?.touched, isLogistics, isAgency]);
 
   const activeFilters = [tier !== "all", onlyNoSite, needPhone, needWa, needEmail, notContacted, skipChains, goodRating, status !== "any", contactedWeek, !!q.trim()].filter(Boolean).length;
   const filtered = activeFilters > 0;
@@ -676,7 +684,12 @@ export default function LeadFinder() {
           <div>
             {showForm ? (
               <>
-                {form.sells === "logistics" ? (
+                {form.sells === "agency" ? (
+                  <>
+                    <h1>Who needs a store or better systems?</h1>
+                    <p>Pick a country, a city and the kinds of business. We find online stores and companies whose website, store or systems are holding them back, say why, and write the first message.</p>
+                  </>
+                ) : form.sells === "logistics" ? (
                   <>
                     <h1>Who needs to ship goods today?</h1>
                     <p>Pick an area and the kinds of business. We find the ones that ship goods regularly, say what they'll likely need, and write the first message for your logistics client.</p>
@@ -790,7 +803,7 @@ export default function LeadFinder() {
             <section className="results" aria-label="Leads">
               <div className="filterbar">
                 <div className="chips scroll" role="group" aria-label="Filters">
-                  {([[isLogistics ? "Exports or imports" : "No working website", onlyNoSite, setOnlyNoSite], ["Not messaged yet", notContacted, setNotContacted], ["Has phone", needPhone, setNeedPhone], ["WhatsApp", needWa, setNeedWa], ["Has email", needEmail, setNeedEmail], ["4★ and up", goodRating, setGoodRating], ["No chains", skipChains, setSkipChains]] as const).map(([label, on, set]) => (
+                  {([[isLogistics ? "Exports or imports" : isAgency ? "Clear reason to pitch" : "No working website", onlyNoSite, setOnlyNoSite], ["Not messaged yet", notContacted, setNotContacted], ["Has phone", needPhone, setNeedPhone], ["WhatsApp", needWa, setNeedWa], ["Has email", needEmail, setNeedEmail], ["4★ and up", goodRating, setGoodRating], ["No chains", skipChains, setSkipChains]] as const).map(([label, on, set]) => (
                     <button key={label} className="chip" aria-pressed={on} onClick={() => set(!on)}>
                       {on && <IconCheck />} {label}
                     </button>

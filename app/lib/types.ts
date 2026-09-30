@@ -98,9 +98,36 @@ export interface WebsiteAudit {
   trade?: TradeHints;
   /** Growth clues on the site: the words that showed it (e.g. "current openings", "new branch"). */
   growth?: GrowthHints;
+  /** How the site is built and run: store platform, tools, ERP, customer portal (agency searches). */
+  tech?: TechHints;
   /** When the website's domain was registered (from public RDAP records), YYYY-MM-DD. */
   domainSince?: string;
   ownerName?: string; // schema.org founder/owner on the site
+}
+
+export interface TechHints {
+  /** Store platform: "Shopify", "WooCommerce", "Magento 1", "Magento 2", "BigCommerce", "Wix", "Squarespace", … */
+  platform?: string;
+  /** A free default theme (Shopify Dawn, Debut…): the store was never customised. */
+  defaultTheme?: string;
+  /** Has a cart / checkout on its own site. */
+  store?: boolean;
+  /** Sells on marketplaces (Amazon, Etsy, eBay, Walmart, Noon…). */
+  marketplaces?: string[];
+  /** Email, CRM, chat and helpdesk tools found in the page (Klaviyo, HubSpot, Intercom…). */
+  tools?: string[];
+  /** ERP named on the site (SAP, Oracle, NetSuite, Odoo, Dynamics…). */
+  erp?: string[];
+  /** Customer login / portal. */
+  portal?: boolean;
+  /** Shipment or order tracking on the site. */
+  tracking?: boolean;
+  /** Quote / enquiry by a plain form or email only. */
+  quoteForm?: boolean;
+  /** Job roles that show manual work (data entry, dispatcher, admin assistant…). */
+  manualRoles?: string[];
+  /** "12 locations", "offices in 5 countries". */
+  locations?: number;
 }
 
 export interface GrowthHints {
@@ -128,8 +155,10 @@ export interface TradeHints {
 /** Logistics services your client offers. */
 /** freight = by road (trucks), forwarding = export handling, sea = sea / ocean freight. */
 export type LogisticsService = "customs" | "documentation" | "dgft" | "icegate" | "sea" | "freight" | "imports" | "forwarding" | "courier" | "warehousing";
+/** Your own agency's services (international track): what a lead may need built. */
+export type AgencyService = "website" | "ecommerce" | "crm_erp" | "ai_automation";
 /** What you're finding leads for. */
-export type Offer = "website_development" | "logistics";
+export type Offer = "website_development" | "logistics" | "agency";
 
 export interface Signal {
   key: string;
@@ -201,7 +230,7 @@ export interface Lead {
   /** What changed since it was last checked, e.g. "Now has a website". */
   changes?: string[];
   /** Set when the search was for a logistics client: what this business likely needs. */
-  pitchFor?: { kind: "logistics"; client?: string; needs: LogisticsService[] };
+  pitchFor?: { kind: "logistics"; client?: string; needs: LogisticsService[] } | { kind: "agency"; client?: string; needs: AgencyService[]; track: "store" | "company" };
 }
 
 export interface SearchParams {
@@ -210,6 +239,8 @@ export interface SearchParams {
   client?: { name?: string; services: LogisticsService[] };
   /** The client (Business Brain) the search is for; its name is in client.name. */
   clientId?: string;
+  /** For an agency search: the services you sell (default: all four). */
+  agency?: { services: AgencyService[] };
   /** Country to search in (ISO code, default IN). */
   country?: import("./markets").CountryCode;
   categories: string[]; // preset keys

@@ -7,6 +7,7 @@ import { exactSearchChain, providersFromEnv, searchChain } from "./enrich/search
 import { pageSpeedMobile } from "./enrich/pagespeed";
 import { scoreWebsiteDev } from "./score/websiteDev";
 import { scoreLogistics } from "./score/logistics";
+import { scoreAgency } from "./score/agency";
 import { apolloEnrichDomain } from "./sources/apollo";
 import { googleTextSearch } from "./sources/googlePlaces";
 import { geocodeBBox, osmSearch, type BBox } from "./sources/osm";
@@ -109,6 +110,10 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
   emit({ type: "start", searchId: search.id });
   /** Websites: how badly they need a new site. Logistics: how much freight they'd bring the client. */
   const score = (l: Lead) => {
+    if (params.sells === "agency") {
+      const r = scoreAgency(l, params.agency?.services, deps.now?.());
+      return { ...r, pitchFor: { ...r.pitchFor, client: params.client?.name || undefined } };
+    }
     if (params.sells !== "logistics") return scoreWebsiteDev(l, deps.now?.());
     const r = scoreLogistics(l, params.client?.services, deps.now?.());
     return { ...r, pitchFor: { ...r.pitchFor, client: params.client?.name || undefined } };
@@ -239,7 +244,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
           raw.push(...r);
           log(`OpenStreetMap: ${r.length} × ${j.c.label} in ${place}`);
         } else if (j.src === "web") {
-          const r = await deps.web({ term: j.c.google, place, city: params.city, area: params.area, category: j.c.label, max: Math.min(params.perCategory, 10) }, { search: webSearch! });
+          const r = await deps.web({ term: j.c.google, place, city: params.city, area: params.area, category: j.c.label, max: Math.min(params.perCategory, 10), scope: j.c.track === "store" ? "country" : "local" }, { search: webSearch! });
           raw.push(...r.places);
           const why = [...new Set(r.rejected.map((x) => x.why))].map((w) => `${r.rejected.filter((x) => x.why === w).length} ${w}`).join(", ");
           log(`Search engines: ${r.places.length} × ${j.c.label} with their own website in ${place}${why ? ` (skipped: ${why})` : ""}`);

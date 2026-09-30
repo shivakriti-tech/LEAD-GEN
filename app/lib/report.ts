@@ -2,6 +2,8 @@ import type { Lead, SearchRecord } from "./types";
 import { categoryByKey } from "./categories";
 import { issueChips, linkedinOf } from "./outreach";
 import { SERVICE_LABEL } from "./score/logistics";
+import { AGENCY_CHIP, needLabels } from "./score/agency";
+import { marketOf } from "./markets";
 
 /**
  * A one-page report of a search's best leads, to send to your client: a summary, then each
@@ -20,15 +22,20 @@ export function leadsReport(opts: { search: SearchRecord; leads: Lead[]; by?: st
   const { search, by, all } = opts;
   const p = search.params;
   const logistics = p.sells === "logistics";
-  const place = p.area ? `${p.area}, ${p.city}` : p.city;
+  const agency = p.sells === "agency";
+  const country = p.country && p.country !== "IN" ? marketOf(p.country).name : "";
+  const place = [p.area, p.city, country].filter(Boolean).join(", ");
   const when = (opts.now ?? new Date()).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
   const usable = opts.leads.filter((l) => !l.pending && !l.signals.some((s) => s.key === "competitor"));
   const shown = usable.filter((l) => all || l.tier !== "cold").sort((a, b) => b.score - a.score).slice(0, 100);
   const types = p.categories.map((k) => categoryByKey(k)?.label ?? k).join(", ");
   const has = (k: string) => usable.filter((l) => l.signals.some((s) => s.key === k)).length;
   const client = p.client?.name?.trim();
-  const title = logistics ? (client ? `Leads for ${client}` : "Businesses that ship goods") : "Businesses that need a website";
-  const kpis: Array<[number, string]> = logistics
+  const title = logistics ? (client ? `Leads for ${client}` : "Businesses that ship goods") : agency ? (client ? `Leads for ${client}` : "Businesses to build for") : "Businesses that need a website";
+  const needing = (...xs: string[]) => usable.filter((l) => l.pitchFor?.kind === "agency" && l.pitchFor.needs.some((n) => xs.includes(n))).length;
+  const kpis: Array<[number, string]> = agency
+    ? [[usable.length, "Businesses checked"], [usable.filter((l) => l.tier === "hot").length, "Strong leads"], [needing("ecommerce"), "Need a store"], [needing("crm_erp", "ai_automation"), "Need CRM / ERP or automation"]]
+    : logistics
     ? [[usable.length, "Businesses checked"], [usable.filter((l) => l.tier === "hot").length, "Strong leads"], [has("exports"), "Exporters"], [has("industrial"), "In industrial areas"]]
     : [[usable.length, "Businesses checked"], [usable.filter((l) => l.tier === "hot").length, "Strong leads"], [usable.filter((l) => ["none", "social_only", "down"].includes(l.audit?.status ?? "none")).length, "No working website"], [usable.filter((l) => l.phone || l.phones.length).length, "With a phone number"]];
 
@@ -39,7 +46,7 @@ export function leadsReport(opts: { search: SearchRecord; leads: Lead[]; by?: st
     n++;
     const chips = issueChips(l).map((c) => `<span class="chip ${c.kind}">${esc(c.label)}</span>`).join("");
     const why = l.pitchFor ? l.whyNow.replace(/\s*Likely needs [^.]*\.$/, "") : l.whyNow;
-    const needs = l.pitchFor?.needs.length ? `<p class="needs"><span>Likely needs:</span> ${esc(l.pitchFor.needs.map((x) => SERVICE_LABEL[x]).join(", "))}</p>` : "";
+    const needs = l.pitchFor?.needs.length ? `<p class="needs"><span>Likely needs:</span> ${esc(needLabels(l.pitchFor).join(", "))}</p>` : "";
     const phone = l.phone ?? l.phones[0];
     const site = safeUrl(l.audit?.finalUrl ?? l.website);
     const li = linkedinOf(l);
@@ -71,6 +78,7 @@ export function leadsReport(opts: { search: SearchRecord; leads: Lead[]; by?: st
     ["Prepared by", by ?? ""],
     ["Business types", types],
     ...(!logistics && client ? [["For", client] as [string, string]] : []),
+    ...(agency && p.agency?.services.length ? [["Services", p.agency.services.map((x) => AGENCY_CHIP[x]).join(", ")] as [string, string]] : []),
     ...(logistics && p.client?.services.length ? [["Services", cap(p.client.services.map((x) => SERVICE_LABEL[x]).join(", "))] as [string, string]] : []),
   ];
 
@@ -189,8 +197,8 @@ ${section("Strong leads", "Best fit. Contact these first.", strong)}
 ${section(all ? "Other leads" : "Possible leads", all ? "Everything else we checked, best first." : "Good fit, worth a call after the strong ones.", rest)}
 ${shown.length ? "" : `<p class="muted">No leads to show yet.</p>`}
 <footer class="foot">
-  <p><b>Score</b> is out of 100: ${logistics ? "60" : "65"} and above is a strong lead, ${logistics ? "30 to 59" : "40 to 64"} a possible one. ${logistics ? "It is higher for factories and exporters in industrial areas that supply across India, counting only the services offered." : "It is higher for busy, well-rated businesses with no website or a weak one."}</p>
-  <p>${all ? "All leads" : "Strong and possible leads"}, best first (${shown.length} of ${usable.length}${logistics ? "; transport and courier companies left out" : ""}). Contacts come from public business listings (Google Maps, OpenStreetMap) and the businesses' own websites, checked on ${esc(when)}.</p>
+  <p><b>Score</b> is out of 100: ${logistics || agency ? "60" : "65"} and above is a strong lead, ${logistics || agency ? "30 to 59" : "40 to 64"} a possible one. ${logistics ? "It is higher for factories and exporters in industrial areas that supply across India, counting only the services offered." : agency ? "It is higher for brands without a store of their own or on an outdated one, and for companies with an old website, no customer portal and manual office work, counting only the services offered." : "It is higher for busy, well-rated businesses with no website or a weak one."}</p>
+  <p>${all ? "All leads" : "Strong and possible leads"}, best first (${shown.length} of ${usable.length}${logistics ? "; transport and courier companies left out" : agency ? "; web and software companies left out" : ""}). Contacts come from public business listings (Google Maps, OpenStreetMap) and the businesses' own websites, checked on ${esc(when)}.</p>
 </footer>
 </div></body></html>`;
 }

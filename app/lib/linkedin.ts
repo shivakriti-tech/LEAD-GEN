@@ -47,7 +47,10 @@ export function linkedinNote(l: Pick<Lead, "name" | "category" | "owner" | "pitc
   const first = l.owner?.name?.split(/\s+/)[0];
   const hi = first ? `Hi ${first}` : "Hello";
   const from = sender.company ? `${sender.name ?? "I"} from ${sender.company}` : sender.name ?? "I";
-  const about = l.pitchFor?.kind === "logistics" ? "I work with manufacturers and exporters on shipping and customs" : `I help ${l.category.toLowerCase()} businesses with their websites`;
+  const about =
+    l.pitchFor?.kind === "logistics" ? "I work with manufacturers and exporters on shipping and customs"
+    : l.pitchFor?.kind === "agency" ? (l.pitchFor.track === "store" ? "I build online stores for product brands" : "I build websites, CRM/ERP and automation for companies like yours")
+    : `I help ${l.category.toLowerCase()} businesses with their websites`;
   const where = l.city ? ` in ${l.city}` : "";
   const variants = [
     `${hi}, came across ${l.name}${where}. ${about}. Would be glad to connect. – ${from}`,

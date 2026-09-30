@@ -1,4 +1,4 @@
-import type { FollowUpStatus as AnyStatus, Lead, LogisticsService } from "./types";
+import type { AgencyService, FollowUpStatus as AnyStatus, Lead, LogisticsService } from "./types";
 import { growthChip } from "./score/growth";
 import { domainOf, isMobile } from "./util";
 
@@ -115,6 +115,7 @@ export const mapsLink = (l: Lead) =>
 /** The main reason to pitch, as the chips on a lead card: at most 3, most important first. */
 export function issueChips(l: Lead): Array<{ label: string; kind: "bad" | "warn" | "good" | "plain" }> {
   if (l.pitchFor?.kind === "logistics") return fitChips(l);
+  if (l.pitchFor?.kind === "agency") return agencyChips(l);
   const s = l.audit?.status;
   const out: Array<{ label: string; kind: "bad" | "warn" | "good" | "plain" }> = [];
   if (!l.pending) {
@@ -166,10 +167,12 @@ export interface Sender {
   priceLine?: string;
   /** Your business postal address: US and Canadian law require it in every marketing email. */
   address?: string;
+  /** One line of proof from the Business Brain, e.g. a client you built a website and ERP for. */
+  proof?: string;
 }
 
 /** Your details, with a client's Business Brain on top when the search is for one. */
-export function senderFor(me: Sender, brain?: { name: string; city?: string; sender?: { name?: string; link?: string }; pitch?: { usp?: string; priceHook?: string; mentionPrice?: boolean } } | null): Sender {
+export function senderFor(me: Sender, brain?: { name: string; city?: string; sender?: { name?: string; link?: string }; pitch?: { usp?: string; priceHook?: string; mentionPrice?: boolean }; proof?: string[] } | null): Sender {
   if (!brain) return me;
   return {
     ...me,
@@ -179,6 +182,7 @@ export function senderFor(me: Sender, brain?: { name: string; city?: string; sen
     company: brain.name,
     usp: brain.pitch?.usp,
     priceLine: brain.pitch?.mentionPrice ? brain.pitch.priceHook : undefined,
+    proof: brain.proof?.find((x) => x.trim()) || undefined,
   };
 }
 const sentence = (s?: string) => (s?.trim() ? ` ${s.trim().replace(/[.!?]?$/, (m) => m || ".")}` : "");
@@ -262,6 +266,7 @@ function caseOf(l: Lead): Case {
 /** A first message for this lead: it names the business, its problem and what you'd do, in your voice. */
 export function firstMessage(l: Lead, lang: Lang, sender?: string | Sender, tone: Exclude<Tone, "follow"> = "friendly"): string {
   if (l.pitchFor?.kind === "logistics") return logisticsMessage(l, lang, asSender(sender), tone);
+  if (l.pitchFor?.kind === "agency") return agencyMessage(l, asSender(sender), tone);
   const me = asSender(sender);
   const name = me.name?.trim() || (lang === "hi" ? "[aapka naam]" : "[your name]");
   const work = me.work?.trim() || "web developer";
@@ -353,13 +358,21 @@ export function whatsappLink(l: Lead, lang: Lang, sender?: string | Sender): str
 
 export function emailLink(l: Lead, sender?: string | Sender): string | undefined {
   if (!l.email) return undefined;
-  const subject = l.pitchFor?.kind === "logistics" ? `Shipping and logistics for ${l.name}` : `A quick idea for ${l.name}`;
+  const subject = subjectLine(l);
   return `mailto:${l.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(firstMessage(l, "en", sender))}`;
+}
+
+/** The email subject for a first message. */
+export function subjectLine(l: Pick<Lead, "name" | "pitchFor">): string {
+  if (l.pitchFor?.kind === "logistics") return `Shipping and logistics for ${l.name}`;
+  if (l.pitchFor?.kind === "agency" && l.pitchFor.track === "store") return `An idea for the ${l.name} store`;
+  return `A quick idea for ${l.name}`;
 }
 
 /** A short nudge for a lead you've already messaged. */
 export function followUpMessage(l: Lead, lang: Lang, sender?: string | Sender): string {
   const from = asSender(sender).name?.trim() || (lang === "hi" ? "[aapka naam]" : "[your name]");
+  if (l.pitchFor?.kind === "agency") return `Hi ${greetName(l, "en")}, following up on my note about ${agencyTopic(l)} for ${l.name}. Happy to send a short written plan with costs, no call needed. – ${from}`;
   if (l.pitchFor?.kind === "logistics")
     return lang === "hi"
       ? `Namaste ${greetName(l, "hi")}, ${l.name} ki shipping ke baare mein humara pichla message follow up kar rahe hain. Aapke regular routes ke rates bhej sakte hain. – ${from}`
@@ -408,6 +421,7 @@ export function messageForStep(l: Lead, lang: Lang, sender: string | Sender | un
 export function lastFollowUp(l: Lead, lang: Lang, sender?: string | Sender): string {
   const me = asSender(sender);
   const from = [me.name?.trim() || (lang === "hi" ? "[aapka naam]" : "[your name]"), me.company?.trim()].filter(Boolean).join(", ");
+  if (l.pitchFor?.kind === "agency") return `Hi ${greetName(l, "en")}, one last note about ${agencyTopic(l)} for ${l.name}: if now isn't the right time, no problem at all. If it's useful later, just reply here. – ${from}`;
   const topic = l.pitchFor?.kind === "logistics" ? (lang === "hi" ? "shipping" : "shipping") : lang === "hi" ? "website" : "a website";
   return lang === "hi"
     ? `Namaste ${greetName(l, "hi")}, ${l.name} ke ${topic} ke baare mein ye humara aakhri message hai. Abhi zarurat na ho toh koi baat nahi. Kabhi zarurat ho toh bas yahin reply kar dijiye. – ${from}`
@@ -441,7 +455,7 @@ function logisticsMessage(l: Lead, lang: Lang, me: Sender, tone: Exclude<Tone, "
   const hi = lang === "hi";
   const name = me.name?.trim() || (hi ? "[aapka naam]" : "[your name]");
   const client = l.pitchFor?.client?.trim() || me.company?.trim();
-  const needs = l.pitchFor?.needs.length ? l.pitchFor.needs : (["freight"] as LogisticsService[]);
+  const needs = l.pitchFor?.kind === "logistics" && l.pitchFor.needs.length ? l.pitchFor.needs : (["freight"] as LogisticsService[]);
   // a message names at most 3 services; the rest come up on the call
   const needText = joinAnd(needs.slice(0, 3).map((n) => (hi ? NEED_HI : NEED_EN)[n]), lang);
   const k = new Set(l.signals.map((x) => x.key));
@@ -480,4 +494,77 @@ function logisticsMessage(l: Lead, lang: Lang, me: Sender, tone: Exclude<Tone, "
   const who = client ? `I'm ${name} from ${client}` : `I'm ${name}`;
   const ask = exportsTo ? "Could we quote for your next export shipment?" : importsFrom ? "Could we quote for clearing your next import consignment?" : "Could we send you rates for your regular routes?";
   return `Hi ${greet}, I came across ${l.name}. ${seen} ${who}${me.city ? ` in ${me.city}` : ""}. We handle ${needText} for businesses like yours: pickup, paperwork and tracking in one place, usually at better rates than booking each load separately.${sentence(me.usp)}${sentence(me.priceLine)} ${ask}${link ? ` ${link}` : ""}`;
+}
+
+/* ---------- your agency's leads (international, English) ---------- */
+
+const AGENCY_EN: Record<AgencyService, string> = { website: "websites", ecommerce: "online stores (Shopify or custom)", crm_erp: "CRM and ERP systems", ai_automation: "AI automation" };
+
+/** "your online store", "a CRM / ERP", … for follow-ups. */
+function agencyTopic(l: Lead): string {
+  const p = l.pitchFor?.kind === "agency" ? l.pitchFor : undefined;
+  if (!p) return "a website";
+  if (p.needs.includes("ecommerce")) return "your online store";
+  if (p.needs.includes("crm_erp")) return "a CRM / ERP";
+  if (p.needs.includes("ai_automation")) return "automation";
+  return "your website";
+}
+
+/** Why this business fits your agency, as chips: "Marketplace only", "Magento 1", "No tracking". */
+function agencyChips(l: Lead): Array<{ label: string; kind: "bad" | "warn" | "good" | "plain" }> {
+  const k = new Set(l.signals.map((x) => x.key));
+  const t = l.audit?.tech ?? {};
+  const out: Array<{ label: string; kind: "bad" | "warn" | "good" | "plain" }> = [];
+  if (k.has("competitor")) out.push({ label: "Web / software company", kind: "bad" });
+  if (k.has("no_website")) out.push({ label: "No website", kind: "bad" });
+  if (k.has("social_only")) out.push({ label: `Only ${socialName(l)}`, kind: "bad" });
+  if (k.has("site_down")) out.push({ label: "Website broken", kind: "bad" });
+  if (k.has("marketplace_only")) out.push({ label: `Only on ${t.marketplaces?.[0] ?? "marketplaces"}`, kind: "bad" });
+  if (k.has("magento1")) out.push({ label: "Magento 1", kind: "bad" });
+  if (k.has("default_theme")) out.push({ label: `Default theme (${t.defaultTheme})`, kind: "warn" });
+  if (k.has("outgrown")) out.push({ label: `Store on ${t.platform}`, kind: "warn" });
+  if (k.has("no_store")) out.push({ label: "No online shop", kind: "warn" });
+  if (k.has("no_portal")) out.push({ label: "No tracking or portal", kind: "warn" });
+  if (k.has("manual_roles")) out.push({ label: "Hiring manual roles", kind: "good" });
+  const grow = growthChip(l.signals);
+  if (grow) out.push(grow);
+  if (k.has("stale")) out.push({ label: `Not updated since ${l.audit?.copyrightYear}`, kind: "warn" });
+  if (k.has("erp")) out.push({ label: `Uses ${t.erp?.[0]}`, kind: "plain" });
+  if (k.has("locations")) out.push({ label: `${t.locations} locations`, kind: "plain" });
+  if (k.has("invests")) out.push({ label: "Pays for store tools", kind: "good" });
+  return out.slice(0, 3);
+}
+
+function agencyMessage(l: Lead, me: Sender, tone: Exclude<Tone, "follow">): string {
+  const p = l.pitchFor?.kind === "agency" ? l.pitchFor : undefined;
+  const store = p?.track === "store";
+  const name = me.name?.trim() || "[your name]";
+  const company = l.pitchFor?.client?.trim() || me.company?.trim();
+  const greet = greetName(l, "en");
+  const needs = p?.needs.length ? p.needs : ([store ? "ecommerce" : "website"] as AgencyService[]);
+  const needText = joinAnd(needs.slice(0, 3).map((n) => AGENCY_EN[n]), "en");
+  const k = new Set(l.signals.map((x) => x.key));
+  const t = l.audit?.tech ?? {};
+  const site = domainOf(l.audit?.finalUrl ?? l.website);
+  const link = me.link?.trim();
+  const role = t.manualRoles?.[0];
+
+  const seen = k.has("marketplace_only") ? `I saw you sell on ${joinAnd(t.marketplaces!.slice(0, 2), "en")}, but there's no store on your own website, so every sale pays a marketplace fee and the customer isn't yours.`
+    : k.has("magento1") ? `I noticed your store runs on Magento 1, which stopped getting security updates in 2020.`
+    : k.has("default_theme") ? `I noticed your Shopify store still uses the free ${t.defaultTheme} theme, so it looks like many others.`
+    : k.has("outgrown") ? `I noticed your store is built on ${t.platform}; brands at your stage usually outgrow it.`
+    : k.has("no_store") ? `I looked at ${site ?? "your website"}, but there's no way to buy online yet.`
+    : k.has("no_website") ? `I couldn't find a website for ${l.name}.`
+    : k.has("social_only") ? `I could only find ${l.name} on ${socialName(l)}, not on a website of its own.`
+    : k.has("site_down") ? `Your website${site ? ` (${site})` : ""} didn't load when I tried it.`
+    : k.has("manual_roles") ? `I saw you're hiring ${an(role!)} ${role}: a lot of that work can now run on its own.`
+    : k.has("no_portal") ? `I saw ${site ?? "your website"} has ${/freight|logistic|truck|haul|warehous|3PL/i.test(l.category) ? "no way for customers to track a shipment or log in" : "no login for customers to check their orders"}.`
+    : k.has("stale") ? `${site ?? "Your website"} looks like it was last updated in ${l.audit?.copyrightYear}.`
+    : `I've been looking at ${l.category.toLowerCase()} companies${l.city ? ` in ${l.city}` : ""}.`;
+  const what = store ? "fast stores that sell, connected to your marketplaces and stock" : "customer portals, quotes and orders in one system instead of spreadsheets and email";
+  const ask = store ? `Could I send you a short review of ${l.name}'s store with three quick wins?` : `Would a 20-minute call next week be useful, to see how it could work for ${l.name}?`;
+
+  if (tone === "short") return `Hi ${greet}, ${name}${company ? ` from ${company}` : ""} here. ${seen} We build ${needText}.${sentence(me.proof)} Worth a quick chat?${link ? ` ${link}` : ""}`;
+  const who = company ? `I'm ${name} from ${company}` : `I'm ${name}`;
+  return `Hi ${greet}, ${seen} ${who}: we build ${needText} for ${store ? "product brands" : "companies like yours"}: ${what}.${sentence(me.proof)}${sentence(me.usp)}${sentence(me.priceLine)} ${ask}${link ? ` ${link}` : ""}`;
 }

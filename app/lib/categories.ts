@@ -9,7 +9,9 @@ export interface CategoryPreset {
   google: string;
   osm: string[]; // Overpass filter fragments, e.g. ["amenity"="dentist"]; empty = not on the map
   /** Which offering this type is for (default: websites). */
-  sells?: "logistics";
+  sells?: "logistics" | "agency";
+  /** Agency searches: an online store (store upgrades) or a mid-size company (CRM/ERP, automation). */
+  track?: "store" | "company";
 }
 
 /*
@@ -62,9 +64,44 @@ export const CATEGORIES: CategoryPreset[] = [
   { key: "distributor", label: "Distributor & stockist", group: "Trade", google: "distributor stockist", osm: ['["shop"]["name"~"distribut|stockist",i]', ...inOffices("distribut|stockist")], sells: "logistics" },
   { key: "online_seller", label: "Online seller", group: "Trade", google: "online store ecommerce brand", osm: [], sells: "logistics" },
   { key: "furniture_mfr", label: "Furniture maker", group: "Factories", google: "furniture manufacturer", osm: ['["craft"="carpenter"]', ...inIndustry("furniture|wood|timber|ply|modular")], sells: "logistics" },
+
+  // Your own agency, international: brands that sell online (store builds and upgrades) …
+  ...store([
+    { key: "store_fashion", label: "Fashion & apparel brand", google: "clothing brand store", osm: ['["shop"="clothes"]', '["shop"="boutique"]', '["shop"="shoes"]'] },
+    { key: "store_beauty", label: "Beauty & cosmetics", google: "cosmetics skincare brand", osm: ['["shop"="cosmetics"]', '["shop"="perfumery"]'] },
+    { key: "store_home", label: "Home decor & furniture", google: "home decor furniture store", osm: ['["shop"="interior_decoration"]', '["shop"="furniture"]', '["shop"="houseware"]'] },
+    { key: "store_jewelry", label: "Jewelry & accessories", google: "jewelry store", osm: ['["shop"="jewelry"]', '["shop"="bag"]', '["shop"="watches"]'] },
+    { key: "store_health", label: "Supplements & wellness", google: "supplement health food store", osm: ['["shop"="nutrition_supplements"]', '["shop"="health_food"]'] },
+    { key: "store_pet", label: "Pet products", google: "pet supply store", osm: ['["shop"="pet"]'] },
+    { key: "store_sports", label: "Sports & outdoor", google: "sporting goods outdoor store", osm: ['["shop"="sports"]', '["shop"="outdoor"]', '["shop"="bicycle"]'] },
+    { key: "store_food", label: "Specialty food & drinks", google: "specialty food coffee tea shop", osm: ['["shop"="coffee"]', '["shop"="tea"]', '["shop"="deli"]', '["shop"="wine"]', '["shop"="confectionery"]'] },
+    { key: "store_online", label: "Online store (any niche)", google: "online store ecommerce brand", osm: [] },
+  ]),
+  // … and mid-size companies that run on spreadsheets and email (websites, CRM / ERP, automation)
+  ...company([
+    { key: "co_freight", label: "Freight forwarding & logistics", google: "freight forwarder logistics company", osm: ['["office"="logistics"]', ...inOffices("logistic|freight|forward|cargo|shipping")] },
+    { key: "co_trucking", label: "Trucking & haulage", google: "trucking company", osm: inOffices("trucking|haulage|transport|freight lines|carriers|express") },
+    { key: "co_3pl", label: "Warehousing & 3PL", google: "3PL warehousing company", osm: ['["industrial"="warehouse"]["name"]', ...inOffices("warehous|3PL|fulfil|distribution cent|storage")] },
+    { key: "co_mining", label: "Mining & minerals", google: "mining company", osm: ['["industrial"="mine"]["name"]', ...inOffices("mining|minerals|resources|quarr|metals")] },
+    { key: "co_oilgas", label: "Oil & gas services", google: "oil and gas services company", osm: ['["industrial"="oil"]["name"]', ...inOffices("oil|gas|petrol|drilling|oilfield|energy services")] },
+    { key: "co_energy", label: "Renewable energy & solar", google: "solar energy company", osm: ['["office"="energy_supplier"]', ...inOffices("solar|renewable|wind|energy|power")] },
+    { key: "co_agri", label: "Agriculture & commodities", google: "agricultural commodities trading company", osm: ['["shop"="agrarian"]', ...inOffices("grain|agri|commodit|farm|seeds|fertili|produce|trading")] },
+    { key: "co_manufacturing", label: "Manufacturing", google: "manufacturing company", osm: ['["man_made"="works"]["name"]', '["industrial"="factory"]["name"]', ...inOffices("manufactur|industries|fabricat|products|mfg")] },
+    { key: "co_construction", label: "Construction & contracting", google: "construction company", osm: ['["office"="construction_company"]', '["craft"="builder"]', ...inOffices("construction|contracting|contractors|civil|builders")] },
+    { key: "co_wholesale", label: "Wholesale & distribution", google: "wholesale distributor", osm: ['["shop"="wholesale"]', ...inOffices("wholesale|distribut|supply|trading")] },
+    { key: "co_equipment", label: "Equipment dealers & rental", google: "heavy equipment dealer rental", osm: ['["shop"="machinery"]', '["shop"="tool_hire"]', ...inOffices("equipment|machinery|rental|hire")] },
+  ]),
 ];
 
+type AgencyPreset = Omit<CategoryPreset, "group" | "sells" | "track">;
+function store(xs: AgencyPreset[]): CategoryPreset[] {
+  return xs.map((x) => ({ ...x, group: "Online stores", sells: "agency", track: "store" }));
+}
+function company(xs: AgencyPreset[]): CategoryPreset[] {
+  return xs.map((x) => ({ ...x, group: "Companies", sells: "agency", track: "company" }));
+}
+
 /** The business types for an offering. */
-export const categoriesFor = (sells: "website_development" | "logistics") => CATEGORIES.filter((c) => (c.sells ?? "website_development") === sells);
+export const categoriesFor = (sells: "website_development" | "logistics" | "agency") => CATEGORIES.filter((c) => (c.sells ?? "website_development") === sells);
 
 export const categoryByKey = (key: string) => CATEGORIES.find((c) => c.key === key);

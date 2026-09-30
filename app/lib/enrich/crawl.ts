@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
-import type { TradeHints, WebsiteAudit, GrowthHints } from "../types";
+import type { TradeHints, WebsiteAudit, GrowthHints, TechHints } from "../types";
+import { mergeTech, techHints } from "./tech";
 import { fetchPublic } from "../safeFetch";
 import { domainOf, isMobile, isSocialHost, normalizePhone, phonesInText } from "../util";
 import { currentCountry } from "../marketContext";
@@ -209,11 +210,18 @@ export function parsePage(html: string, pageUrl: string) {
     }
   }
 
-  // --- Contact/about page links ---
+  // --- Contact/about page links, and the careers page (job ads show manual work to automate) ---
   const contactLinks: string[] = [];
+  let careersLink: string | undefined;
   $("a[href]").each((_, a) => {
     const href = $(a).attr("href") || "";
     const label = ($(a).text() || "").toLowerCase();
+    if (!careersLink && /career|jobs|join[- ]?(us|our)|openings|vacanc/.test(href.toLowerCase() + " " + label)) {
+      try {
+        const u = new URL(href, pageUrl);
+        if (u.hostname === new URL(pageUrl).hostname) careersLink = u.toString();
+      } catch {}
+    }
     if (/contact|about|reach|location/.test(href.toLowerCase() + " " + label)) {
       try {
         const u = new URL(href, pageUrl);
@@ -266,8 +274,9 @@ export function parsePage(html: string, pageUrl: string) {
   });
   const trade = tradeHints(text, [...new Set(hosts)], html.slice(0, 300_000));
   const growth = growthHints(text);
+  const tech = techHints(html, text, [...new Set(hosts)]);
 
-  return { emails: [...emails], phones: sortedPhones, socials, whatsapp, mobileViewport, copyrightYear, builder, contactLinks: contactLinks.slice(0, 2), foundedYear: extractedFoundingYear, designedBy, ownerName, trade, growth };
+  return { emails: [...emails], phones: sortedPhones, socials, whatsapp, mobileViewport, copyrightYear, builder, contactLinks: contactLinks.slice(0, 2), careersLink, foundedYear: extractedFoundingYear, designedBy, ownerName, trade, growth, tech };
 }
 
 /** Load a business website and audit it. Never throws. */
@@ -306,9 +315,11 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
   let ownerName = first.ownerName;
   const trade: TradeHints = { ...first.trade };
   const growth: GrowthHints = { ...first.growth };
+  const tech: TechHints = { ...first.tech };
 
-  // look at up to 2 contact/about pages for more contacts
-  for (const link of first.contactLinks) {
+  // look at up to 2 contact/about pages for more contacts; outside India also the careers page
+  const more = [...first.contactLinks, ...(currentCountry() !== "IN" && first.careersLink && !first.contactLinks.includes(first.careersLink) ? [first.careersLink] : [])];
+  for (const link of more) {
     try {
       const r = await fetchPublic(link, { headers: { Accept: "text/html" } }, 8_000);
       if (!r.ok || !(r.headers.get("content-type") || "").includes("html")) continue;
@@ -322,6 +333,7 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
       ownerName ??= p.ownerName;
       mergeTrade(trade, p.trade);
       for (const [k, v] of Object.entries(p.growth) as Array<[keyof GrowthHints, string]>) growth[k] ??= v;
+      mergeTech(tech, p.tech);
     } catch {}
   }
 
@@ -363,6 +375,7 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
     ownerName,
     trade: Object.keys(trade).length ? trade : undefined,
     growth: Object.keys(growth).length ? growth : undefined,
+    tech: Object.keys(tech).length ? tech : undefined,
   };
 }
 

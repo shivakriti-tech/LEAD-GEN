@@ -1,9 +1,10 @@
 import { isCountry, type CountryCode } from "@/lib/markets";
 import { defaultDeps, runSearch } from "@/lib/pipeline";
 import { getStore } from "@/lib/store";
-import type { LogisticsService, ProgressEvent, SearchParams } from "@/lib/types";
+import type { AgencyService, LogisticsService, ProgressEvent, SearchParams } from "@/lib/types";
 import { categoriesFor } from "@/lib/categories";
 import { ALL_SERVICES } from "@/lib/score/logistics";
+import { ALL_AGENCY } from "@/lib/score/agency";
 import { track } from "@/lib/live";
 
 export const runtime = "nodejs";
@@ -18,10 +19,11 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ error: "Send the search as JSON." }, { status: 400 });
   }
-  const sells = body.sells === "logistics" ? "logistics" : "website_development";
+  const sells = body.sells === "logistics" || body.sells === "agency" ? body.sells : "website_development";
   const valid = new Set(categoriesFor(sells).map((c) => c.key));
   const clientId = typeof body.clientId === "string" && /^[0-9a-f-]{36}$/i.test(body.clientId) ? body.clientId : undefined;
   const services = (Array.isArray(body.client?.services) ? body.client!.services : []).filter((x): x is LogisticsService => (ALL_SERVICES as string[]).includes(x));
+  const agencyServices = (Array.isArray(body.agency?.services) ? body.agency!.services : []).filter((x): x is AgencyService => (ALL_AGENCY as string[]).includes(x));
   const params: SearchParams = {
     sells,
     client:
@@ -29,6 +31,7 @@ export async function POST(req: Request) {
       : clientId && body.client?.name ? { name: String(body.client.name).trim().slice(0, 80), services: [] }
       : undefined,
     clientId,
+    agency: sells === "agency" ? { services: agencyServices.length ? agencyServices : ALL_AGENCY } : undefined,
     country: isCountry(body.country) ? (String(body.country).toUpperCase() as CountryCode) : "IN",
     categories: (Array.isArray(body.categories) ? body.categories : []).filter((c) => valid.has(c)).slice(0, 8),
     city: String(body.city ?? "").trim().slice(0, 80),

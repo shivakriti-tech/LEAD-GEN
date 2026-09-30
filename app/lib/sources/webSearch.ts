@@ -1,4 +1,4 @@
-import { currentCountry } from "../marketContext";
+import { currentCountry, currentMarket } from "../marketContext";
 import * as cheerio from "cheerio";
 import type { RawPlace } from "../types";
 import { CHAIN_WORDS, isDirectory, significantTokens, type SearchHit } from "../enrich/discover";
@@ -29,12 +29,28 @@ const NATIONAL = [
   "livspace.com", "designcafe.com", "homelane.com", "bonito.in", "nilkamalhomes.com", "interio.com", "itchotels.in", "marriott.com", "hilton.com", "tajhotels.com",
   "quora.com", "reddit.com", "medium.com", "wikipedia.org", "timesofindia.indiatimes.com", "indiatimes.com", "hindustantimes.com",
   "ndtv.com", "news18.com", "thehindu.com", "indianexpress.com", "deccanherald.com", "dnaindia.com", "gov.in", "nic.in",
+  // international marketplaces, big retailers, platforms and lists
+  "etsy.com", "ebay.com", "walmart.com", "target.com", "bestbuy.com", "costco.com", "wayfair.com", "homedepot.com", "lowes.com", "macys.com", "nordstrom.com",
+  "sephora.com", "ulta.com", "chewy.com", "petsmart.com", "petco.com", "zappos.com", "shein.com", "temu.com", "aliexpress.com", "alibaba.com",
+  "amazon.ca", "amazon.com.au", "amazon.ae", "amazon.sa", "noon.com", "namshi.com", "catch.com.au", "kogan.com", "trademe.co.nz", "canadiantire.ca",
+  "shopify.com", "bigcommerce.com", "wix.com", "squarespace.com", "forbes.com", "businessinsider.com", "nytimes.com", "yelp.com", "yelp.ca",
+  "tripadvisor.com", "bbb.org", "linkedin.com", "glassdoor.com", "indeed.com", "crunchbase.com", "zoominfo.com", "thomasnet.com", "gov", "gc.ca", "gov.au", "govt.nz",
 ];
 export const isNational = (d?: string) => !!d && NATIONAL.some((h) => d === h || d.endsWith("." + h));
 
 /** Queries to run per business type. Two is enough; more just burns search quota. */
-export function webQueries(term: string, place: string): string[] {
+export function webQueries(term: string, place: string, scope: "local" | "country" = "local"): string[] {
+  // brands selling online: their own store sites, in the city or anywhere in the country
+  if (scope === "country") return [`${term} online store ${place}`, `independent ${term} shop online ships from ${place}`];
   return [`${term} in ${place}`, `${term} ${place} contact number address`];
+}
+
+/** Is this site from the search's country: its web address, or the country (or city) named on it? */
+export function inCountry(domain: string, text: string, city: string): boolean {
+  const m = currentMarket();
+  if (m.tlds.some((t) => t !== "com" && t !== "net" && t !== "co" && domain.endsWith(`.${t}`))) return true;
+  const names = { US: ["united states", "usa", "u s a"], CA: ["canada"], AE: ["uae", "united arab emirates", "dubai"], SA: ["saudi arabia", "ksa"], QA: ["qatar"], KW: ["kuwait"], OM: ["oman"], BH: ["bahrain"], AU: ["australia"], NZ: ["new zealand"], IN: ["india"] }[m.code] ?? [m.name.toLowerCase()];
+  return mentionsPlace(text, city) || names.some((n) => ` ${normalise(text)} `.includes(` ${n} `));
 }
 
 const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -90,7 +106,8 @@ export interface WebLeadResult {
 }
 
 export async function webLeadSearch(
-  opts: { term: string; place: string; city: string; area?: string; category: string; max: number },
+  /** scope "country": online brands, which may be anywhere in the country, not only in the city. */
+  opts: { term: string; place: string; city: string; area?: string; category: string; max: number; scope?: "local" | "country" },
   deps: WebLeadDeps,
 ): Promise<WebLeadResult> {
   const get = deps.fetchHtml ?? defaultFetch;
@@ -99,7 +116,7 @@ export async function webLeadSearch(
   const candidates: Array<{ domain: string; url: string; hit: SearchHit }> = [];
   let queries = 0;
 
-  for (const q of webQueries(opts.term, opts.place)) {
+  for (const q of webQueries(opts.term, opts.place, opts.scope)) {
     let hits: SearchHit[] = [];
     try {
       hits = await deps.search(q);
@@ -129,8 +146,8 @@ export async function webLeadSearch(
     const $ = cheerio.load(page.html);
     const text = $("body").text().replace(/\s+/g, " ").slice(0, 300_000);
     const title = ($('meta[property="og:site_name"]').attr("content") || $("title").first().text() || c.hit.title).trim();
-    if (!mentionsPlace(`${title} ${text} ${c.hit.snippet ?? ""}`, opts.city, opts.area)) {
-      rejected.push({ domain: c.domain, why: `doesn't mention ${opts.city}` });
+    if (opts.scope === "country" ? !inCountry(c.domain, `${title} ${text} ${c.hit.snippet ?? ""}`, opts.city) : !mentionsPlace(`${title} ${text} ${c.hit.snippet ?? ""}`, opts.city, opts.area)) {
+      rejected.push({ domain: c.domain, why: opts.scope === "country" ? `not in ${currentMarket().name}` : `doesn't mention ${opts.city}` });
       continue;
     }
     if (CHAIN_WORDS.test(text)) { rejected.push({ domain: c.domain, why: "chain or franchise" }); continue; }

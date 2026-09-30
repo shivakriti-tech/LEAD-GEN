@@ -450,13 +450,14 @@ button.score:hover { box-shadow: 0 0 0 3px var(--accent-soft); }
 .step { padding: 22px 0; border-bottom: 1px solid var(--line); }
 .step-title { font-size: 19px; }
 .step-hint { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
-.place { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; background: var(--sunk); border-radius: 18px; overflow: hidden; border: 1px solid transparent; transition: border-color .15s, background .15s; }
+.place { margin-top: 14px; display: grid; grid-template-columns: minmax(150px, .8fr) 1fr 1fr; background: var(--sunk); border-radius: 18px; overflow: hidden; border: 1px solid transparent; transition: border-color .15s, background .15s; }
 .place:focus-within { border-color: var(--ink-2); background: var(--surface); }
-.place-f { display: flex; flex-direction: column; padding: 10px 16px 8px; gap: 0; }
+.place-f { display: flex; flex-direction: column; padding: 10px 16px 8px; gap: 0; min-width: 0; }
 .place-f + .place-f { border-left: 1px solid var(--line); }
 .place-f input { border: 0; padding: 2px 0 4px; font-size: 18px; font-weight: 500; background: transparent; border-radius: 0; box-shadow: none; }
 .place-f input:focus { box-shadow: none; }
-.offers { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.place-f select { border: 0; padding: 2px 0 4px; font-size: 18px; font-weight: 500; background: transparent; box-shadow: none; min-width: 0; }
+.offers { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
 .offer { display: flex; flex-direction: column; gap: 3px; text-align: left; border: 1.5px solid transparent; background: var(--sunk); border-radius: 18px; padding: 14px 16px; transition: border-color .15s, background .15s; }
 .offer b { font-family: var(--display); font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
 .offer:hover { background: #EFECE6; }
@@ -465,6 +466,7 @@ button.score:hover { box-shadow: 0 0 0 3px var(--accent-soft); }
 .client-box .chip[aria-pressed="false"] { background: var(--surface); }
 .recent { margin-top: 12px; display: flex; gap: 6px 14px; flex-wrap: wrap; align-items: center; }
 .cats { margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.cat-group { grid-column: 1 / -1; margin: 6px 0 -2px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .cat { display: flex; gap: 10px; align-items: flex-start; text-align: left; border: 1.5px solid transparent; background: var(--sunk); border-radius: 16px; padding: 12px 14px; transition: border-color .15s, background .15s; }
 .cat:hover:not([disabled]) { background: #EFECE6; }
 .cat.on { border-color: var(--ink); background: var(--surface); }
