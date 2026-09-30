@@ -34,7 +34,7 @@ With no keys at all it already works: leads come from OpenStreetMap (free) and e
 | `CRAWLER_CONTACT` | Your email in the crawler's User-Agent (OpenStreetMap asks for one) | Any address you check |
 | `PDF_BROWSER` | Only if the *Report* PDF says no Chrome or Edge was found: the full path to Chrome, Edge or Chromium | e.g. `C:\Program Files\Google\Chrome\Application\chrome.exe` |
 | `EMAIL_VERIFY`, `EMAIL_VERIFY_KEY` | Checks the best email on each lead at mailbox level (does it exist, or does the domain accept any address). `zerobounce` (100 free checks a month) or `millionverifier` (cheapest for bulk). Up to 50 checks a search (`EMAIL_VERIFY_MAX` to change), answers remembered 30 days. Without it, every email's domain is still checked for a mail server | https://www.zerobounce.net or https://www.millionverifier.com → API key |
-| `ANTHROPIC_API_KEY` | Claude reads a client's website when you add them under *Clients* and drafts their profile (services, prices, rules). A few rupees per client. Without it a basic reader drafts it | https://console.anthropic.com → API keys |
+| `ANTHROPIC_API_KEY` | Claude reads a client's website when you add them under *Clients* and drafts their profile (services, prices, rules). About ₹10–20 per client (one Claude Opus 5.5 call). Without it a basic reader drafts it | https://console.anthropic.com → API keys |
 | `APP_PASSWORD` | Password-protects the whole app (the browser asks; any user name). **Set it before putting the app online**: saved searches hold phone numbers and emails, and every search spends your API quota | Any long password |
 
 Restart `npm run dev` after changing `.env.local`.
