@@ -11,6 +11,11 @@ export interface PitchPrefs {
   setTone: (t: Exclude<Tone, "follow">) => void;
   me: Sender;
   setMe: (s: Sender) => void;
+  /** Who messages in the open search are from: your details, with the client's Business Brain on top. */
+  send?: Sender;
+  /** The client's "never say" phrases, flagged in the message box. */
+  banned?: string[];
+  clientName?: string;
 }
 
 export const PitchCtx = createContext<PitchPrefs>({

@@ -159,7 +159,27 @@ export interface Sender {
   city?: string;
   /** Link to your work: portfolio, Instagram, a sample site. */
   link?: string;
+  /** Set from a client's Business Brain: the company you write for, their one-line reason to pick
+   *  them, and a price line (only when the client chose to put it in first messages). */
+  company?: string;
+  usp?: string;
+  priceLine?: string;
 }
+
+/** Your details, with a client's Business Brain on top when the search is for one. */
+export function senderFor(me: Sender, brain?: { name: string; city?: string; sender?: { name?: string; link?: string }; pitch?: { usp?: string; priceHook?: string; mentionPrice?: boolean } } | null): Sender {
+  if (!brain) return me;
+  return {
+    ...me,
+    name: brain.sender?.name || me.name,
+    link: brain.sender?.link || me.link,
+    city: me.city || brain.city,
+    company: brain.name,
+    usp: brain.pitch?.usp,
+    priceLine: brain.pitch?.mentionPrice ? brain.pitch.priceHook : undefined,
+  };
+}
+const sentence = (s?: string) => (s?.trim() ? ` ${s.trim().replace(/[.!?]?$/, (m) => m || ".")}` : "");
 /** friendly: the full pitch · short: two lines · follow: a nudge after you've messaged once. */
 export type Tone = "friendly" | "short" | "follow";
 export const TONES: Array<{ key: Tone; label: string }> = [
@@ -266,7 +286,7 @@ export function firstMessage(l: Lead, lang: Lang, sender?: string | Sender, tone
       }[c];
       const fix = { none: "Hum aapke liye simple website bana sakte hain.", social: "Hum aapke liye simple website bana sakte hain.", down: "Hum ise jaldi theek kar sakte hain.", issues: "Ye jaldi theek ho sakta hai.", ok: "Isse zyada enquiries aa sakti hain." }[c];
       const ask = c === "down" ? "Dekh lein?" : "Ek chhota sample dikhayein?";
-      return `Namaste ${greet}, main ${name}, ${myCity ? `${myCity} se ` : ""}${work}. ${fact} ${fix} ${ask}${link ? ` ${link}` : ""}`;
+      return `Namaste ${greet}, main ${name}, ${me.company ? `${me.company} se` : `${myCity ? `${myCity} se ` : ""}${work}`}. ${fact} ${fix}${sentence(me.priceLine)} ${ask}${link ? ` ${link}` : ""}`;
     }
     const seen = onWhat ? `maine ${onWhat} pe ${l.name} dekha` : `maine ${l.name} ke baare mein dekha`;
     const praise = good ? `, ${l.reviews} reviews aur ${l.rating!.toFixed(1)} rating, bahut badhiya hai` : "";
@@ -278,7 +298,7 @@ export function firstMessage(l: Lead, lang: Lang, sender?: string | Sender, tone
       ok: `Maine aapki website (${site}) dekhi, kuch chhote badlaav se zyada enquiries aa sakti hain.`,
     }[c];
     const benefit = c === "none" || c === "social" ? ` ${BENEFIT.hi[family(l.category)]}` : c === "down" ? " Hum ise jaldi theek kar sakte hain, ya nayi bana sakte hain." : c === "issues" ? " Ye jaldi theek ho jaata hai, brand badalne ki zarurat nahi." : "";
-    const intro = ` Main ${name} hoon, ${myCity ? `${myCity} se ` : ""}${work}.`;
+    const intro = me.company ? ` Main ${name}, ${me.company} se.${sentence(me.usp)}${sentence(me.priceLine)}` : ` Main ${name} hoon, ${myCity ? `${myCity} se ` : ""}${work}.`;
     const ask = c === "none" || c === "social" ? " Kya aap ek chhota sample dekhna chahenge?" : c === "down" ? " Chahein toh hum bata sakte hain kya problem hai." : " Kya aap dekhna chahenge ki ye kaisa dikh sakta hai?";
     return `Namaste ${greet}, ${seen}${praise}. ${problem}${benefit}${intro}${ask}${link ? ` Humara kaam: ${link}` : ""}`;
   }
@@ -293,7 +313,8 @@ export function firstMessage(l: Lead, lang: Lang, sender?: string | Sender, tone
     }[c];
     const fix = { none: "build you a simple website", social: "build you a simple website", down: "fix it quickly", issues: "fix that quickly", ok: "help it bring in more enquiries" }[c];
     const ask = c === "down" ? "Want me to take a look?" : "Can I show you a quick sample?";
-    return `Hi ${greet}, ${name} here, ${work}${myCity ? ` from ${myCity}` : ""}. ${fact} I can ${fix}. ${ask}${link ? ` ${link}` : ""}`;
+    const who = me.company ? `from ${me.company}` : `${work}${myCity ? ` from ${myCity}` : ""}`;
+    return `Hi ${greet}, ${name} here, ${who}. ${fact} ${me.company ? "We" : "I"} can ${fix}.${sentence(me.priceLine)} ${ask}${link ? ` ${link}` : ""}`;
   }
   const seen = onWhat ? `I came across ${l.name} on ${onWhat}` : `I came across ${l.name}`;
   const praise = good ? `. ${l.reviews} reviews and a ${l.rating!.toFixed(1)} rating is really good` : "";
@@ -305,9 +326,9 @@ export function firstMessage(l: Lead, lang: Lang, sender?: string | Sender, tone
     ok: `I had a look at your website (${site}) and a few changes could bring you more enquiries.`,
   }[c];
   const benefit = c === "none" || c === "social" ? ` ${BENEFIT.en[family(l.category)]}` : c === "down" ? " I can get it working again, or build a fresh one." : c === "issues" ? " These are quick fixes and don't need a new brand." : "";
-  const intro = ` I'm ${name}, ${an(work)} ${work}${myCity ? ` in ${myCity}` : ""}.`;
+  const intro = me.company ? ` I'm ${name} from ${me.company}${myCity ? ` in ${myCity}` : ""}.${sentence(me.usp)}${sentence(me.priceLine)}` : ` I'm ${name}, ${an(work)} ${work}${myCity ? ` in ${myCity}` : ""}.`;
   const ask = c === "none" || c === "social" ? " Would you like to see a quick sample?" : c === "down" ? " Happy to explain what's going wrong if you like." : " Want me to show you how it could look?";
-  return `Hi ${greet}, ${seen}${praise}. ${problem}${benefit}${intro}${ask}${link ? ` Some of my work: ${link}` : ""}`;
+  return `Hi ${greet}, ${seen}${praise}. ${problem}${benefit}${intro}${ask}${link ? ` ${me.company ? "Our" : "Some of my"} work: ${link}` : ""}`;
 }
 
 /** The tone to start with: a follow-up once you've messaged them, else your usual one. */
@@ -372,7 +393,7 @@ function fitChips(l: Lead): Array<{ label: string; kind: "bad" | "warn" | "good"
 function logisticsMessage(l: Lead, lang: Lang, me: Sender, tone: Exclude<Tone, "follow">): string {
   const hi = lang === "hi";
   const name = me.name?.trim() || (hi ? "[aapka naam]" : "[your name]");
-  const client = l.pitchFor?.client?.trim();
+  const client = l.pitchFor?.client?.trim() || me.company?.trim();
   const needs = l.pitchFor?.needs.length ? l.pitchFor.needs : (["freight"] as LogisticsService[]);
   // a message names at most 3 services; the rest come up on the call
   const needText = joinAnd(needs.slice(0, 3).map((n) => (hi ? NEED_HI : NEED_EN)[n]), lang);
@@ -398,7 +419,7 @@ function logisticsMessage(l: Lead, lang: Lang, me: Sender, tone: Exclude<Tone, "
       : `Hum ${city ?? "aapke shehar"} ke businesses ki shipping sambhalte hain.`;
     const who = client ? `Main ${name}, ${client} se.` : `Main ${name} hoon.`;
     const ask = exportsTo ? "Kya hum aapke agle export shipment ka quote bhej sakte hain?" : importsFrom ? "Kya hum aapke agle import consignment ki clearance ka quote bhej sakte hain?" : "Kya hum aapke regular routes ke rates bhej sakte hain?";
-    return `Namaste ${greet}, ${seen.charAt(0).toLowerCase() + seen.slice(1)} ${who} Hum ${needText} sambhalte hain: pickup, paperwork aur tracking, sab ek jagah. ${ask}${link ? ` ${link}` : ""}`;
+    return `Namaste ${greet}, ${seen.charAt(0).toLowerCase() + seen.slice(1)} ${who} Hum ${needText} sambhalte hain: pickup, paperwork aur tracking, sab ek jagah.${sentence(me.usp)}${sentence(me.priceLine)} ${ask}${link ? ` ${link}` : ""}`;
   }
   if (tone === "short") return `Hi ${greet}, ${name}${client ? ` from ${client}` : ""} here. We handle ${needText}${city ? ` from ${city}` : ""}. Can we quote for your next shipment?`;
   const seen = exportsTo
@@ -411,5 +432,5 @@ function logisticsMessage(l: Lead, lang: Lang, me: Sender, tone: Exclude<Tone, "
     : `I work with businesses in ${city ?? "your city"} on their shipping.`;
   const who = client ? `I'm ${name} from ${client}` : `I'm ${name}`;
   const ask = exportsTo ? "Could we quote for your next export shipment?" : importsFrom ? "Could we quote for clearing your next import consignment?" : "Could we send you rates for your regular routes?";
-  return `Hi ${greet}, I came across ${l.name}. ${seen} ${who}${me.city ? ` in ${me.city}` : ""}. We handle ${needText} for businesses like yours: pickup, paperwork and tracking in one place, usually at better rates than booking each load separately. ${ask}${link ? ` ${link}` : ""}`;
+  return `Hi ${greet}, I came across ${l.name}. ${seen} ${who}${me.city ? ` in ${me.city}` : ""}. We handle ${needText} for businesses like yours: pickup, paperwork and tracking in one place, usually at better rates than booking each load separately.${sentence(me.usp)}${sentence(me.priceLine)} ${ask}${link ? ` ${link}` : ""}`;
 }

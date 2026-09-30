@@ -19,10 +19,15 @@ export async function POST(req: Request) {
   }
   const sells = body.sells === "logistics" ? "logistics" : "website_development";
   const valid = new Set(categoriesFor(sells).map((c) => c.key));
+  const clientId = typeof body.clientId === "string" && /^[0-9a-f-]{36}$/i.test(body.clientId) ? body.clientId : undefined;
   const services = (Array.isArray(body.client?.services) ? body.client!.services : []).filter((x): x is LogisticsService => (ALL_SERVICES as string[]).includes(x));
   const params: SearchParams = {
     sells,
-    client: sells === "logistics" ? { name: body.client?.name ? String(body.client.name).trim().slice(0, 80) : undefined, services: services.length ? services : ALL_SERVICES } : undefined,
+    client:
+      sells === "logistics" ? { name: body.client?.name ? String(body.client.name).trim().slice(0, 80) : undefined, services: services.length ? services : ALL_SERVICES }
+      : clientId && body.client?.name ? { name: String(body.client.name).trim().slice(0, 80), services: [] }
+      : undefined,
+    clientId,
     categories: (Array.isArray(body.categories) ? body.categories : []).filter((c) => valid.has(c)).slice(0, 8),
     city: String(body.city ?? "").trim().slice(0, 80),
     area: body.area ? String(body.area).trim().slice(0, 80) : undefined,

@@ -187,6 +187,8 @@ export interface SearchParams {
   sells: Offer;
   /** For a logistics search: your client and what they offer. */
   client?: { name?: string; services: LogisticsService[] };
+  /** The client (Business Brain) the search is for; its name is in client.name. */
+  clientId?: string;
   categories: string[]; // preset keys
   city: string;
   area?: string;

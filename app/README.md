@@ -34,6 +34,7 @@ With no keys at all it already works: leads come from OpenStreetMap (free) and e
 | `CRAWLER_CONTACT` | Your email in the crawler's User-Agent (OpenStreetMap asks for one) | Any address you check |
 | `PDF_BROWSER` | Only if the *Report* PDF says no Chrome or Edge was found: the full path to Chrome, Edge or Chromium | e.g. `C:\Program Files\Google\Chrome\Application\chrome.exe` |
 | `EMAIL_VERIFY`, `EMAIL_VERIFY_KEY` | Checks the best email on each lead at mailbox level (does it exist, or does the domain accept any address). `zerobounce` (100 free checks a month) or `millionverifier` (cheapest for bulk). Up to 50 checks a search (`EMAIL_VERIFY_MAX` to change), answers remembered 30 days. Without it, every email's domain is still checked for a mail server | https://www.zerobounce.net or https://www.millionverifier.com → API key |
+| `ANTHROPIC_API_KEY` | Claude reads a client's website when you add them under *Clients* and drafts their profile (services, prices, rules). A few rupees per client. Without it a basic reader drafts it | https://console.anthropic.com → API keys |
 | `APP_PASSWORD` | Password-protects the whole app (the browser asks; any user name). **Set it before putting the app online**: saved searches hold phone numbers and emails, and every search spends your API quota | Any long password |
 
 Restart `npm run dev` after changing `.env.local`.
@@ -91,6 +92,20 @@ npm run prefill -- --google               also use Google Places (uses your Goog
 By default it uses free sources only. It takes a while: the free map (OpenStreetMap) servers are shared by everyone and are often busy. The app spreads its requests over four of them, retries once, and waits a minute when they're overloaded. A business type that still couldn't be listed isn't saved, so just run `npm run prefill` again later: only what's missing is done again. Press Ctrl+C any time; finished areas are kept. Run it once a week to keep the data fresh.
 
 The free map has no Google ratings, so prefilled website leads rarely score as *strong* on their own. Searches rescore them every time, and with a Google key they get ratings too (or run the prefill with `--google`). *Setup* shows how many businesses are saved.
+
+## Clients (Business Brain)
+
+Each client you find leads for gets a profile under **Clients**: what they sell and for how much, who they want as customers, why people pick them, and the rules for messages sent in their name.
+
+1. **Add client** → enter their website. The app reads their home page and up to 8 service, pricing, about and contact pages, and drafts the profile:
+   - with `ANTHROPIC_API_KEY`, Claude reads the pages. It only states what the pages say: a service without a price on the site gets no price, and a price the site doesn't show is dropped (listed under *To check*);
+   - without the key (or if the AI call fails), a basic reader drafts it from page titles, headings and ₹ amounts.
+2. **Check it.** Nothing is saved until you press *Save client*. Fix services and prices (or *Paste a price list*: "Basic website - ₹9,999" per line), pick the business types they want, add their reasons and proof, and set the message rules: do's, don'ts, words they never use, a one-line reason to pick them, an optional price line, and who messages are signed by.
+3. **Find leads** on a client (or pick the client at the top of *New search*) fills the search with their offer, services, business types, city and area.
+
+In that search, messages introduce you as being from the client ("I'm Divy from Shree Logistics"), add their one-line reason, and the price line only if you ticked *Put the price line in first messages*. A message containing one of their "never say" words is flagged before you send it. Reports show who the leads are for.
+
+Profiles are saved in `.data/clients` (or the `clients` table in Supabase: run the latest `supabase/schema.sql`). `BRAIN_AI=off` turns AI reading off even with a key.
 
 ## How a search works
 
@@ -229,6 +244,7 @@ lib/enrich/                  crawl.ts (website check), discover.ts (find missing
 lib/score/websiteDev.ts      opportunity score for this niche
 lib/dedupe.ts                merging duplicates across sources
 lib/enrich/email.ts, mx.ts   email ranking (owner vs shared inbox) and mail-server check
+lib/brain.ts, brainAnalyze.ts  client profiles (Business Brain) and reading a client's website (Claude or basic reader)
 lib/cache.ts                 disk cache for repeat searches
 lib/directory.ts             saved lead directory (per city/area/type); lib/prefill.ts + scripts/prefill.ts fill it ahead of time
 lib/outreach.ts              first messages (English/Hinglish), Call/WhatsApp/Email links, follow-up statuses
@@ -255,7 +271,7 @@ tests/                       npm test
 ## Checks
 
 ```
-npm test          # 225 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 236 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

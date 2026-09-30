@@ -63,7 +63,7 @@ export function LeadPanel({
   const closeRef = useRef<HTMLButtonElement>(null);
   const [note, setNote] = useState(l.followUp?.note ?? "");
   const [copied, setCopied] = useState("");
-  const { me } = usePitch();
+  const { me, send } = usePitch();
   const li = linkedinOf(l);
   useEffect(() => setNote(l.followUp?.note ?? ""), [l.id, l.followUp?.note]);
   const closeFn = useRef(onClose);
@@ -82,7 +82,7 @@ export function LeadPanel({
   };
 
   const a = l.audit;
-  const mail = emailLink(l, me);
+  const mail = emailLink(l, send ?? me);
   const total = l.signals.reduce((t, s) => t + Math.max(0, s.points), 0) || 1;
   const nowYear = new Date().getFullYear();
   const where = shortAddress(l.address, l.city) ?? l.city;

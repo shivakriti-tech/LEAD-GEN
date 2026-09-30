@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { categoryByKey } from "@/lib/categories";
 import { leadsToCsv } from "@/lib/csv";
-import { addDays, FOLLOW_UP, localDate, pitchText, statusOf, toneFor, whatsappLinkWith, whatsappNumber, type FollowUpStatus, type Lang, type Sender, type Tone } from "@/lib/outreach";
+import { addDays, FOLLOW_UP, localDate, pitchText, senderFor, statusOf, toneFor, whatsappLinkWith, whatsappNumber, type FollowUpStatus, type Lang, type Sender, type Tone } from "@/lib/outreach";
 import { mergeFollowUp, touchedElsewhere, type CategoryStat, type DueLead, type FollowUpPatch, type Touched } from "@/lib/followups";
 import type { FollowUp, KeepOnly, Lead, ProgressEvent, SearchParams, SearchRecord, Tier } from "@/lib/types";
-import { DEFAULT_FORM, DEFAULT_KEEP, SearchForm, sourceInfo, type Config, type FormState } from "./_ui/SearchForm";
+import { DEFAULT_CATS, DEFAULT_FORM, DEFAULT_KEEP, SearchForm, sourceInfo, type Config, type FormState } from "./_ui/SearchForm";
+import { ClientsView } from "./_ui/ClientsView";
+import { brainServices, type ClientBrain } from "@/lib/brain";
 import { LeadList, Skeleton } from "./_ui/LeadList";
 import { HomeView } from "./_ui/HomeView";
 import type { HomeData, HomeLead } from "@/lib/home";
@@ -15,7 +17,7 @@ import { LeadPanel } from "./_ui/LeadPanel";
 import { RunPanel } from "./_ui/RunPanel";
 import { SetupPanel } from "./_ui/SetupPanel";
 import { PitchCtx, YourDetails, type PitchPrefs } from "./_ui/pitch";
-import { IconReport, IconBell, IconCalendar, IconCheck, IconChevron, IconDownload, IconEdit, IconHistory, IconHome, IconPlus, IconSearch, IconSettings, IconShield } from "./_ui/icons";
+import { IconReport, IconBell, IconCalendar, IconCheck, IconChevron, IconDownload, IconEdit, IconHistory, IconHome, IconPlus, IconSearch, IconSettings, IconShield, IconUser } from "./_ui/icons";
 import { Popover } from "./_ui/Popover";
 
 type LogLine = { level: "info" | "warn" | "error"; message: string };
@@ -68,7 +70,8 @@ const formFromParams = (p: SearchParams, prev: FormState): FormState => ({
   verifyWebsites: p.verifyWebsites,
   webSearch: p.webSearch,
   sells: p.sells ?? "website_development",
-  client: p.client ? { name: p.client.name ?? "", services: p.client.services } : prev.client ?? DEFAULT_FORM.client,
+  client: p.client ? { name: p.client.name ?? "", services: p.client.services.length ? p.client.services : prev.client?.services ?? DEFAULT_FORM.client.services } : prev.client ?? DEFAULT_FORM.client,
+  clientId: p.clientId,
 });
 
 const initials = (name?: string) => (name?.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "You").slice(0, 3);
@@ -91,7 +94,7 @@ export default function LeadFinder() {
   const [log, setLog] = useState<LogLine[]>([]);
   const [search, setSearch] = useState<SearchRecord | null>(null);
   const [searchId, setSearchId] = useState<string | null>(null);
-  const [params, setParams] = useState<Pick<SearchParams, "categories" | "city" | "area" | "sources" | "sells" | "client"> | null>(null);
+  const [params, setParams] = useState<Pick<SearchParams, "categories" | "city" | "area" | "sources" | "sells" | "client" | "clientId"> | null>(null);
   const [stopping, setStopping] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [history, setHistory] = useState<SearchRecord[]>([]);
@@ -116,13 +119,28 @@ export default function LeadFinder() {
   const [pipe, setPipe] = useState<{ due: DueLead[]; contactedThisWeek: number; touched?: Record<string, Touched>; stats?: Record<string, CategoryStat> } | null>(null);
   const [toast, setToast] = useState<{ text: string; lead?: Lead; next?: Lead; sid?: string } | null>(null);
   /** Home (your numbers, what to do today) or Find leads. Starts on Home once you have searches. */
-  const [view, setView] = useState<"home" | "leads" | null>(null);
+  const [view, setView] = useState<"home" | "leads" | "clients" | null>(null);
   const [home, setHome] = useState<HomeData | null>(null);
   const [panelHidden, setPanelHidden] = useState(false);
   const wide = useWide("(min-width: 1280px)");
   const [setupOpen, setSetupOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
   const [focusDue, setFocusDue] = useState(0);
+  /** Saved clients for the search form's picker (names only), refreshed when you come back from Clients. */
+  const [clientList, setClientList] = useState<Array<{ id: string; name: string }>>([]);
+  useEffect(() => {
+    if (view !== "leads") return;
+    fetch("/api/clients").then((r) => r.json()).then((d) => setClientList((d.clients ?? []).map((c: ClientBrain) => ({ id: c.id, name: c.name })))).catch(() => {});
+  }, [view]);
+  /** The Business Brain of the client the open search is for, if any. */
+  const [brain, setBrain] = useState<ClientBrain | null>(null);
+  const brainId = params?.clientId;
+  useEffect(() => {
+    if (!brainId) return setBrain(null);
+    let live = true;
+    fetch(`/api/clients/${brainId}`).then((r) => r.json()).then((d) => live && setBrain(d.client ?? null)).catch(() => live && setBrain(null));
+    return () => void (live = false);
+  }, [brainId]);
 
   useEffect(() => {
     fetch("/api/config")
@@ -133,6 +151,7 @@ export default function LeadFinder() {
     const q = new URLSearchParams(window.location.search);
     if (q.get("s")) openSearch(q.get("s")!, q.get("lead") ?? undefined);
     else if (q.get("view") === "leads") setView("leads");
+    else if (q.get("view") === "clients") setView("clients");
     loadHistory(true);
     loadPipeline();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -157,7 +176,7 @@ export default function LeadFinder() {
   // keep the address bar in step, so a reload comes back to the same place
   useEffect(() => {
     if (!view) return;
-    const url = view === "home" ? "/" : searchId ? `/?view=leads&s=${searchId}` : "/?view=leads";
+    const url = view === "home" ? "/" : view === "clients" ? "/?view=clients" : searchId ? `/?view=leads&s=${searchId}` : "/?view=leads";
     if (window.location.pathname + window.location.search !== url) window.history.replaceState(null, "", url);
   }, [view, searchId]);
 
@@ -211,6 +230,30 @@ export default function LeadFinder() {
     setError("");
     setPanelHidden(false);
     resetFilters(d.search.params.keep);
+  }
+
+  /** Fill the search form for one client: their offer, services, business types, city and area. */
+  function applyClient(c: ClientBrain) {
+    const services = brainServices(c);
+    setForm({
+      ...form,
+      sells: c.offer,
+      clientId: c.id,
+      client: { name: c.name, services: c.offer === "logistics" && services.length ? services : form.client.services },
+      cats: c.audience.categories.length ? c.audience.categories : DEFAULT_CATS[c.offer],
+      city: c.city ?? form.city,
+      area: c.audience.areas[0] ?? (c.city && c.city !== form.city ? "" : form.area),
+    });
+  }
+  /** A new search set up for one client. */
+  function searchForClient(c: ClientBrain) {
+    applyClient(c);
+    newSearch();
+  }
+  async function pickClient(id: string | null) {
+    if (!id) return setForm({ ...form, clientId: undefined, client: { ...form.client, name: form.sells === "logistics" ? form.client.name : "" } });
+    const d = await fetch(`/api/clients/${id}`).then((r) => r.json()).catch(() => null);
+    if (d?.client) applyClient(d.client);
   }
 
   function newSearch() {
@@ -268,7 +311,8 @@ export default function LeadFinder() {
       apolloKey: form.sources.apollo && !config?.apollo ? form.apolloKey : undefined,
       keep,
       sells: form.sells ?? "website_development",
-      client: form.sells === "logistics" ? { name: form.client?.name.trim() || undefined, services: form.client?.services ?? [] } : undefined,
+      client: form.sells === "logistics" || form.clientId ? { name: form.client?.name.trim() || undefined, services: form.sells === "logistics" ? form.client?.services ?? [] : [] } : undefined,
+      clientId: form.clientId,
     };
     setParams(body);
     try {
@@ -477,7 +521,7 @@ export default function LeadFinder() {
         if (n) setOpenId(n.id);
         document.querySelector(".leads-table tr.active, .card.active")?.scrollIntoView({ block: "nearest" });
       } else if (e.key === "w" && openLead) {
-        const link = whatsappLinkWith(openLead, drafts[openLead.id] ?? pitchText(openLead, prefs.lang, toneFor(openLead, prefs.tone ?? "friendly"), prefs.me ?? {}));
+        const link = whatsappLinkWith(openLead, drafts[openLead.id] ?? pitchText(openLead, prefs.lang, toneFor(openLead, prefs.tone ?? "friendly"), pitch.send ?? pitch.me));
         if (link) {
           window.open(link, "_blank", "noreferrer");
           onSent(openLead);
@@ -499,14 +543,18 @@ export default function LeadFinder() {
     const exporters = todo.filter((l) => l.signals.some((x) => x.key === "exports")).length;
     return { hot: hot.length, todo: todo.length, noSite, exporters };
   }, [leads, touchedOf]);
+  const baseMe: Sender = prefs.me && Object.keys(prefs.me).length ? prefs.me : prefs.sender ? { name: prefs.sender } : {};
   const pitch: PitchPrefs = {
     lang: prefs.lang,
     setLang: (lang) => setPrefs({ ...prefs, lang }),
     tone: prefs.tone ?? "friendly",
     setTone: (tone) => setPrefs({ ...prefs, tone }),
     // an older saved "Sign messages as" becomes your name
-    me: prefs.me && Object.keys(prefs.me).length ? prefs.me : prefs.sender ? { name: prefs.sender } : {},
+    me: baseMe,
     setMe: (me) => setPrefs({ ...prefs, me }),
+    send: senderFor(baseMe, brain),
+    banned: brain?.rules.bannedPhrases,
+    clientName: brain?.name,
   };
   const ready = sourceInfo(config).filter((s) => s.ready).length;
 
@@ -549,6 +597,7 @@ export default function LeadFinder() {
               </div>
             )}
           </Popover>
+          <button className="tn" aria-current={view === "clients" ? "page" : undefined} onClick={() => setView("clients")}><span className="tn-ic"><IconUser /></span>Clients</button>
           <button className="tn" onClick={() => setSetupOpen(true)}><span className="tn-ic"><IconSettings /></span>Setup</button>
         </nav>
         <div className="top-actions">
@@ -584,7 +633,9 @@ export default function LeadFinder() {
       </aside>
 
       <main>
-        {view !== "leads" ? (
+        {view === "clients" ? (
+          <ClientsView ai={!!config?.ai} onFindLeads={searchForClient} />
+        ) : view !== "leads" ? (
           <HomeView
             data={view ? home : null}
             due={pipe?.due ?? []}
@@ -653,6 +704,8 @@ export default function LeadFinder() {
             history={history}
             stats={pipe?.stats}
             onOpenSearch={(id) => openSearch(id)}
+            clients={clientList}
+            onPickClient={pickClient}
           />
         ) : (
           params && (
@@ -872,6 +925,7 @@ export default function LeadFinder() {
         <button aria-current={view === "leads" ? "page" : undefined} onClick={() => setView("leads")}><IconSearch /><span>Find leads</span></button>
         <button onClick={showFollowUps}><IconCalendar /><span>Follow up</span>{(pipe?.due.length ?? 0) > 0 && <i className="badge">{pipe!.due.length}</i>}</button>
         <button onClick={() => setRecentOpen(true)}><IconHistory /><span>Searches</span></button>
+        <button aria-current={view === "clients" ? "page" : undefined} onClick={() => setView("clients")}><IconUser /><span>Clients</span></button>
       </nav>
       {recentOpen && (
         <>

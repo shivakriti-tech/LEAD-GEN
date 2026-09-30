@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Lead } from "@/lib/types";
 import { pitchText, toneFor, TONES, whatsappLinkWith, type Tone } from "@/lib/outreach";
 import { usePitch } from "./pitch";
+import { bannedIn } from "@/lib/brain";
 import { IconCheck, IconCopy, IconWhatsApp } from "./icons";
 
 /**
@@ -26,13 +27,14 @@ export function PitchBox({
   /** In the lead panel: a full-width send button. */
   big?: boolean;
 }) {
-  const { lang, setLang, tone: preferred, setTone, me } = usePitch();
+  const { lang, setLang, tone: preferred, setTone, me, send, banned, clientName } = usePitch();
   const [tone, setLocalTone] = useState<Tone>(() => toneFor(lead, preferred));
   const [copied, setCopied] = useState(false);
   // a different lead (or its status changed): start from its own tone again
   useEffect(() => setLocalTone(toneFor(lead, preferred)), [lead.id, lead.followUp?.status, preferred]); // eslint-disable-line react-hooks/exhaustive-deps
-  const text = draft ?? pitchText(lead, lang, tone, me);
+  const text = draft ?? pitchText(lead, lang, tone, send ?? me);
   const wa = whatsappLinkWith(lead, text);
+  const flagged = banned?.length ? bannedIn(text, banned) : [];
   const pickTone = (t: Tone) => {
     setDraft(undefined);
     setLocalTone(t);
@@ -65,6 +67,7 @@ export function PitchBox({
         aria-label={`Message to ${lead.name}`}
         autoFocus={autoFocus}
       />
+      {flagged.length > 0 && <p className="pitch-warn">{clientName ?? "This client"} never says: {flagged.map((x) => `"${x}"`).join(", ")}. Change it before sending.</p>}
       <div className="pitch-foot">
         {wa ? (
           <a className={`btn wa ${big ? "send" : ""}`} href={wa} target="_blank" rel="noreferrer" onClick={onSent}><IconWhatsApp /> Send on WhatsApp</a>

@@ -79,10 +79,10 @@ interface RowProps {
 /** WhatsApp first; pitch, copy and the rest as smaller buttons. */
 function Actions({ lead: l, pitchOpen, onTogglePitch, draft, onSent, docked }: RowProps) {
   const [copied, setCopied] = useState(false);
-  const { lang, tone, me } = usePitch();
-  const text = draft ?? pitchText(l, lang, toneFor(l, tone), me);
+  const { lang, tone, me, send } = usePitch();
+  const text = draft ?? pitchText(l, lang, toneFor(l, tone), send ?? me);
   const wa = whatsappLinkWith(l, text);
-  const mail = emailLink(l, me);
+  const mail = emailLink(l, send ?? me);
   const copy = (e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard?.writeText(text).then(() => {

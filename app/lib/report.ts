@@ -70,6 +70,7 @@ export function leadsReport(opts: { search: SearchRecord; leads: Lead[]; by?: st
     ["Date", when],
     ["Prepared by", by ?? ""],
     ["Business types", types],
+    ...(!logistics && client ? [["For", client] as [string, string]] : []),
     ...(logistics && p.client?.services.length ? [["Services", cap(p.client.services.map((x) => SERVICE_LABEL[x]).join(", "))] as [string, string]] : []),
   ];
 

@@ -23,6 +23,8 @@ export interface FormState {
   /** What you're finding leads for: your website service, or a logistics client. */
   sells: Offer;
   client: { name: string; services: LogisticsService[] };
+  /** The client (Business Brain) this search is for, if picked. */
+  clientId?: string;
 }
 export const DEFAULT_CATS: Record<Offer, string[]> = { website_development: ["dentist", "salon", "cafe"], logistics: ["manufacturer", "exporter", "wholesaler"] };
 export const DEFAULT_KEEP: KeepOnly = { skipChains: true, needPhone: false, notContacted: true, goodRating: false };
@@ -163,6 +165,8 @@ export function SearchForm({
   history,
   stats,
   onOpenSearch,
+  clients,
+  onPickClient,
 }: {
   form: FormState;
   setForm: (f: FormState) => void;
@@ -174,11 +178,14 @@ export function SearchForm({
   history: SearchRecord[];
   stats?: Record<string, CategoryStat>;
   onOpenSearch: (id: string) => void;
+  /** Saved client profiles (Business Brains): picking one fills in their offer, services and business types. */
+  clients?: Array<{ id: string; name: string }>;
+  onPickClient?: (id: string | null) => void;
 }) {
   const keep = { ...DEFAULT_KEEP, ...form.keep };
   const sells: Offer = form.sells ?? "website_development";
   const client = form.client ?? DEFAULT_FORM.client;
-  const setOffer = (o: Offer) => o !== sells && setForm({ ...form, sells: o, cats: DEFAULT_CATS[o], client });
+  const setOffer = (o: Offer) => o !== sells && setForm({ ...form, sells: o, cats: DEFAULT_CATS[o], client, clientId: undefined });
   const toggleService = (x: LogisticsService) => setForm({ ...form, client: { ...client, services: client.services.includes(x) ? client.services.filter((y) => y !== x) : [...client.services, x] } });
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm({ ...form, [k]: v });
   const setSource = (k: keyof Sources, v: boolean) => setForm({ ...form, sources: { ...form.sources, [k]: v } });
@@ -210,6 +217,15 @@ export function SearchForm({
       <div className="sf-main">
         <section className="step">
           <h2 className="step-title">Who are the leads for?</h2>
+          {!!clients?.length && onPickClient && (
+            <label className="field client-pick">
+              <span className="lbl">Client profile <span className="opt">fills in their services, business types and message rules</span></span>
+              <select value={form.clientId ?? ""} onChange={(e) => onPickClient(e.target.value || null)}>
+                <option value="">No client profile</option>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </label>
+          )}
           <div className="offers" role="radiogroup" aria-label="Who are the leads for">
             <button type="button" role="radio" aria-checked={sells === "website_development"} className={`offer ${sells === "website_development" ? "on" : ""}`} onClick={() => setOffer("website_development")}>
               <b>Website clients</b>
@@ -358,7 +374,7 @@ export function SearchForm({
         <span className="k">Your search</span>
         <b className="big">{headline}</b>
         <dl>
-          <div><dt>For</dt><dd>{sells === "logistics" ? client.name.trim() || "Logistics client" : "Your website service"}</dd></div>
+          <div><dt>For</dt><dd>{form.clientId && client.name.trim() ? client.name.trim() : sells === "logistics" ? client.name.trim() || "Logistics client" : "Your website service"}</dd></div>
           <div><dt>Area</dt><dd>{form.city.trim() ? cap(form.area.trim() ? `${form.area.trim()}, ${form.city.trim()}` : `All of ${form.city.trim()}`) : "Not set"}</dd></div>
           <div><dt>Types</dt><dd>{picked.length ? `${picked.length} picked` : "None yet"}</dd></div>
           <div><dt>Filters on</dt><dd>{filtersOn}</dd></div>

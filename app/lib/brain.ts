@@ -108,3 +108,17 @@ export function bannedIn(message: string, banned: string[]): string[] {
     return re.test(message);
   });
 }
+
+/** "Basic website - ₹9,999" / "SEO: from ₹5,000 per month" → rows */
+export function parsePriceList(text: string): Array<{ name: string; price?: string }> {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const m = line.match(/^(.*?)\s*(?:[-–—:|\t]|\.{2,})\s*((?:from|starting|starts at|only|@)?\s*(?:₹|rs\.?|inr)\s?.*|on request|free|call.*)$/i);
+      return m ? { name: m[1].trim(), price: m[2].trim() } : { name: line };
+    })
+    .filter((x) => x.name.length > 0)
+    .slice(0, 40);
+}
