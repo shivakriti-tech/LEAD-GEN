@@ -88,6 +88,25 @@ export function whatsappNumber(l: Lead): string | undefined {
   return l.audit?.whatsapp ?? [l.phone, ...l.phones].find((p) => isMobile(p));
 }
 
+/**
+ * The business's LinkedIn page, from its own website or Apollo (LinkedIn itself is never scraped).
+ * Company pages first; a personal profile linked from the website is usually the owner's.
+ */
+export function linkedinOf(l: Pick<Lead, "company" | "audit">): { url: string; kind: "company" | "person" } | undefined {
+  const pick = (u?: string) => {
+    if (!u) return undefined;
+    try {
+      const x = new URL(u);
+      if (!/^https?:$/.test(x.protocol) || !/(^|\.)linkedin\.com$/i.test(x.hostname)) return undefined;
+      const m = x.pathname.match(/^\/(company|school|showcase|in)\/[^/?#]+/i);
+      return m ? { url: `https://www.linkedin.com${m[0]}`, kind: m[1].toLowerCase() === "in" ? ("person" as const) : ("company" as const) } : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const found = [pick(l.company?.linkedin), pick(l.audit?.socials?.linkedin)].filter((x): x is NonNullable<typeof x> => !!x);
+  return found.find((x) => x.kind === "company") ?? found[0];
+}
 export const telLink = (p: string) => `tel:${p.replace(/[^\d+]/g, "")}`;
 export const mapsLink = (l: Lead) =>
   l.mapsUrl ?? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([l.name, l.address ?? l.city].filter(Boolean).join(", "))}`;

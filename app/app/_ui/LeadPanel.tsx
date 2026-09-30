@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Lead } from "@/lib/types";
+import { phoneKind, PHONE_KIND_LABEL } from "@/lib/util";
 import { EMAIL_KIND_LABEL } from "@/lib/enrich/email";
-import { emailLink, localDate, mapsLink, scoreSummary, shortAddress, statusOf, telLink, whatsappNumber } from "@/lib/outreach";
+import { MAILBOX_LABEL } from "@/lib/enrich/verifyEmail";
+import { emailLink, linkedinOf, localDate, mapsLink, scoreSummary, shortAddress, statusOf, telLink, whatsappNumber } from "@/lib/outreach";
 import type { FollowUpPatch, Touched } from "@/lib/followups";
 import { fmtPhone } from "./LeadList";
 import { usePitch, YourDetails } from "./pitch";
@@ -62,6 +64,7 @@ export function LeadPanel({
   const [note, setNote] = useState(l.followUp?.note ?? "");
   const [copied, setCopied] = useState("");
   const { me } = usePitch();
+  const li = linkedinOf(l);
   useEffect(() => setNote(l.followUp?.note ?? ""), [l.id, l.followUp?.note]);
   const closeFn = useRef(onClose);
   closeFn.current = onClose;
@@ -185,7 +188,7 @@ export function LeadPanel({
               l.phones.map((p) => (
                 <div className="reach-row" key={p}>
                   <span className="mono">{fmtPhone(p)}</span>
-                  {p === whatsappNumber(l) && <span className="tag good">WhatsApp</span>}
+                  {p === whatsappNumber(l) ? <span className="tag good">Mobile · WhatsApp</span> : phoneKind(p) && <span className="tag">{PHONE_KIND_LABEL[phoneKind(p)!]}</span>}
                   <span className="grow" />
                   <a className="act" href={telLink(p)}><IconPhone /><span>Call</span></a>
                   <button className="act icon-only" onClick={() => copy(p, () => flash(p))} aria-label={`Copy ${p}`} title="Copy">{copied === p ? <IconCheck /> : <IconCopy />}</button>
@@ -199,6 +202,7 @@ export function LeadPanel({
                   <div className="reach-row" key={e.email}>
                     <span className="email">{e.email}</span>
                     <span className={`tag ${e.deliverable === false ? "bad" : e.kind === "own_named" || e.kind === "personal" ? "good" : ""}`}>{e.deliverable === false ? "can't receive mail" : EMAIL_KIND_LABEL[e.kind]}</span>
+                    {e.disposable ? <span className="tag bad">throwaway inbox</span> : e.mailbox && e.mailbox !== "unknown" && <span className={`tag ${e.mailbox === "valid" ? "good" : e.mailbox === "invalid" ? "bad" : "warn"}`} title={e.mailboxBy ? `Checked with ${e.mailboxBy}` : undefined}>{MAILBOX_LABEL[e.mailbox]}</span>}
                     <span className="grow" />
                     <button className="act icon-only" onClick={() => copy(e.email, () => flash(e.email))} aria-label={`Copy ${e.email}`} title="Copy">{copied === e.email ? <IconCheck /> : <IconCopy />}</button>
                   </div>
@@ -210,6 +214,7 @@ export function LeadPanel({
               {l.website && <a href={l.website} target="_blank" rel="noreferrer">{l.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</a>}
               {l.social?.instagram && <a href={l.social.instagram.url} target="_blank" rel="noreferrer">Instagram @{l.social.instagram.handle}{l.social.instagram.followers != null ? ` · ${l.social.instagram.followers.toLocaleString("en-IN")} followers` : ""}</a>}
               {l.social?.facebook && <a href={l.social.facebook.url} target="_blank" rel="noreferrer">Facebook</a>}
+              {li && <a href={li.url} target="_blank" rel="noreferrer">{li.kind === "company" ? "LinkedIn page" : "LinkedIn (person)"}</a>}
               <a href={mapsLink(l)} target="_blank" rel="noreferrer"><IconMap /> Google Maps</a>
             </div>
           </div>

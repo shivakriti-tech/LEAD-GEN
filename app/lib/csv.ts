@@ -1,6 +1,8 @@
 import { EMAIL_KIND_LABEL } from "./enrich/email";
-import { followUpLabel } from "./outreach";
+import { MAILBOX_LABEL } from "./enrich/verifyEmail";
+import { followUpLabel, linkedinOf } from "./outreach";
 import type { Lead } from "./types";
+import { phoneKind, PHONE_KIND_LABEL } from "./util";
 import { SERVICE_LABEL } from "./score/logistics";
 
 const COLS: Array<[string, (l: Lead) => unknown]> = [
@@ -13,10 +15,12 @@ const COLS: Array<[string, (l: Lead) => unknown]> = [
   ["Address", (l) => l.address],
   ["City", (l) => l.city],
   ["Phone", (l) => l.phone],
+  ["Phone type", (l) => { const k = phoneKind(l.phone); return k && PHONE_KIND_LABEL[k]; }],
   ["Other phones", (l) => l.phones.filter((p) => p !== l.phone).join(" ")],
   ["WhatsApp", (l) => l.audit?.whatsapp],
   ["Email", (l) => l.email],
   ["Email type", (l) => (l.emailInfo?.[0] && l.email ? EMAIL_KIND_LABEL[l.emailInfo[0].kind] : undefined)],
+  ["Email check", (l) => { const i = l.email ? l.emailInfo?.find((x) => x.email === l.email) : undefined; return !i ? undefined : i.mailbox && i.mailbox !== "unknown" ? MAILBOX_LABEL[i.mailbox] : i.deliverable ? "domain accepts mail" : "not checked"; }],
   ["Owner", (l) => l.owner?.name],
   ["Website", (l) => l.website],
   ["Website status", (l) => l.audit?.status],
@@ -36,6 +40,7 @@ const COLS: Array<[string, (l: Lead) => unknown]> = [
   ["Instagram followers", (l) => l.social?.instagram?.followers],
   ["Instagram last post", (l) => l.social?.instagram?.lastPostAt?.slice(0, 10)],
   ["Facebook", (l) => l.social?.facebook?.url ?? l.audit?.socials.facebook],
+  ["LinkedIn", (l) => linkedinOf(l)?.url],
   ["Google Maps", (l) => l.mapsUrl],
   ["Sources", (l) => l.sources.join(" + ")],
   ["Checked", (l) => (l.pending ? "no (search stopped before this one was checked)" : "yes")],

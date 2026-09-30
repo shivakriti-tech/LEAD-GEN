@@ -47,6 +47,8 @@ export function normalizePhone(input?: string): string | undefined {
     d = d.slice(3);
   } else if (d.startsWith("0091")) d = d.slice(4);
   else if (d.startsWith("91") && d.length === 12) d = d.slice(2);
+  // toll-free and shared-cost numbers: 1800 / 1860 xxx xxxx
+  if (/^1(800|860)\d{6,7}$/.test(d)) return "+91" + d;
   // Strip leading 0 (STD prefix): 020-2555-1234 → 202555 1234
   if (d.startsWith("0")) d = d.slice(1);
   // mobiles: 10 digits starting 6-9
@@ -62,6 +64,20 @@ export const isMobile = (p?: string) => !!p && /^\+91[6-9]\d{9}$/.test(p);
 
 /** True if the number is an Indian landline (STD code + local number). */
 export const isLandline = (p?: string) => !!p && /^\+91[2-8]\d{9,10}$/.test(p) && !isMobile(p);
+
+/** Toll-free (1800) or shared-cost (1860) number: usually a call centre, not the owner. */
+export const isTollFree = (p?: string) => !!p && /^\+911(800|860)\d{6,7}$/.test(p);
+
+export type PhoneKind = "mobile" | "landline" | "tollfree" | "foreign";
+/** What kind of number this is: a mobile (WhatsApp, reaches a person), an office landline, toll-free, or foreign. */
+export function phoneKind(p?: string): PhoneKind | undefined {
+  if (!p) return undefined;
+  if (isMobile(p)) return "mobile";
+  if (isTollFree(p)) return "tollfree";
+  if (isLandline(p)) return "landline";
+  return p.startsWith("+") && !p.startsWith("+91") ? "foreign" : undefined;
+}
+export const PHONE_KIND_LABEL: Record<PhoneKind, string> = { mobile: "Mobile", landline: "Landline", tollfree: "Toll-free", foreign: "Foreign" };
 
 export function domainOf(url?: string): string | undefined {
   if (!url) return undefined;

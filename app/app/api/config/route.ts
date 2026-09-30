@@ -3,6 +3,7 @@ import { localDirectory } from "@/lib/directory";
 import { crawlerContact } from "@/lib/util";
 import { providersFromEnv, searchUsage } from "@/lib/enrich/searchProviders";
 import { gmapsScraperUrl } from "@/lib/sources/gmapsScraper";
+import { verifierName } from "@/lib/enrich/verifyEmail";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,6 +17,7 @@ export async function GET() {
     google: !!process.env.GOOGLE_PLACES_API_KEY,
     pageSpeedKey: !!process.env.PAGESPEED_API_KEY,
     apollo: !!process.env.APOLLO_API_KEY,
+    emailVerify: verifierName() ?? null, // "ZeroBounce" / "MillionVerifier" when a key is set
     store: getStore().kind,
     contact: !!crawlerContact(),
     brave: !!process.env.BRAVE_SEARCH_API_KEY,

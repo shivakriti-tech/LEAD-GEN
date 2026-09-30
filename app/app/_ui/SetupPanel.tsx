@@ -26,6 +26,7 @@ export function SetupPanel({ config, onClose }: { config: Config | null; onClose
     })),
     { name: "Better web search (Serper)", ok: !!config?.searchUsage?.some((u) => u.exact), status: config?.searchUsage?.some((u) => u.exact) ? "Connected" : "Optional", how: config?.searchUsage?.some((u) => u.exact) ? undefined : "Add SERPER_API_KEY to .env.local: 2,500 free Google searches, finds far more websites (README → Web search)." },
     { name: "Mobile speed (PageSpeed)", ok: !!config?.pageSpeedKey, status: config?.pageSpeedKey ? "Key set" : "No key", how: config?.pageSpeedKey ? undefined : "Add PAGESPEED_API_KEY to .env.local; without it only a few checks work." },
+    { name: "Email check (mailbox level)", ok: !!config?.emailVerify, status: config?.emailVerify ? `${config.emailVerify} connected` : "Optional", how: config?.emailVerify ? "The best email on each lead is checked (up to 50 a search, remembered 30 days)." : "Every email's domain is already checked for a mail server. To also check the mailbox exists, add EMAIL_VERIFY=zerobounce and EMAIL_VERIFY_KEY (100 free checks a month) to .env.local, or EMAIL_VERIFY=millionverifier." },
     { name: "Instagram details (Meta)", ok: !!config?.meta, status: config?.meta ? "Connected" : "Optional", how: config?.meta ? undefined : "Add META_ACCESS_TOKEN and IG_BUSINESS_ACCOUNT_ID (README → Instagram setup) to read followers, last post and bio website." },
     {
       name: "Saved lead directory",

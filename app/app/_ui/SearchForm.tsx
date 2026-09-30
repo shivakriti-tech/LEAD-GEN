@@ -45,6 +45,7 @@ export type Config = {
   google: boolean;
   pageSpeedKey: boolean;
   apollo: boolean;
+  emailVerify?: string | null;
   store: "local" | "supabase";
   contact: boolean;
   meta: boolean;

@@ -16,7 +16,8 @@ import { gmapsScrapeBatch, gmapsScraperUrl } from "./sources/gmapsScraper";
 import { mergeBySocial, rememberSocial } from "./dedupe";
 import { cached, cacheMode, DAY, type CacheStats } from "./cache";
 import { forDirectory, localDirectory, RECHECK_AFTER, whatChanged, type Directory, type DirectoryEntry } from "./directory";
-import { classifyEmail, rankEmails } from "./enrich/email";
+import { classifyEmail, isDisposable, looksLikeEmail, rankEmails, usable } from "./enrich/email";
+import { cappedVerifier, verifierFromEnv, type EmailVerifier, type MailboxCheck, type VerifyStats } from "./enrich/verifyEmail";
 import { domainAcceptsMail } from "./enrich/mx";
 import type { WebsiteAudit } from "./types";
 import type { Store } from "./store";
@@ -44,6 +45,9 @@ export interface Deps {
   apollo: typeof apolloEnrichDomain;
   /** Does this email domain accept mail? Leave out to skip the check (tests). */
   mx?: typeof domainAcceptsMail;
+  /** Mailbox-level email check through a service (EMAIL_VERIFY_KEY); at most `emailVerifyCap` a search (default 50). */
+  emailVerify?: EmailVerifier;
+  emailVerifyCap?: number;
   cacheStats?: CacheStats;
   /** Saved businesses from earlier searches and the prefill. Leave out to always search live. */
   directory?: Directory;
@@ -366,6 +370,8 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     if (ready.length) log(`${ready.length} saved business${ready.length === 1 ? " was" : "es were"} checked in the last week: loading them${recheck ? `; rechecking ${recheck} older one${recheck === 1 ? "" : "s"}` : ""}.`);
     if (needSite) log(`Checking ${toCheck.length} businesses. ${needSite} have no website listed: looking for one (likely web addresses${siteSearch ? ", web search" : ""}${siteSearch && numberSearch ? " and their phone number" : ""}).`);
     const state = { searchBroken: false };
+    const verifyStats: VerifyStats = { checked: 0, valid: 0, invalid: 0, catchAll: 0, skipped: 0 };
+    const verifyEmail = deps.emailVerify ? cappedVerifier(deps.emailVerify, deps.emailVerifyCap ?? 50, verifyStats) : undefined;
     let checked = 0, changed = 0;
     emit({ type: "stage", stage: "enrich", done: 0, total: leads.length });
     // businesses with a phone first: they're the ones you can call
@@ -388,7 +394,7 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
       if (stopNow()) return;
       const before = l.saved ? { website: l.website, phone: l.phone, audit: l.audit } : undefined;
       try {
-        await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: siteSearch, numberSearch: siteSearch ? numberSearch : undefined, state }, deps);
+        await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: siteSearch, numberSearch: siteSearch ? numberSearch : undefined, state, verifyEmail }, deps);
       } catch (e) {
         l.websiteCheck?.tried.push(`check failed: ${msg(e)}`);
       }
@@ -455,6 +461,8 @@ export async function runSearch(params: SearchParams, deps: Deps, emit: (e: Prog
     if (recheck) log(`Rechecked ${recheck} saved business${recheck === 1 ? "" : "es"} last checked over a week ago: ${changed ? `${changed} changed (marked in the list)` : "no changes"}.`);
     await progress.flush();
     const found = leads.filter((l) => l.websiteCheck?.via === "domain_guess" || l.websiteCheck?.via === "web_search").length;
+    if (verifyStats.checked) log(`Mailbox check (your email verification service): ${verifyStats.checked} checked, ${verifyStats.valid} verified, ${verifyStats.invalid} don't exist (skipped for the next address), ${verifyStats.catchAll} accept any address.${verifyStats.skipped ? ` ${verifyStats.skipped} not checked (limit of ${deps.emailVerifyCap ?? 50} a search; EMAIL_VERIFY_MAX to change).` : ""}`);
+    if (verifyStats.stopped) log(`Email check stopped: ${verifyStats.stopped}`, "warn");
     if (needSite) log(`Found and verified ${found} website${found === 1 ? "" : "s"} the map data didn't list.${state.searchBroken ? " Web search stopped partway (every search option failed). Set up SearXNG (free, see README) or a free Tavily key." : ""}`);
     const before = leads.length;
     leads = mergeBySocial(leads);
@@ -626,7 +634,7 @@ const logTo = (emit: Emit) => (message: string, level: "info" | "warn" | "error"
  */
 export async function qualifyLead(
   l: Lead,
-  opts: { area?: string; verify: boolean; search?: (q: string) => Promise<SearchHit[]>; numberSearch?: (q: string) => Promise<SearchHit[]>; state?: { searchBroken: boolean } },
+  opts: { area?: string; verify: boolean; search?: (q: string) => Promise<SearchHit[]>; numberSearch?: (q: string) => Promise<SearchHit[]>; state?: { searchBroken: boolean }; verifyEmail?: (email: string) => Promise<MailboxCheck | undefined> },
   deps: Pick<Deps, "discover" | "audit" | "mx">,
 ): Promise<void> {
   const state = opts.state ?? { searchBroken: false };
@@ -654,7 +662,7 @@ export async function qualifyLead(
   if (l.audit.ownerName && !l.owner) l.owner = { name: l.audit.ownerName, via: "website" };
   l.phone ??= l.phones[0];
   for (const u of Object.values(l.audit.socials ?? {})) rememberSocial(l, u);
-  await checkEmails([l], deps.mx);
+  await checkEmails([l], deps.mx, opts.verifyEmail);
 }
 
 /** At most `n` calls in flight; the rest wait their turn. */
@@ -690,18 +698,51 @@ function saver(save: () => Promise<void>, everyMs = 4000) {
   };
 }
 
-/** Rank each lead's emails (owner's own first) and, when `mx` is given, drop domains that can't receive mail from first place. */
-export async function checkEmails(leads: Lead[], mx?: typeof domainAcceptsMail): Promise<void> {
+/**
+ * Rank each lead's emails (owner's own first), drop junk matches, flag throwaway inboxes and, when
+ * `mx` is given, domains that can't receive mail. With `verify`, the best address is checked with a
+ * verification service; if its mailbox doesn't exist, the next best one is checked (at most 2 a lead).
+ */
+export async function checkEmails(leads: Lead[], mx?: typeof domainAcceptsMail, verify?: (email: string) => Promise<MailboxCheck | undefined>): Promise<void> {
+  for (const l of leads) l.emails = l.emails.filter(looksLikeEmail);
   const domains = [...new Set(leads.flatMap((l) => l.emails.map((e) => e.split("@")[1]?.toLowerCase()).filter(Boolean) as string[]))];
   const ok = new Map<string, boolean | undefined>();
   if (mx) await mapLimit(domains, 10, async (d) => void ok.set(d, await mx(d)));
   for (const l of leads) {
-    if (!l.emails.length) continue;
+    if (!l.emails.length) {
+      l.email = undefined;
+      l.emailInfo = undefined;
+      continue;
+    }
     const site = domainOf(l.audit?.finalUrl ?? l.website);
-    l.emailInfo = rankEmails(l.emails.map((email) => ({ email, kind: classifyEmail(email, site), deliverable: ok.get(email.split("@")[1]?.toLowerCase()) })));
-    const best = l.emailInfo[0];
-    l.email = best.deliverable === false ? undefined : best.email;
+    const prev = new Map((l.emailInfo ?? []).map((i) => [i.email, i]));
+    let infos = rankEmails(
+      l.emails.map((email) => {
+        const was = prev.get(email);
+        return { email, kind: classifyEmail(email, site), deliverable: ok.get(email.split("@")[1]?.toLowerCase()), disposable: isDisposable(email) || undefined, mailbox: was?.mailbox, mailboxBy: was?.mailboxBy };
+      }),
+    );
+    if (verify) {
+      for (let tries = 0; tries < 2; tries++) {
+        const next = infos.find((i) => usable(i) && !i.mailbox);
+        if (!next || infos.some((i) => i.mailbox === "valid")) break;
+        const r = await verify(next.email);
+        if (!r) break;
+        next.mailbox = r.status;
+        next.mailboxBy = r.by;
+        infos = rankEmails(infos);
+        if (r.status !== "invalid") break;
+      }
+    }
+    l.emailInfo = infos;
+    l.email = usable(infos[0]) ? infos[0].email : undefined;
   }
+}
+
+/** Mailbox checks cost credits: remember an answer for 30 days ("couldn't confirm" isn't kept). */
+function withMailboxCache(v?: EmailVerifier): EmailVerifier | undefined {
+  if (!v || cacheMode() === "off") return v;
+  return cached("mailbox", v, (e: string) => e.trim().toLowerCase(), (r) => (r.status === "unknown" ? 0 : 30 * DAY));
 }
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -751,6 +792,8 @@ export function defaultDeps(store: Store): Deps {
     pageSpeed: pageSpeedMobile,
     apollo: apolloEnrichDomain,
     mx: domainAcceptsMail,
+    emailVerify: withMailboxCache(verifierFromEnv()),
+    emailVerifyCap: Math.max(0, Number(process.env.EMAIL_VERIFY_MAX) || 50),
     cacheStats,
     // LEAD_DIRECTORY=off: every search runs fully live and nothing is saved for later searches
     directory: /^(off|0|false|no)$/i.test(process.env.LEAD_DIRECTORY || "") ? undefined : localDirectory(),

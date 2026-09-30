@@ -1,6 +1,6 @@
 import type { Lead, SearchRecord } from "./types";
 import { categoryByKey } from "./categories";
-import { issueChips } from "./outreach";
+import { issueChips, linkedinOf } from "./outreach";
 import { SERVICE_LABEL } from "./score/logistics";
 
 /**
@@ -42,11 +42,13 @@ export function leadsReport(opts: { search: SearchRecord; leads: Lead[]; by?: st
     const needs = l.pitchFor?.needs.length ? `<p class="needs"><span>Likely needs:</span> ${esc(l.pitchFor.needs.map((x) => SERVICE_LABEL[x]).join(", "))}</p>` : "";
     const phone = l.phone ?? l.phones[0];
     const site = safeUrl(l.audit?.finalUrl ?? l.website);
+    const li = linkedinOf(l);
     const line = (label: string, v: string) => `<div class="c"><dt>${label}</dt><dd>${v}</dd></div>`;
     const contact = [
       phone && line("Phone", `<a href="tel:${esc(phone)}">${esc(fmtPhone(phone))}</a>`),
       l.email && line("Email", `<a href="mailto:${esc(l.email)}">${esc(l.email)}</a>`),
       site && line("Website", `<a href="${esc(site)}">${esc(site.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""))}</a>`),
+      li && line("LinkedIn", `<a href="${esc(li.url)}">${esc(li.url.replace(/^https:\/\/www\.linkedin\.com\//, ""))}</a>`),
       l.owner?.name && line("Owner", esc(l.owner.name)),
     ].filter(Boolean).join("") || `<div class="c"><dd class="muted">No contact found</dd></div>`;
     const meta = [l.category, l.address ?? l.city].filter(Boolean).map(esc).join(" · ") + (l.rating != null ? ` · ${esc(l.rating.toFixed(1))}★ (${esc(l.reviews ?? 0)})` : "");
