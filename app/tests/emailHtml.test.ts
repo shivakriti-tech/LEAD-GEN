@@ -26,4 +26,16 @@ describe("formal HTML email", () => {
     const h = emailHtml("Look: https://acme.in", {}, { email: "a@b.in" });
     expect(h).not.toMatch(/<img|display:\s*none|bit\.ly/i);
   });
+  it("doesn't repeat the name or the opt-out line the message already has", () => {
+    const msg = 'Hi there,\n\nWould you like a quick sample?\n\nShivaKriti\nBhayli.\n\nIf this isn\'t relevant, just reply "no" and I won\'t email again.';
+    const h = emailHtml(msg, { name: "ShivaKriti" }, { email: "a@b.in" }, "formal");
+    expect(h).not.toContain("just reply and say so");
+    expect((h.match(/ShivaKriti/g) ?? []).length).toBe(1);
+  });
+  it("MAIL_STYLE=simple is a light, Gmail-like layout with no table, border or colour bar", () => {
+    const h = emailHtml("Hi Jane,\n\nQuick question.", { name: "Divy", company: "Shree" }, { email: "a@b.in" }, "simple");
+    expect(h).not.toMatch(/<table|border|<!DOCTYPE/i);
+    expect(h).toContain("Quick question.");
+    expect(h).toContain("Divy<br>Shree<br>a@b.in");
+  });
 });
