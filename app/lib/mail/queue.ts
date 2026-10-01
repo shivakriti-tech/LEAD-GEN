@@ -42,6 +42,8 @@ export interface EmailItem {
   inReplyTo?: string;
   references?: string[];
   threadSubject?: string;
+  /** Inbox mail before this time doesn't count as a reply (their out-of-office answer). */
+  replyCheckFrom?: string;
   notBefore: string;
   status: ItemStatus;
   reason?: string;
@@ -285,7 +287,8 @@ export async function tick(deps: SendDeps): Promise<{ did: "sent" | "skipped" | 
     if (!mbox || !room(mbox)) continue; // this one waits for its mailbox; try the next due email
     if (item.step > 0 && deps.replied) {
       const first = d.items.filter((i) => i.searchId === item.searchId && i.leadId === item.leadId && i.status === "sent").sort((a, b) => (a.sentAt ?? "").localeCompare(b.sentAt ?? ""))[0];
-      const got = await deps.replied(mbox, item.to, new Date(first?.sentAt ?? item.createdAt)).catch(() => undefined);
+      const from = Math.max(Date.parse(first?.sentAt ?? item.createdAt), item.replyCheckFrom ? Date.parse(item.replyCheckFrom) : 0);
+      const got = await deps.replied(mbox, item.to, new Date(from)).catch(() => undefined);
       if (got) {
         await deps.leads.patch(item.searchId, item.leadId, { replied: true });
         return finish("skipped", "They replied (found in your inbox), so no follow-up");

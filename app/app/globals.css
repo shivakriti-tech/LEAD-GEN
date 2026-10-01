@@ -781,7 +781,8 @@ label.check input { width: auto; }
 
 /* ---------- Outreach ---------- */
 .outreach { display: flex; flex-direction: column; gap: 18px; }
-.big-seg { align-self: flex-start; }
+.big-seg { align-self: flex-start; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.big-seg button { white-space: nowrap; flex: 0 0 auto; }
 .big-seg button { display: inline-flex; gap: 6px; align-items: center; }
 .big-seg svg { width: 16px; height: 16px; }
 .otab { display: flex; flex-direction: column; gap: 14px; }
@@ -827,3 +828,9 @@ label.check input { width: auto; }
 .wa-box .btn { align-self: flex-start; }
 .wa-box p { margin: 0; }
 .you-grid .wide { grid-column: 1 / -1; }
+
+/* Outreach inbox */
+.conv { display: flex; flex-direction: column; gap: 10px; }
+.conv .their { margin: 0; padding: 10px 14px; border-left: 3px solid var(--line); background: var(--sunk); border-radius: 0 12px 12px 0; white-space: pre-wrap; font-size: 14px; max-height: 220px; overflow: auto; }
+.conv textarea { width: 100%; font: inherit; }
+.count { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 6px; border-radius: 999px; background: var(--sunk); color: var(--ink); font-size: 12px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }

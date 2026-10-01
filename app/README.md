@@ -79,6 +79,34 @@ For your own agency's services abroad: **online stores** that need a store or an
 - **Messages** are in English and name the reason, what you build and your proof, with a small ask (a store review with three quick wins, or a 20-minute call). Follow-ups stay on the same topic. Emails go out in office hours where the lead is; emails to the US and Canada need your postal address under *Your details*.
 - Search engines look for online brands anywhere in the country (not only sites that name the city), and skip marketplaces, big retailers and directories.
 
+## AI conversation agent (Outreach → Inbox)
+
+Replies to your emails (and WhatsApp messages from leads) are read for you, and an answer is drafted in your client's voice.
+
+- **What it reads:** every 30 minutes each mailbox's inbox is checked. A reply from someone you emailed lands in **Outreach → Inbox**, with the quoted thread and signature cut off. Mail from anyone else is ignored.
+- **What it means:** interested, wants a call, has a question, not now, not interested, unsubscribe, out of office, wrong person, or referred someone.
+  - Clear cases are read by plain rules with **no AI call**: out-of-office (with the return date), unsubscribe, a flat "no thanks", and "contact mike@… instead".
+  - Only real conversations go to Gemini, with a short prompt: the Business Brain's key facts and the last few messages, with a capped answer.
+- **What it changes on the lead:**
+  - Interested, question or call → *Replied*, and follow-ups stop.
+  - Not now → *Replied*, with a reminder in 90 days.
+  - Not interested → *Lost*.
+  - Unsubscribe → opted out and never emailed again.
+  - Out of office → the next follow-up waits until they're back, and the auto-reply doesn't count as a reply.
+  - Referral → a note with the new contact.
+- **Guardrails:** a draft goes to you instead of out if it:
+  - names a price that isn't in the Business Brain,
+  - uses one of the client's banned phrases,
+  - has a placeholder,
+  - or fails the spam check.
+
+  Interested leads, call requests and questions always come to you ("Your turn").
+- **Sending:** edit the draft and press *Send reply*. It goes from the same mailbox, in the same email thread. WhatsApp answers go through the WhatsApp API within 24 hours of their message. *New draft* asks again; *Done, no reply* closes it.
+- **Settings in `.env.local`:**
+  - `GEMINI_API_KEY`: free, for written answers. Without it, ready replies are used.
+  - `AGENT_AI=off`: rules only.
+  - `AGENT_AUTO_SEND=safe`: lets the agent itself send only polite closes (not now, not interested, wrong person, referral). Never sales replies.
+
 ## Saved lead directory (faster searches)
 
 Businesses that a search finds and checks are saved per city, area and business type in `.data/directory`. The next search for the same place starts from them instead of searching from scratch:

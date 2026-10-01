@@ -1,5 +1,6 @@
 import { getStore } from "@/lib/store";
-import { savedLeads } from "@/lib/mail/send";
+import { replyDeps, savedLeads } from "@/lib/mail/send";
+import { handleWhatsAppMessage } from "@/lib/agent/inbox";
 import { leadsWithNumber, parseWebhook, patchForInbound, signatureOk, updateWaLog, waConfig, waNumber } from "@/lib/whatsapp";
 
 export const runtime = "nodejs";
@@ -28,9 +29,13 @@ export async function POST(req: Request) {
   const inbound = events.filter((e) => e.kind === "message");
   // which saved leads have these numbers (only looked up when someone wrote in)
   const all: Array<{ searchId: string; lead: import("@/lib/types").Lead }> = [];
+  const searches = new Map<string, import("@/lib/types").SearchParams>();
   if (inbound.length) {
     const store = getStore();
-    for (const s of await store.listSearches()) for (const lead of (await store.getSearch(s.id))?.leads ?? []) all.push({ searchId: s.id, lead });
+    for (const s of await store.listSearches()) {
+      searches.set(s.id, s.params);
+      for (const lead of (await store.getSearch(s.id))?.leads ?? []) all.push({ searchId: s.id, lead });
+    }
   }
   for (const e of inbound) {
     const matches = leadsWithNumber(all, e.number);
@@ -39,6 +44,11 @@ export async function POST(req: Request) {
       l.entries.push({ id: e.id, at: e.at, dir: "in", number: waNumber(e.number), text: e.text?.slice(0, 1000), leadName: matches[0]?.lead.name, searchId: matches[0]?.searchId, leadId: matches[0]?.lead.id });
     });
     for (const m of matches) await savedLeads.patch(m.searchId, m.lead.id, patchForInbound(e.text));
+    // the conversation agent reads it and drafts an answer for the Inbox
+    if (e.text && matches[0]) {
+      const p = searches.get(matches[0].searchId);
+      await handleWhatsAppMessage(replyDeps(), { number: waNumber(e.number), text: e.text, at: e.at, id: e.id, searchId: matches[0].searchId, lead: matches[0].lead, clientId: p?.clientId, sender: { company: p?.client?.name } }).catch(() => undefined);
+    }
   }
   const statuses = events.filter((e) => e.kind === "status");
   if (statuses.length)

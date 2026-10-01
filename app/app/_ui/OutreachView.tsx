@@ -9,11 +9,13 @@ import { IconCheck, IconClose, IconCopy, IconLink, IconMail, IconPlus, IconUser,
  * the LinkedIn tasks for your team. Leads get here from the results: tick them → Email / LinkedIn.
  */
 
-type Tab = "email" | "whatsapp" | "linkedin";
+type Tab = "inbox" | "email" | "whatsapp" | "linkedin";
 const when = (iso?: string) => (iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "");
 
 export function OutreachView() {
-  const [tab, setTab] = useState<Tab>("email");
+  const [tab, setTab] = useState<Tab>("inbox");
+  const [waiting, setWaiting] = useState(0);
+  useEffect(() => void fetch("/api/agent/inbox").then((r) => r.json()).then((d) => setWaiting(d.waiting ?? 0)).catch(() => {}), [tab]);
   return (
     <section className="outreach">
       <div className="top">
@@ -23,12 +25,99 @@ export function OutreachView() {
         </div>
       </div>
       <div className="seg big-seg" role="tablist" aria-label="Channel">
+        <button role="tab" aria-selected={tab === "inbox"} aria-pressed={tab === "inbox"} onClick={() => setTab("inbox")}><IconCheck /> Inbox{waiting ? <span className="count">{waiting}</span> : null}</button>
         <button role="tab" aria-selected={tab === "email"} aria-pressed={tab === "email"} onClick={() => setTab("email")}><IconMail /> Email</button>
         <button role="tab" aria-selected={tab === "whatsapp"} aria-pressed={tab === "whatsapp"} onClick={() => setTab("whatsapp")}><IconWhatsApp /> WhatsApp</button>
         <button role="tab" aria-selected={tab === "linkedin"} aria-pressed={tab === "linkedin"} onClick={() => setTab("linkedin")}><IconUser /> LinkedIn</button>
       </div>
-      {tab === "email" ? <EmailTab /> : tab === "whatsapp" ? <WhatsAppTab /> : <LinkedInTab />}
+      {tab === "inbox" ? <InboxTab onChange={setWaiting} /> : tab === "email" ? <EmailTab /> : tab === "whatsapp" ? <WhatsAppTab /> : <LinkedInTab />}
     </section>
+  );
+}
+
+/* ---------- Inbox: replies, what they mean, and the drafted answers ---------- */
+
+type Conv = {
+  id: string; channel: "email" | "whatsapp"; address: string; leadName?: string; subject?: string; status: "drafted" | "handoff" | "sent" | "closed"; updatedAt: string; draft?: string;
+  messages: Array<{ dir: "in" | "out"; text: string; at: string; by?: string }>;
+  agent?: { intent: string; summary: string; handoff: boolean; why?: string; by: string; returnOn?: string; referral?: string };
+};
+const INTENT: Record<string, { label: string; kind: string }> = {
+  interested: { label: "Interested", kind: "good" }, meeting: { label: "Wants a call", kind: "good" }, question: { label: "Has a question", kind: "warn" },
+  not_now: { label: "Not now", kind: "" }, not_interested: { label: "Not interested", kind: "bad" }, unsubscribe: { label: "Unsubscribed", kind: "bad" },
+  out_of_office: { label: "Out of office", kind: "" }, wrong_person: { label: "Wrong person", kind: "" }, referral: { label: "Referred someone", kind: "good" }, other: { label: "Reply", kind: "" },
+};
+
+function InboxTab({ onChange }: { onChange: (n: number) => void }) {
+  const [d, setD] = useState<{ conversations: Conv[]; waiting: number; ai: boolean; autoSend: boolean } | null>(null);
+  const [texts, setTexts] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState("");
+  const [msg, setMsg] = useState<Record<string, string>>({});
+  const [showAll, setShowAll] = useState(false);
+  const load = useCallback(() => fetch("/api/agent/inbox").then((r) => r.json()).then((x) => { setD(x); onChange(x.waiting ?? 0); }), [onChange]);
+  useEffect(() => {
+    void load();
+    const t = setInterval(load, 60_000);
+    return () => clearInterval(t);
+  }, [load]);
+  const act = async (c: Conv, action: "send" | "close" | "redraft") => {
+    setBusy(c.id + action);
+    const r = await fetch(`/api/agent/inbox/${c.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, text: texts[c.id] ?? c.draft ?? "" }) });
+    const j = await r.json().catch(() => ({}));
+    setMsg((m) => ({ ...m, [c.id]: r.ok ? (action === "send" ? "Sent." : action === "redraft" ? "New draft ready." : "") : j.error ?? "Failed" }));
+    if (action === "redraft") setTexts((t) => { const n = { ...t }; delete n[c.id]; return n; });
+    setBusy("");
+    load();
+  };
+  if (!d) return <p className="sub">Loading…</p>;
+  const open = d.conversations.filter((c) => c.status === "handoff" || c.status === "drafted");
+  const rest = d.conversations.filter((c) => c.status === "sent" || c.status === "closed");
+  return (
+    <div className="otab">
+      <p className="sub">
+        Replies to your emails (and WhatsApp messages) land here. The agent reads each one, says what it means and drafts an answer from the client's Business Brain: no prices or promises it doesn't have.
+        {d.ai ? " AI: Gemini (only for real conversations; out-of-office, unsubscribes and plain no's need no AI)." : " AI is off: drafts come from ready replies. Add GEMINI_API_KEY (free) for written answers."}
+        {d.autoSend ? " Polite closes (not now, not interested, wrong person) are sent by the agent itself." : " Nothing is sent until you press Send."}
+      </p>
+      {!open.length && <div className="panel bsec"><p className="sub">Nothing waiting. Replies are checked every 30 minutes.</p></div>}
+      {open.map((c) => {
+        const last = [...c.messages].reverse().find((m) => m.dir === "in");
+        const it = INTENT[c.agent?.intent ?? "other"] ?? INTENT.other;
+        return (
+          <article className="panel bsec conv" key={c.id}>
+            <div className="row between">
+              <div><b>{c.leadName ?? c.address}</b> <span className="sub">{c.channel === "email" ? c.address : `WhatsApp +${c.address}`} · {when(c.updatedAt)}</span></div>
+              <div className="row gap"><span className={`tag ${it.kind}`}>{it.label}</span>{c.status === "handoff" && <span className="tag warn">Your turn</span>}</div>
+            </div>
+            {c.subject && <p className="sub">Re: {c.subject}</p>}
+            <blockquote className="their">{last?.text}</blockquote>
+            {c.agent?.why && <p className="sub"><b>Why it's with you:</b> {c.agent.why}</p>}
+            <label className="field">
+              <span className="lbl">Your answer <span className="opt">{c.agent?.by === "gemini" ? "drafted by AI, check it" : "ready reply, edit as needed"}</span></span>
+              <textarea rows={5} value={texts[c.id] ?? c.draft ?? ""} onChange={(e) => setTexts((t) => ({ ...t, [c.id]: e.target.value }))} placeholder="Write your reply" />
+            </label>
+            <div className="row gap">
+              <button className="btn primary sm" disabled={!!busy} onClick={() => act(c, "send")}>{busy === c.id + "send" ? "Sending…" : c.channel === "email" ? "Send reply" : "Send on WhatsApp"}</button>
+              <button className="btn sm" disabled={!!busy} onClick={() => act(c, "redraft")}>{busy === c.id + "redraft" ? "Drafting…" : "New draft"}</button>
+              <button className="btn sm" disabled={!!busy} onClick={() => act(c, "close")}>Done, no reply</button>
+              {msg[c.id] && <span className="sub">{msg[c.id]}</span>}
+            </div>
+          </article>
+        );
+      })}
+      {rest.length > 0 && (
+        <section className="panel bsec">
+          <h2>Handled <span className="count">{rest.length}</span></h2>
+          <div className="qlist">
+            {(showAll ? rest : rest.slice(0, 10)).map((c) => {
+              const it = INTENT[c.agent?.intent ?? "other"] ?? INTENT.other;
+              return <div className="qrow" key={c.id}><div><b>{c.leadName ?? c.address}</b><span className="sub">{c.agent?.summary}{c.agent?.referral ? ` · ${c.agent.referral}` : ""}</span></div><span className={`tag ${it.kind}`}>{it.label}</span><span className="sub">{c.status === "sent" ? `Answered ${when(c.updatedAt)}` : when(c.updatedAt)}</span></div>;
+            })}
+          </div>
+          {rest.length > 10 && !showAll && <button className="linkish" onClick={() => setShowAll(true)}>Show all</button>}
+        </section>
+      )}
+    </div>
   );
 }
 
