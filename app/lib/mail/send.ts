@@ -38,7 +38,9 @@ export async function verifyMailbox(m: Mailbox): Promise<{ ok: boolean; error?: 
 }
 
 export const smtpSend: SendDeps["send"] = async (m, mail) => {
-  const info = await transportFor(m).sendMail({ ...mail, headers: { "List-Unsubscribe": mail.listUnsubscribe } });
+  // a plain person-to-person email: no List-Unsubscribe header (a bulk-mail marker that sends cold
+  // email to Promotions) and no "X-Mailer: nodemailer" (a script marker)
+  const info = await transportFor(m).sendMail({ ...mail, xMailer: false });
   return { messageId: info.messageId };
 };
 

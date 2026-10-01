@@ -363,10 +363,16 @@ export function emailLink(l: Lead, sender?: string | Sender): string | undefined
 }
 
 /** The email subject for a first message. */
+/**
+ * The email subject for a first message: short and lower-case, like one colleague writing to
+ * another ("maple & oak store"). Pitch-style subjects ("A quick idea for…") are what filters and
+ * people both recognise as cold sales email.
+ */
 export function subjectLine(l: Pick<Lead, "name" | "pitchFor">): string {
-  if (l.pitchFor?.kind === "logistics") return `Shipping and logistics for ${l.name}`;
-  if (l.pitchFor?.kind === "agency" && l.pitchFor.track === "store") return `An idea for the ${l.name} store`;
-  return `A quick idea for ${l.name}`;
+  const n = l.name.trim();
+  if (l.pitchFor?.kind === "logistics") return `${n} shipments`;
+  if (l.pitchFor?.kind === "agency") return l.pitchFor.track === "store" ? `${n} store` : `question about ${n}`;
+  return `${n} website`;
 }
 
 /** A short nudge for a lead you've already messaged. */

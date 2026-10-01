@@ -74,7 +74,7 @@ describe("outreach helpers", () => {
 
   it("emails only when there's an address", () => {
     expect(emailLink(lead())).toBeUndefined();
-    expect(emailLink(lead({ email: "hi@aum.in" }))).toMatch(/^mailto:hi@aum\.in\?subject=A%20quick%20idea/);
+    expect(emailLink(lead({ email: "hi@aum.in" }))).toMatch(/^mailto:hi@aum\.in\?subject=Aum%20Dental/);
   });
 
   it("shows at most three problem chips, the website state first", () => {

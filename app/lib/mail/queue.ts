@@ -128,9 +128,18 @@ export function subjectFor(l: Pick<Lead, "name" | "pitchFor">): string {
 }
 
 /** The line under every email: who it's from and how to stop them. */
-export function footer(sender: Sender, mailbox: Pick<Mailbox, "email">): string {
-  const who = [sender.name, sender.company].filter(Boolean).join(", ");
-  return `\n\n--\n${who ? `${who}\n` : ""}${sender.address ? `${sender.address}\n` : ""}${mailbox.email}\nIf you'd rather not get these emails, just reply and say so, and we won't email again.`;
+/**
+ * The end of every email, the way a person signs off: name, company, the postal address when
+ * one is set (required for the US and Canada), and one plain line on how to stop. No "--"
+ * separator, no legal wording, no unsubscribe link: those mark an email as bulk mail.
+ */
+export function footer(sender: Sender, _mailbox?: Pick<Mailbox, "email">): string {
+  return `${signature(sender)}\n\nIf this isn't relevant, just reply "no" and I won't email again.`;
+}
+/** Name, company and (when set) postal address, one per line: for replies in a conversation. */
+export function signature(sender: Sender): string {
+  const sign = [sender.name, sender.company, sender.address].map((x) => x?.trim()).filter(Boolean).join("\n");
+  return sign ? `\n\n${sign}` : "";
 }
 
 /** US (CAN-SPAM) and Canadian (CASL) law: marketing email must carry the sender's postal address. */
@@ -230,7 +239,7 @@ export interface SendDeps {
   store: QueueStore;
   leads: LeadAccess;
   mailboxes: Mailbox[];
-  send: (m: Mailbox, mail: { from: string; to: string; subject: string; text: string; html?: string; inReplyTo?: string; references?: string[]; listUnsubscribe: string }) => Promise<{ messageId: string }>;
+  send: (m: Mailbox, mail: { from: string; to: string; subject: string; text: string; html?: string; inReplyTo?: string; references?: string[] }) => Promise<{ messageId: string }>;
   /** Why this mailbox's domain isn't fit to send (missing SPF / DMARC), or undefined when it is. */
   domainProblem?: (m: Mailbox) => Promise<string | undefined>;
   /** Did this address reply to the mailbox since then? (IMAP) Undefined when it can't be checked. */
@@ -296,7 +305,8 @@ export async function tick(deps: SendDeps): Promise<{ did: "sent" | "skipped" | 
       }
     }
     const subject = item.subject ?? (item.threadSubject ? `Re: ${item.threadSubject.replace(/^re:\s*/i, "")}` : subjectFor(lead));
-    const plain = item.body ?? messageForStep(lead, item.lang, item.sender, item.tone, item.step);
+    // the first email carries no link: links in a first message from a stranger are a top spam signal
+    const plain = item.body ?? messageForStep(lead, item.lang, item.step === 0 ? { ...item.sender, link: undefined } : item.sender, item.tone, item.step);
     const spam = checkContent(subject, plain).block;
     if (spam.length) return finish("skipped", `Spam check: ${spam[0]}`);
     if (deps.domainProblem) {
@@ -310,7 +320,7 @@ export async function tick(deps: SendDeps): Promise<{ did: "sent" | "skipped" | 
     const fromName = item.sender.name ? `${item.sender.name}${item.sender.company ? `, ${item.sender.company}` : ""}` : mbox.name;
     let messageId: string;
     try {
-      messageId = (await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: item.to, subject, text, html: emailHtml(plain, item.sender, mbox), inReplyTo: item.inReplyTo, references: item.references, listUnsubscribe: `<mailto:${mbox.email}?subject=unsubscribe>` })).messageId;
+      messageId = (await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: item.to, subject, text, html: emailHtml(text), inReplyTo: item.inReplyTo, references: item.references })).messageId;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       const auth = /auth|login|credentials|535|534|password/i.test(msg) && !isBlock(msg);

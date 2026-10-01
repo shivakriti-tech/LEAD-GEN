@@ -136,13 +136,13 @@ describe("replies end to end", () => {
   });
   it("interested: marked Replied, follow-ups stop, draft waits for you; sending replies in the thread", async () => {
     const { l, queue, inbox, sent, deps } = await setup();
-    const c = (await handleEmailReply(deps, { mailbox: MB.email, address: "jane@mapleoak.com", subject: "Re: An idea for the Maple & Oak store", text: "Sounds good, tell me more", messageId: "<r2@x>", at: "2026-10-06T14:00:00Z" }))!;
-    expect(c).toMatchObject({ status: "handoff", leadName: "Maple & Oak", subject: "An idea for the Maple & Oak store" });
+    const c = (await handleEmailReply(deps, { mailbox: MB.email, address: "jane@mapleoak.com", subject: "Re: Maple & Oak store", text: "Sounds good, tell me more", messageId: "<r2@x>", at: "2026-10-06T14:00:00Z" }))!;
+    expect(c).toMatchObject({ status: "handoff", leadName: "Maple & Oak", subject: "Maple & Oak store" });
     expect(l.followUp?.status).toBe("replied");
     expect(c.messages[0]).toMatchObject({ dir: "out" });
     const r = await sendEmailReply(deps, c.id, "Hi Jane, great. Does Thursday 10am your time work?");
     expect(r.ok).toBe(true);
-    expect(sent.at(-1)).toMatchObject({ to: "jane@mapleoak.com", subject: "Re: An idea for the Maple & Oak store", inReplyTo: "<r2@x>" });
+    expect(sent.at(-1)).toMatchObject({ to: "jane@mapleoak.com", subject: "Re: Maple & Oak store", inReplyTo: "<r2@x>" });
     expect(sent.at(-1)!.references).toContain("<m1@getshivakriti.com>");
     expect(inbox.data.conversations[0].status).toBe("sent");
     // the queued follow-up won't go: they replied
