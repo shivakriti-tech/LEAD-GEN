@@ -10,7 +10,8 @@
     "test": "vitest run",
     "bench:build": "tsx bench/build-vadodara.ts",
     "bench": "tsx bench/run.ts",
-    "prefill": "tsx scripts/prefill.ts"
+    "prefill": "tsx scripts/prefill.ts",
+    "test-lead": "tsx scripts/addTestLead.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",
