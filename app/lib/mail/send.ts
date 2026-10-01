@@ -38,7 +38,8 @@ export async function verifyMailbox(m: Mailbox): Promise<{ ok: boolean; error?: 
 }
 
 export const smtpSend: SendDeps["send"] = async (m, mail) => {
-  const info = await transportFor(m).sendMail({ ...mail, headers: { "List-Unsubscribe": mail.listUnsubscribe } });
+  // one-click unsubscribe headers come with the mail; no "X-Mailer: nodemailer" (a script marker)
+  const info = await transportFor(m).sendMail({ ...mail, xMailer: false });
   return { messageId: info.messageId };
 };
 

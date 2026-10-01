@@ -75,8 +75,11 @@ describe("the email queue", () => {
     expect((await tick(deps)).did).toBe("idle"); // before 10:00
     deps.now = () => ist("2026-10-05T10:05:00");
     expect(await tick(deps)).toMatchObject({ did: "sent", detail: "Clinic a (a@clinic.in) from divy@getshree.in" });
-    expect(sent[0]).toMatchObject({ from: '"Divy, Pixel Craft" <divy@getshree.in>', to: "a@clinic.in", subject: "A quick idea for Clinic a", listUnsubscribe: "<mailto:divy@getshree.in?subject=unsubscribe>" });
-    expect(sent[0].text).toMatch(/If you'd rather not get these emails, just reply/);
+    expect(sent[0]).toMatchObject({ from: '"Divy, Pixel Craft" <divy@getshree.in>', to: "a@clinic.in", subject: "Clinic a website" });
+    expect(sent[0].headers).toEqual({ "List-Unsubscribe": "<mailto:divy@getshree.in?subject=unsubscribe>" });
+    expect(sent[0].text).toMatch(/\n\nDivy\nPixel Craft\n\nIf this isn't relevant, just reply "no" and I won't email again\.$/);
+    expect(sent[0].text).not.toMatch(/https?:|www\.|--/);
+    expect(sent[0].html).toMatch(/^<div dir="ltr">Hi there,/);
     expect(patches[0]).toMatchObject({ touch: { channel: "email", messageId: "<m1@getshree.in>" }, followUpOn: "2026-10-08" });
     expect(l.followUp?.status).toBe("contacted");
     const next = store.data.items.find((i) => i.status === "queued")!;
@@ -85,7 +88,7 @@ describe("the email queue", () => {
     // three days later: the follow-up goes as a reply in the thread
     deps.now = () => ist("2026-10-08T13:00:00");
     expect((await tick(deps)).did).toBe("sent");
-    expect(sent[1]).toMatchObject({ subject: "Re: A quick idea for Clinic a", inReplyTo: "<m1@getshree.in>" });
+    expect(sent[1]).toMatchObject({ subject: "Re: Clinic a website", inReplyTo: "<m1@getshree.in>" });
     expect(sent[1].text).toMatch(/^Hi there, just following up/);
   });
 
@@ -130,6 +133,6 @@ describe("the email queue", () => {
     expect(await tick({ ...deps, now: () => ist("2026-10-05T11:00:00") })).toMatchObject({ did: "idle", detail: "Waiting for office hours where the leads are" });
     // Monday 10:00 in Houston (20:30 in India): goes
     expect((await tick({ ...deps, now: () => new Date("2026-10-05T15:00:00Z") })).did).toBe("sent");
-    expect(sent[0]).toMatch(/Divy, Shivakriti\n4th floor, Alkapuri Arcade, Vadodara 390007, India\ndivy@getshree.in/);
+    expect(sent[0]).toMatch(/Divy\nShivakriti\n4th floor, Alkapuri Arcade, Vadodara 390007, India\n/);
   });
 });

@@ -7,7 +7,7 @@ import { messageForStep, type Sender } from "../outreach";
 import type { Lead } from "../types";
 import { checkContent } from "../mail/guard";
 import type { Mailbox } from "../mail/mailboxes";
-import { applyInbox, footer, mutate, type LeadAccess, type QueueStore, type SendDeps } from "../mail/queue";
+import { applyInbox, mutate, signature, type LeadAccess, type QueueStore, type SendDeps } from "../mail/queue";
 import { emailHtml } from "../mail/html";
 import { runAgent, type AgentResult, type Msg } from "./agent";
 
@@ -190,7 +190,7 @@ export async function sendEmailReply(deps: Pick<ReplyDeps, "inbox" | "mailboxes"
   const sender = conv.sender ?? {};
   const fromName = sender.name ? `${sender.name}${sender.company ? `, ${sender.company}` : ""}` : mbox.name;
   try {
-    const { messageId } = await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: conv.address, subject: `Re: ${conv.subject ?? ""}`.trim(), text: body + footer(sender, mbox), html: emailHtml(body, sender, mbox), inReplyTo: conv.lastMessageId, references: [...(conv.references ?? []), ...(conv.lastMessageId ? [conv.lastMessageId] : [])], listUnsubscribe: `<mailto:${mbox.email}?subject=unsubscribe>` });
+    const { messageId } = await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: conv.address, subject: `Re: ${conv.subject ?? ""}`.trim(), text: body + signature(sender), html: emailHtml(body + signature(sender), sender), inReplyTo: conv.lastMessageId, references: [...(conv.references ?? []), ...(conv.lastMessageId ? [conv.lastMessageId] : [])] });
     await updateInbox(deps.inbox, (d) => {
       const c = d.conversations.find((x) => x.id === convId);
       if (!c) return;

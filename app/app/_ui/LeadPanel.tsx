@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Lead } from "@/lib/types";
 import { phoneKind, PHONE_KIND_LABEL } from "@/lib/util";
 import { EMAIL_KIND_LABEL } from "@/lib/enrich/email";
-import { MAILBOX_LABEL } from "@/lib/enrich/verifyEmail";
+import { MAILBOX_LABEL } from "@/lib/enrich/mailboxLabel";
 import { canContact, emailLink, linkedinOf, localDate, mapsLink, STEP_LABEL, scoreSummary, shortAddress, statusOf, telLink, whatsappNumber } from "@/lib/outreach";
 import type { FollowUpPatch, Touched } from "@/lib/followups";
 import { fmtPhone } from "./LeadList";

@@ -131,7 +131,7 @@ describe("messages for your agency's leads", () => {
     expect(m).toContain("We built the website and ERP for SVIL and RENP.");
     expect(m).toContain("three quick wins");
     expect(m).toMatch(/shivakriti\.tech$/);
-    expect(subjectLine(l)).toBe("An idea for the Maple & Oak Apparel store");
+    expect(subjectLine(l)).toBe("Maple & Oak Apparel store");
     expect(issueChips(l)[0]).toEqual({ label: "Only on Amazon", kind: "bad" });
   });
   it("company: hiring for manual work leads, and the follow-ups stay on topic", () => {
