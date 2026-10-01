@@ -157,7 +157,7 @@ export function draftFromRules(site: ClientSite, hint: { name?: string } = {}): 
       by: "rules",
       pages: site.pages.map((p) => p.url),
       notes: [
-        "Drafted without AI (no OPENAI_API_KEY, GEMINI_API_KEY or ANTHROPIC_API_KEY): check the services list, add prices, who they sell to and why customers pick them.",
+        "Drafted without AI (no AI key set, or the AI did not answer): check the services list, add prices, who they sell to and why customers pick them.",
         ...(prices.length && !services.some((s) => s.price) ? [`Prices seen on the site: ${prices.slice(0, 6).map((p) => p.price).join(", ")}. Add them to the right services.`] : []),
       ],
     },
