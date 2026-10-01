@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aiName, geminiDrafter, GEMINI_DEFAULT_MODEL, pickDrafter } from "@/lib/brainAnalyze";
+import { aiName, chainDrafters, geminiDrafter, GEMINI_DEFAULT_MODEL, openaiDrafter, pickDrafter } from "@/lib/brainAnalyze";
 
 const answer = (text: string, finishReason = "STOP") => new Response(JSON.stringify({ candidates: [{ finishReason, content: { parts: [{ text }] } }] }), { status: 200 });
 const good = { name: "Shree Logistics", offer: "logistics", summary: "Customs and freight.", services: [{ name: "Customs clearance", price: "₹4,500", logistics: "customs" }], audience_categories: ["exporter", "not-a-type"], usps: ["Own licence"] };
@@ -50,12 +50,39 @@ describe("Gemini reads client websites (free Google AI Studio key)", () => {
     await expect(geminiDrafter({ GEMINI_API_KEY: "k" }, f)!.draft("S", "P")).rejects.toThrow(/free limit is used up/);
   });
 
-  it("prefers Gemini, then Claude; BRAIN_AI picks or turns it off", async () => {
-    expect(aiName({ GEMINI_API_KEY: "g", ANTHROPIC_API_KEY: "a" })).toBe("Gemini");
+  it("tries GPT, then Gemini, then Claude; BRAIN_AI picks one or turns it off", async () => {
+    expect(aiName({ OPENAI_API_KEY: "o", GEMINI_API_KEY: "g", ANTHROPIC_API_KEY: "a" })).toBe("GPT → Gemini → Claude");
+    expect(aiName({ GEMINI_API_KEY: "g", ANTHROPIC_API_KEY: "a" })).toBe("Gemini → Claude");
     expect(aiName({ ANTHROPIC_API_KEY: "a" })).toBe("Claude");
     expect(aiName({ GEMINI_API_KEY: "g", ANTHROPIC_API_KEY: "a", BRAIN_AI: "claude" })).toBe("Claude");
+    expect(aiName({ OPENAI_API_KEY: "o", GEMINI_API_KEY: "g", BRAIN_AI: "gemini" })).toBe("Gemini");
     expect(aiName({ GEMINI_API_KEY: "g", BRAIN_AI: "off" })).toBeUndefined();
     expect((await pickDrafter({ GEMINI_API_KEY: "g", ANTHROPIC_API_KEY: "a" }))?.by).toBe("gemini");
+    expect((await pickDrafter({ OPENAI_API_KEY: "o", GEMINI_API_KEY: "g" }))?.by).toBe("gpt");
     expect(await pickDrafter({})).toBeUndefined();
+  });
+
+  it("GPT (OpenAI-compatible gateway) reads the site through the configured base URL and model", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    const f = (async (url: string, init: RequestInit) => (calls.push({ url, init }), new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(good) } }] })))) as never;
+    const d = openaiDrafter({ OPENAI_API_KEY: "o-key", OPENAI_BASE_URL: "https://gw.example/v1/", OPENAI_MODEL: "gpt-x" }, f)!;
+    const out = await d.draft("SYSTEM", "<page/>");
+    expect(calls[0].url).toBe("https://gw.example/v1/chat/completions");
+    expect((calls[0].init.headers as Record<string, string>).Authorization).toBe("Bearer o-key");
+    expect(JSON.parse(String(calls[0].init.body)).model).toBe("gpt-x");
+    expect(out.name).toBe("Shree Logistics");
+  });
+
+  it("falls to the next AI when GPT is down or its answer is bad, and reports who answered", async () => {
+    const down = openaiDrafter({ OPENAI_API_KEY: "o" }, (async () => new Response(JSON.stringify({ error: { message: "No available channel" } }), { status: 503 })) as never)!;
+    const gem = geminiDrafter({ GEMINI_API_KEY: "g" }, (async () => answer(JSON.stringify(good))) as never)!;
+    const chain = chainDrafters([down, gem])!;
+    expect((await chain.draft("S", "P")).name).toBe("Shree Logistics");
+    expect(chain.by).toBe("gemini");
+    const empty = { by: "gpt" as const, draft: async () => ({ ...(await gem.draft("S", "P")), name: " ", services: [], summary: "" }) };
+    const c2 = chainDrafters([empty, gem])!;
+    await c2.draft("S", "P");
+    expect(c2.by).toBe("gemini");
+    await expect(chainDrafters([down, down])!.draft("S", "P")).rejects.toThrow(/GPT: No available channel/);
   });
 });

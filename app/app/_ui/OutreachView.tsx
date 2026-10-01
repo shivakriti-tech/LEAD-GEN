@@ -93,7 +93,7 @@ function InboxTab({ onChange }: { onChange: (n: number) => void }) {
             <blockquote className="their">{last?.text}</blockquote>
             {c.agent?.why && <p className="sub"><b>Why it's with you:</b> {c.agent.why}</p>}
             <label className="field">
-              <span className="lbl">Your answer <span className="opt">{c.agent?.by === "gemini" ? "drafted by AI, check it" : "ready reply, edit as needed"}</span></span>
+              <span className="lbl">Your answer <span className="opt">{(c.agent?.by === "gemini" || c.agent?.by === "gpt") ? "drafted by AI, check it" : "ready reply, edit as needed"}</span></span>
               <textarea rows={5} value={texts[c.id] ?? c.draft ?? ""} onChange={(e) => setTexts((t) => ({ ...t, [c.id]: e.target.value }))} placeholder="Write your reply" />
             </label>
             <div className="row gap">

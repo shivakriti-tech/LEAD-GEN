@@ -13,7 +13,7 @@ import { IconCheck, IconClose, IconEdit, IconPlus, IconSearch } from "./icons";
  */
 
 type Draft = BrainInput & { id?: string };
-type Mode = { kind: "list" } | { kind: "add" } | { kind: "edit"; draft: Draft; notes?: string[]; by?: "gemini" | "claude" | "rules"; warning?: string };
+type Mode = { kind: "list" } | { kind: "add" } | { kind: "edit"; draft: Draft; notes?: string[]; by?: "gpt" | "gemini" | "claude" | "rules"; warning?: string };
 
 const EMPTY: Draft = { name: "", offer: "website_development", services: [], audience: { categories: [], areas: [] }, usps: [], proof: [], rules: { dos: [], donts: [], bannedPhrases: [] }, pitch: { mentionPrice: false }, sender: {} };
 const OFFER_LABEL = { website_development: "Website clients", logistics: "Logistics" } as const;
@@ -96,7 +96,7 @@ export function ClientsView({ ai, onFindLeads }: { ai: string | null; onFindLead
   );
 }
 
-function AddClient({ ai, onCancel, onDraft }: { ai: string | null; onCancel: () => void; onDraft: (d: Draft, by?: "gemini" | "claude" | "rules", warning?: string) => void }) {
+function AddClient({ ai, onCancel, onDraft }: { ai: string | null; onCancel: () => void; onDraft: (d: Draft, by?: "gpt" | "gemini" | "claude" | "rules", warning?: string) => void }) {
   const [website, setWebsite] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -156,7 +156,7 @@ function Lines({ label, hint, value, onChange, rows = 3, placeholder }: { label:
   );
 }
 
-function BrainEditor({ initial, notes, by, warning, onCancel, onSaved }: { initial: Draft; notes?: string[]; by?: "gemini" | "claude" | "rules"; warning?: string; onCancel: () => void; onSaved: () => void }) {
+function BrainEditor({ initial, notes, by, warning, onCancel, onSaved }: { initial: Draft; notes?: string[]; by?: "gpt" | "gemini" | "claude" | "rules"; warning?: string; onCancel: () => void; onSaved: () => void }) {
   const [b, setB] = useState<Draft>(() => ({ ...EMPTY, ...initial, audience: { ...EMPTY.audience!, ...initial.audience }, rules: { ...EMPTY.rules!, ...initial.rules }, pitch: { ...EMPTY.pitch!, ...initial.pitch }, sender: { ...initial.sender } }));
   const [paste, setPaste] = useState("");
   const [saving, setSaving] = useState(false);
@@ -185,7 +185,7 @@ function BrainEditor({ initial, notes, by, warning, onCancel, onSaved }: { initi
       <div className="top">
         <div>
           <h1>{initial.id ? `Edit ${initial.name}` : "Check the profile"}</h1>
-          <p>{by === "gemini" ? "Drafted by Gemini from their website. " : by === "claude" ? "Drafted by Claude from their website. " : by === "rules" ? "Drafted from their website without AI. " : ""}Everything here is used for their searches and messages: fix anything that's off.</p>
+          <p>{by === "gpt" ? "Drafted by GPT from their website. " : by === "gemini" ? "Drafted by Gemini from their website. " : by === "claude" ? "Drafted by Claude from their website. " : by === "rules" ? "Drafted from their website without AI. " : ""}Everything here is used for their searches and messages: fix anything that's off.</p>
         </div>
       </div>
       {warning && <p className="note">{warning}</p>}

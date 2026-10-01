@@ -76,6 +76,20 @@ describe("the agent", () => {
     expect(sent!.generationConfig.maxOutputTokens).toBeLessThanOrEqual(700);
     expect(sent!.contents[0].parts[0].text.length).toBeLessThan(3000);
   });
+  it("tries GPT first and uses Gemini when GPT fails", async () => {
+    const answer = JSON.stringify({ intent: "question", summary: "Asks about timing", reply: "Hi Jane, usually two weeks.", needs_person: false, needs_person_why: null });
+    const urls: string[] = [];
+    const f = (async (u: string) => {
+      urls.push(u);
+      return u.includes("gw.example") ? new Response(JSON.stringify({ error: { message: "No available channel" } }), { status: 503 }) : Response.json({ candidates: [{ content: { parts: [{ text: answer }] } }] });
+    }) as unknown as typeof fetch;
+    const env = { OPENAI_API_KEY: "o", OPENAI_BASE_URL: "https://gw.example/v1", GEMINI_API_KEY: "k" };
+    const r = await runAgent({ lead: lead(), brain, sender: {}, subject: "Re", thread: thread("How long would it take?"), env, fetch: f, now: NOW });
+    expect(urls[0]).toBe("https://gw.example/v1/chat/completions");
+    expect(r).toMatchObject({ intent: "question", by: "gemini" });
+    const ok = (async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: answer } }] })) as unknown as typeof fetch;
+    expect((await runAgent({ lead: lead(), brain, sender: {}, subject: "Re", thread: thread("How long would it take?"), env, fetch: ok, now: NOW })).by).toBe("gpt");
+  });
   it("a draft with an invented price is held for you", async () => {
     const f = (async () => Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ intent: "question", summary: "Price?", reply: "It's $900 flat.", needs_person: false, needs_person_why: null }) }] } }] })) as unknown as typeof fetch;
     const r = await runAgent({ lead: lead(), brain, sender: {}, subject: "Re", thread: thread("Price for a CRM?"), env: { GEMINI_API_KEY: "k" }, fetch: f, now: NOW });

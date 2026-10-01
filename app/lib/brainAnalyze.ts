@@ -157,7 +157,7 @@ export function draftFromRules(site: ClientSite, hint: { name?: string } = {}): 
       by: "rules",
       pages: site.pages.map((p) => p.url),
       notes: [
-        "Drafted without AI (no GEMINI_API_KEY or ANTHROPIC_API_KEY): check the services list, add prices, who they sell to and why customers pick them.",
+        "Drafted without AI (no OPENAI_API_KEY, GEMINI_API_KEY or ANTHROPIC_API_KEY): check the services list, add prices, who they sell to and why customers pick them.",
         ...(prices.length && !services.some((s) => s.price) ? [`Prices seen on the site: ${prices.slice(0, 6).map((p) => p.price).join(", ")}. Add them to the right services.`] : []),
       ],
     },
@@ -205,32 +205,127 @@ ${CATEGORIES.filter((c) => c.sells !== "agency").map((c) => `${c.key}: ${c.label
 
 /** An AI that reads the pages and returns a draft checked against DraftSchema. */
 export interface Drafter {
-  by: "gemini" | "claude";
+  by: "gpt" | "gemini" | "claude";
   draft: (system: string, pagesText: string) => Promise<Draft>;
 }
 type DraftFn = Drafter["draft"];
 const off = (v?: string) => /^(off|0|false|no)$/i.test(v || "");
 
-/**
- * Which AI reads client websites. BRAIN_AI=gemini | claude | off; by default Gemini when
- * GEMINI_API_KEY is set (Google's free tier), else Claude when ANTHROPIC_API_KEY is set.
- */
-export async function pickDrafter(env: Record<string, string | undefined> = process.env, f: typeof fetch = fetch): Promise<Drafter | undefined> {
+const AI_NAME = { gpt: "GPT", gemini: "Gemini", claude: "Claude" } as const;
+const has = (v?: string) => !!v?.trim();
+const aiModes = (env: Record<string, string | undefined>): Array<Drafter["by"]> => {
   const mode = (env.BRAIN_AI || "").trim().toLowerCase();
-  if (off(mode)) return undefined;
-  if (mode === "claude") return claudeDrafter(env);
-  if (mode === "gemini") return geminiDrafter(env, f);
-  return geminiDrafter(env, f) ?? (await claudeDrafter(env));
+  if (off(mode)) return [];
+  const configured: Array<Drafter["by"]> = [];
+  if (has(env.OPENAI_API_KEY)) configured.push("gpt");
+  if (has(env.GEMINI_API_KEY)) configured.push("gemini");
+  if (has(env.ANTHROPIC_API_KEY)) configured.push("claude");
+  const only = mode === "openai" ? "gpt" : mode;
+  return only === "gpt" || only === "gemini" || only === "claude" ? configured.filter((b) => b === only) : configured;
+};
+
+/** An answer that parses but says nothing (no name, or no services and no summary) counts as a bad answer. */
+const draftLooksBad = (d: Draft) => !d.name.trim() || (d.services.length === 0 && !d.summary.trim());
+
+/** Try each AI in order; the next one takes over when one fails, times out, or answers badly. `by` is whichever answered. */
+export function chainDrafters(list: Drafter[]): Drafter | undefined {
+  if (list.length <= 1) return list[0];
+  let by = list[0].by;
+  return {
+    get by() {
+      return by;
+    },
+    async draft(system, pagesText) {
+      const errors: string[] = [];
+      for (const d of list) {
+        try {
+          const r = await d.draft(system, pagesText);
+          if (draftLooksBad(r)) throw new Error("the answer was empty");
+          by = d.by;
+          return r;
+        } catch (e) {
+          errors.push(`${AI_NAME[d.by]}: ${e instanceof Error ? e.message : e}`);
+        }
+      }
+      throw new Error(errors.join("; "));
+    },
+  };
 }
 
-/** "Gemini" / "Claude" / undefined, for the Setup panel (no keys). */
+/**
+ * Which AI reads client websites. Every AI with a key is tried in this order: GPT (OPENAI_API_KEY),
+ * then Gemini (GEMINI_API_KEY), then Claude (ANTHROPIC_API_KEY); the next takes over when one fails
+ * or gives a bad answer. BRAIN_AI=gpt | gemini | claude uses just that one; BRAIN_AI=off turns it off.
+ */
+export async function pickDrafter(env: Record<string, string | undefined> = process.env, f: typeof fetch = fetch): Promise<Drafter | undefined> {
+  const list: Drafter[] = [];
+  for (const b of aiModes(env)) {
+    const d = b === "gpt" ? openaiDrafter(env, f) : b === "gemini" ? geminiDrafter(env, f) : await claudeDrafter(env);
+    if (d) list.push(d);
+  }
+  return chainDrafters(list);
+}
+
+/** "GPT → Gemini → Claude" (the AIs that have keys, in the order they're tried) or undefined, for the Setup panel (no keys). */
 export function aiName(env: Record<string, string | undefined> = process.env): string | undefined {
-  const mode = (env.BRAIN_AI || "").trim().toLowerCase();
-  if (off(mode)) return undefined;
-  const g = !!env.GEMINI_API_KEY?.trim(), c = !!env.ANTHROPIC_API_KEY?.trim();
-  if (mode === "claude") return c ? "Claude" : undefined;
-  if (mode === "gemini") return g ? "Gemini" : undefined;
-  return g ? "Gemini" : c ? "Claude" : undefined;
+  const names = aiModes(env).map((b) => AI_NAME[b]);
+  return names.length ? names.join(" → ") : undefined;
+}
+
+/* ----- GPT: any OpenAI-compatible chat endpoint (OpenAI itself, or a gateway) ----- */
+
+export const OPENAI_DEFAULT_BASE = "https://api.openai.com/v1";
+export const OPENAI_DEFAULT_MODEL = "gpt-4o";
+
+/** One chat call to the OpenAI-compatible endpoint. Returns the answer text; throws a plain message on failure. */
+export async function openaiChat(env: Record<string, string | undefined>, f: typeof fetch, system: string, user: string, o: { maxTokens: number; temperature: number; timeoutMs?: number }): Promise<string> {
+  const base = (env.OPENAI_BASE_URL?.trim() || OPENAI_DEFAULT_BASE).replace(/\/+$/, "");
+  const model = env.OPENAI_MODEL?.trim() || OPENAI_DEFAULT_MODEL;
+  const timeout = Number(env.OPENAI_TIMEOUT_MS) || o.timeoutMs || 90_000;
+  const res = await f(`${base}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.OPENAI_API_KEY?.trim()}` },
+    body: JSON.stringify({ model, temperature: o.temperature, max_tokens: o.maxTokens, messages: [{ role: "system", content: system }, { role: "user", content: user }] }),
+    signal: AbortSignal.timeout(timeout),
+  }).catch((e) => {
+    throw new Error(e instanceof Error && e.name === "TimeoutError" ? `no answer within ${Math.round(timeout / 1000)}s` : `could not connect (${e instanceof Error ? e.message : e})`);
+  });
+  const j = (await res.json().catch(() => ({}))) as { choices?: Array<{ finish_reason?: string; message?: { content?: string | null } }>; error?: { message?: string } };
+  if (!res.ok) throw new Error(res.status === 429 ? "rate limit reached" : `${j.error?.message ?? "HTTP " + res.status}`.slice(0, 200));
+  const c = j.choices?.[0];
+  if (!c) throw new Error("no answer");
+  if (c.finish_reason === "length") throw new Error("the site was too long to read in one go");
+  const text = c.message?.content?.trim();
+  if (!text) throw new Error("empty answer");
+  return text;
+}
+
+export function openaiDrafter(env: Record<string, string | undefined> = process.env, f: typeof fetch = fetch): Drafter | undefined {
+  if (!has(env.OPENAI_API_KEY)) return undefined;
+  const schema = JSON.stringify(z.toJSONSchema(DraftSchema));
+  const draft: DraftFn = async (system, pagesText) => {
+    let problem = "";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const text = await openaiChat(
+        env,
+        f,
+        `${system}\n\nAnswer with one JSON object matching this JSON Schema (every key present; null or [] when the site doesn't say) and nothing else:\n${schema}`,
+        pagesText + (problem ? `\n\nYour last answer didn't match the schema (${problem}). Answer again with the full JSON object.` : ""),
+        { maxTokens: 8000, temperature: 0.2 },
+      );
+      let parsed: unknown;
+      try {
+        parsed = jsonIn(text);
+      } catch {
+        parsed = undefined;
+      }
+      const r = DraftSchema.safeParse(normalizeDraft(parsed));
+      if (r.success) return r.data;
+      problem = parsed === undefined ? "not valid JSON" : r.error.issues.slice(0, 3).map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    }
+    throw new Error(`the answer didn't match the profile format (${problem})`);
+  };
+  return { by: "gpt", draft };
 }
 
 /* ----- Gemini (Google AI Studio key; free tier) through its REST API ----- */

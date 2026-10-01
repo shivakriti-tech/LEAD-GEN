@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { ClientBrain } from "../brain";
 import type { Lead } from "../types";
 import type { Sender } from "../outreach";
-import { GEMINI_DEFAULT_MODEL } from "../brainAnalyze";
+import { GEMINI_DEFAULT_MODEL, openaiChat } from "../brainAnalyze";
 import { checkContent } from "../mail/guard";
 import { INTENT_LABEL, readByRules, type Intent } from "./intent";
 
@@ -11,7 +11,7 @@ import { INTENT_LABEL, readByRules, type Intent } from "./intent";
  * client's voice, using only what the Business Brain says (services, prices, proof, rules).
  *
  * Cheap by design: the clear cases (out of office, unsubscribe, a flat no, a referral) are read by
- * rules with no AI call. Only real conversations go to Gemini, with a short prompt (the Brain's key
+ * rules with no AI call. Only real conversations go to the AI (GPT first, then Gemini if GPT fails or answers badly), with a short prompt (the Brain's key
  * facts and the last few messages) and a capped answer.
  *
  * Safe by design: a draft that names a price not in the Brain, uses a banned phrase, or reads as
@@ -29,7 +29,7 @@ export interface AgentResult {
   /** Needs a person: interested, a call, a question the Brain can't answer, or a draft that failed a check. */
   handoff: boolean;
   why?: string;
-  by: "gemini" | "rules";
+  by: "gpt" | "gemini" | "rules";
   returnOn?: string;
   referral?: string;
 }
@@ -130,7 +130,8 @@ export async function runAgent(x: AgentInput): Promise<AgentResult> {
   if (rules.intent === "out_of_office") return { intent: "out_of_office", summary: rules.returnOn ? `Away until ${rules.returnOn}` : "Out of office", handoff: false, by: "rules", returnOn: rules.returnOn };
   if (rules.intent === "unsubscribe") return { intent: "unsubscribe", summary: "Asked not to be emailed", handoff: false, by: "rules" };
   const key = env.GEMINI_API_KEY?.trim();
-  if (rules.sure || !key || /^(off|rules)$/i.test(env.AGENT_AI ?? "")) {
+  const gptKey = env.OPENAI_API_KEY?.trim();
+  if (rules.sure || (!key && !gptKey) || /^(off|rules)$/i.test(env.AGENT_AI ?? "")) {
     const reply = ruleReply(rules.intent, x.lead, x.sender, link);
     const handoff = ["interested", "meeting", "question", "other"].includes(rules.intent);
     return { intent: rules.intent, summary: summaryOf(text), reply, handoff, why: handoff ? `${INTENT_LABEL[rules.intent]}: your turn` : undefined, by: "rules", referral: rules.referral };
@@ -141,24 +142,39 @@ export async function runAgent(x: AgentInput): Promise<AgentResult> {
   // the last few messages, trimmed: enough context, few tokens
   const convo = x.thread.slice(-6).map((m) => `${m.dir === "out" ? "US" : "THEM"}: ${m.text.slice(0, 1200)}`).join("\n\n");
   const prompt = `${brainFacts(x.brain)}\n\nLead: ${x.lead.name} (${x.lead.category}${x.lead.city ? `, ${x.lead.city}` : ""}). Why we wrote: ${x.lead.whyNow.slice(0, 300)}\nSigned by: ${x.sender.name ?? "us"}\n\nConversation (subject "${x.subject.slice(0, 120)}"):\n${convo}`;
-  const body = {
-    systemInstruction: { parts: [{ text: `${SYSTEM}\nJSON keys: intent (one of ${Object.keys(INTENT_LABEL).join(", ")}), summary, reply (null if none needed), needs_person, needs_person_why.` }] },
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: { responseMimeType: "application/json", temperature: 0.3, maxOutputTokens: 700, thinkingConfig: { thinkingBudget: 0 } },
-  };
-  let parsed: z.infer<typeof AgentSchema> | undefined;
-  let err: string | undefined;
-  try {
-    const r = await f(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body), signal: AbortSignal.timeout(60_000) });
+  const system = `${SYSTEM}\nJSON keys: intent (one of ${Object.keys(INTENT_LABEL).join(", ")}), summary, reply (null if none needed), needs_person, needs_person_why.`;
+  const asGpt = async () => openaiChat(env, f, system, prompt, { maxTokens: 700, temperature: 0.3, timeoutMs: 45_000 });
+  const asGemini = async () => {
+    const body = {
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { responseMimeType: "application/json", temperature: 0.3, maxOutputTokens: 700, thinkingConfig: { thinkingBudget: 0 } },
+    };
+    const r = await f(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key! }, body: JSON.stringify(body), signal: AbortSignal.timeout(60_000) });
     const j = (await r.json().catch(() => ({}))) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>; error?: { message?: string } };
     if (!r.ok) throw new Error(r.status === 429 ? "Gemini's free limit is used up for now" : j.error?.message ?? `HTTP ${r.status}`);
-    const raw = (j.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("").replace(/^```(?:json)?\s*|\s*```$/g, "");
-    const ok = AgentSchema.safeParse(JSON.parse(raw));
-    if (ok.success) parsed = ok.data;
-    else err = "unexpected answer format";
-  } catch (e) {
-    err = e instanceof Error ? e.message : String(e);
+    return (j.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
+  };
+  // GPT first; Gemini takes over when GPT is down, too slow, or its answer is unusable
+  const providers: Array<{ by: "gpt" | "gemini"; ask: () => Promise<string> }> = [];
+  if (gptKey) providers.push({ by: "gpt", ask: asGpt });
+  if (key) providers.push({ by: "gemini", ask: asGemini });
+  let parsed: z.infer<typeof AgentSchema> | undefined;
+  let usedBy: "gpt" | "gemini" = providers[0].by;
+  const errs: string[] = [];
+  for (const p of providers) {
+    try {
+      const raw = (await p.ask()).replace(/^```(?:json)?\s*|\s*```$/g, "");
+      const ok = AgentSchema.safeParse(JSON.parse(raw));
+      if (!ok.success) throw new Error("unexpected answer format");
+      parsed = ok.data;
+      usedBy = p.by;
+      break;
+    } catch (e) {
+      errs.push(`${providers.length > 1 ? p.by + ": " : ""}${e instanceof Error ? e.message : String(e)}`);
+    }
   }
+  const err = errs.join("; ");
   if (!parsed) {
     const reply = ruleReply(rules.intent, x.lead, x.sender, link);
     return { intent: rules.intent, summary: summaryOf(text), reply, handoff: true, why: `AI not available (${err}): check the draft`, by: "rules", referral: rules.referral };
@@ -172,7 +188,7 @@ export async function runAgent(x: AgentInput): Promise<AgentResult> {
     reply,
     handoff: parsed.needs_person || mustPerson || !!problem,
     why: problem ?? (parsed.needs_person_why || (mustPerson ? `${INTENT_LABEL[parsed.intent]}: your turn` : undefined)) ?? undefined,
-    by: "gemini",
+    by: usedBy,
     referral: rules.referral,
   };
 }
