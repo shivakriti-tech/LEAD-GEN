@@ -190,7 +190,7 @@ export async function sendEmailReply(deps: Pick<ReplyDeps, "inbox" | "mailboxes"
   const sender = conv.sender ?? {};
   const fromName = sender.name ? `${sender.name}${sender.company ? `, ${sender.company}` : ""}` : mbox.name;
   try {
-    const { messageId } = await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: conv.address, subject: `Re: ${conv.subject ?? ""}`.trim(), text: body + signature(sender), html: emailHtml(body + signature(sender)), inReplyTo: conv.lastMessageId, references: [...(conv.references ?? []), ...(conv.lastMessageId ? [conv.lastMessageId] : [])] });
+    const { messageId } = await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: conv.address, subject: `Re: ${conv.subject ?? ""}`.trim(), text: body + signature(sender), html: emailHtml(body + signature(sender), sender), inReplyTo: conv.lastMessageId, references: [...(conv.references ?? []), ...(conv.lastMessageId ? [conv.lastMessageId] : [])] });
     await updateInbox(deps.inbox, (d) => {
       const c = d.conversations.find((x) => x.id === convId);
       if (!c) return;

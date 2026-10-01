@@ -15,8 +15,21 @@ export function linkify(text: string): string {
   return esc(text).replace(/\bhttps?:\/\/[^\s<]+[^\s<.,;:!?)'"]/gi, (u) => `<a href="${u}">${u}</a>`);
 }
 
-/** The whole email (message + signature) as Gmail-style HTML: one div, lines and blank lines. */
-export function emailHtml(plain: string, _sender?: Sender, _mailbox?: { email: string }): string {
-  const lines = plain.replace(/\r/g, "").trim().split("\n");
-  return `<div dir="ltr">${lines.map((l) => (l.trim() ? linkify(l) : "")).join("<br>")}</div>\n`;
+/**
+ * The whole email (message + signature) as HTML.
+ *  plain (default): Gmail-style, one div with line breaks: reads as a typed message.
+ *  formal (EMAIL_STYLE=formal): a clean business letter: one font, paragraphs, your name in bold,
+ *    the opt-out line small and grey. Still no backgrounds, banners, buttons, tables or images:
+ *    those are what make Gmail file an email under Promotions.
+ */
+export function emailHtml(plain: string, sender?: Sender, _mailbox?: { email: string }, style = process.env.EMAIL_STYLE): string {
+  const text = plain.replace(/\r/g, "").trim();
+  if (!/^formal$/i.test(style ?? "")) return `<div dir="ltr">${text.split("\n").map((l) => (l.trim() ? linkify(l) : "")).join("<br>")}</div>\n`;
+  const name = sender?.name?.trim();
+  const para = (p: string) => {
+    if (/^If this isn't relevant/i.test(p)) return `<p style="margin:18px 0 0;font-size:12px;color:#888888;">${linkify(p)}</p>`;
+    const lines = p.split("\n").map((l) => (name && l.trim() === name ? `<b>${linkify(l)}</b>` : linkify(l)));
+    return `<p style="margin:0 0 14px;">${lines.join("<br>")}</p>`;
+  };
+  return `<div dir="ltr" style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#222222;">${text.split(/\n{2,}/).map(para).join("")}</div>\n`;
 }

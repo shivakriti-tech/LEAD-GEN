@@ -3,6 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Lead } from "../types";
 import { emailHtml } from "./html";
+import { unsubscribeHeaders } from "./unsubscribe";
 import type { FollowUpPatch } from "../followups";
 import { CADENCE, canContact, followUpAfter, MAX_STEPS, messageForStep, nextStep, statusOf, subjectLine, type Lang, type Sender, type Tone } from "../outreach";
 import { dailyCap, inSendWindow, istParts, type Mailbox } from "./mailboxes";
@@ -239,7 +240,7 @@ export interface SendDeps {
   store: QueueStore;
   leads: LeadAccess;
   mailboxes: Mailbox[];
-  send: (m: Mailbox, mail: { from: string; to: string; subject: string; text: string; html?: string; inReplyTo?: string; references?: string[] }) => Promise<{ messageId: string }>;
+  send: (m: Mailbox, mail: { from: string; to: string; subject: string; text: string; html?: string; inReplyTo?: string; references?: string[]; headers?: Record<string, string> }) => Promise<{ messageId: string }>;
   /** Why this mailbox's domain isn't fit to send (missing SPF / DMARC), or undefined when it is. */
   domainProblem?: (m: Mailbox) => Promise<string | undefined>;
   /** Did this address reply to the mailbox since then? (IMAP) Undefined when it can't be checked. */
@@ -320,7 +321,7 @@ export async function tick(deps: SendDeps): Promise<{ did: "sent" | "skipped" | 
     const fromName = item.sender.name ? `${item.sender.name}${item.sender.company ? `, ${item.sender.company}` : ""}` : mbox.name;
     let messageId: string;
     try {
-      messageId = (await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: item.to, subject, text, html: emailHtml(text), inReplyTo: item.inReplyTo, references: item.references })).messageId;
+      messageId = (await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: item.to, subject, text, html: emailHtml(text, item.sender), inReplyTo: item.inReplyTo, references: item.references, headers: await unsubscribeHeaders(item.to, mbox.email) })).messageId;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       const auth = /auth|login|credentials|535|534|password/i.test(msg) && !isBlock(msg);
@@ -400,6 +401,6 @@ export function applyInbox(d: QueueData, mailbox: string, events: InboxEvent[], 
     noteBounce(d, mailbox, addr, today, now, e.kind === "bounce" ? "bounced" : e.kind === "complaint" ? "complained" : "unsubscribed");
     if (e.kind !== "bounce") for (const i of new Map(ours.map((x) => [`${x.searchId}|${x.leadId}`, x])).values()) out.push({ searchId: i.searchId, leadId: i.leadId, why: e.kind === "complaint" ? "Email: marked as spam" : "Email: asked to unsubscribe" });
   }
-  (d.mailboxes[mailbox] ??= { startedOn: today, sent: {} }).scannedAt = now.toISOString();
+  if (mailbox) (d.mailboxes[mailbox] ??= { startedOn: today, sent: {} }).scannedAt = now.toISOString();
   return out;
 }

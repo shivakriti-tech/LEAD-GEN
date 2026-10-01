@@ -76,7 +76,7 @@ describe("the email queue", () => {
     deps.now = () => ist("2026-10-05T10:05:00");
     expect(await tick(deps)).toMatchObject({ did: "sent", detail: "Clinic a (a@clinic.in) from divy@getshree.in" });
     expect(sent[0]).toMatchObject({ from: '"Divy, Pixel Craft" <divy@getshree.in>', to: "a@clinic.in", subject: "Clinic a website" });
-    expect(sent[0]).not.toHaveProperty("listUnsubscribe");
+    expect(sent[0].headers).toEqual({ "List-Unsubscribe": "<mailto:divy@getshree.in?subject=unsubscribe>" });
     expect(sent[0].text).toMatch(/\n\nDivy\nPixel Craft\n\nIf this isn't relevant, just reply "no" and I won't email again\.$/);
     expect(sent[0].text).not.toMatch(/https?:|www\.|--/);
     expect(sent[0].html).toMatch(/^<div dir="ltr">Hi there,/);

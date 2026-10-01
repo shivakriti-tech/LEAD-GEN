@@ -1,5 +1,5 @@
 import { EMAIL_KIND_LABEL } from "./enrich/email";
-import { MAILBOX_LABEL } from "./enrich/verifyEmail";
+import { MAILBOX_LABEL } from "./enrich/mailboxLabel";
 import { followUpLabel, linkedinOf } from "./outreach";
 import type { Lead } from "./types";
 import { phoneKind, PHONE_KIND_LABEL } from "./util";
