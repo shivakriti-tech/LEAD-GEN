@@ -4,7 +4,9 @@ import { getStore } from "../store";
 import { mergeFollowUp } from "../followups";
 import { live } from "../live";
 import { mailboxesFromEnv, type Mailbox } from "./mailboxes";
-import { localQueueStore, tick, type LeadAccess, type SendDeps } from "./queue";
+import { applyInbox, localQueueStore, mutate, tick, type InboxEvent, type LeadAccess, type SendDeps } from "./queue";
+import { bouncedAddress, isBounceMail, isUnsubscribeReply } from "./guard";
+import { checkDomain } from "./dnsHealth";
 
 /** The real connections for the email queue: SMTP (nodemailer), IMAP reply checks, saved leads. */
 
@@ -56,6 +58,59 @@ export const imapReplied: NonNullable<SendDeps["replied"]> = async (m, from, sin
   }
 };
 
+/**
+ * Read the inbox for bounces, spam complaints and "unsubscribe" replies since the last look.
+ * Undefined when the inbox can't be reached.
+ */
+export async function imapScan(m: Mailbox, since: Date): Promise<InboxEvent[] | undefined> {
+  if (!m.imap) return undefined;
+  const client = new ImapFlow({ host: m.imap.host, port: m.imap.port, secure: true, auth: { user: m.smtp.user, pass: m.smtp.pass }, logger: false });
+  const out: InboxEvent[] = [];
+  try {
+    await client.connect();
+    const lock = await client.getMailboxLock("INBOX");
+    try {
+      const ids = await client.search({ since });
+      if (!Array.isArray(ids) || !ids.length) return out;
+      for await (const msg of client.fetch(ids.slice(-200), { envelope: true, source: { maxLength: 30_000 } })) {
+        const from = msg.envelope?.from?.map((a) => a.address ?? "").join(" ") ?? "";
+        const subject = msg.envelope?.subject ?? "";
+        const raw = msg.source?.toString("utf8") ?? "";
+        const body = raw.split(/\r?\n\r?\n/).slice(1).join("\n\n");
+        if (/Feedback-Type:\s*abuse/i.test(raw)) {
+          const a = bouncedAddress(raw) ?? raw.match(/^To:\s*.*?([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/im)?.[1];
+          if (a) out.push({ kind: "complaint", address: a });
+        } else if (isBounceMail(from, subject)) {
+          const a = bouncedAddress(body);
+          if (a && a !== m.email) out.push({ kind: "bounce", address: a });
+        } else if (from && isUnsubscribeReply(subject, body.slice(0, 2000))) {
+          out.push({ kind: "unsubscribe", address: from.split(" ")[0] });
+        }
+      }
+    } finally {
+      lock.release();
+    }
+    return out;
+  } catch {
+    return undefined;
+  } finally {
+    await client.logout().catch(() => {});
+  }
+}
+
+/** Sending domains must have SPF and DMARC (Gmail and Yahoo reject or spam bulk mail without them). */
+const dnsCache = new Map<string, { at: number; why?: string }>();
+export async function domainProblem(m: Mailbox): Promise<string | undefined> {
+  if (/^(off|0|false|no)$/i.test(process.env.MAIL_REQUIRE_DNS ?? "")) return undefined;
+  const hit = dnsCache.get(m.domain);
+  if (hit && Date.now() - hit.at < 6 * 3600_000) return hit.why;
+  const h = await checkDomain(m.domain);
+  const missing = (["spf", "dmarc", "mx"] as const).filter((k) => !h.checks[k].ok).map((k) => h.checks[k].label);
+  const why = missing.length ? `${m.domain} is missing ${missing.join(", ")}: fix it under Outreach → Email (domain health)` : undefined;
+  dnsCache.set(m.domain, { at: Date.now(), why });
+  return why;
+}
+
 /** Leads in saved searches (and the running search's own copy, so a status set now isn't lost). */
 export const savedLeads: LeadAccess = {
   async get(searchId, leadId) {
@@ -74,7 +129,7 @@ export const savedLeads: LeadAccess = {
 };
 
 export function emailDeps(): SendDeps {
-  return { store: localQueueStore(), leads: savedLeads, mailboxes: mailboxesFromEnv().mailboxes, send: smtpSend, replied: imapReplied };
+  return { store: localQueueStore(), leads: savedLeads, mailboxes: mailboxesFromEnv().mailboxes, send: smtpSend, replied: imapReplied, domainProblem };
 }
 
 /** Run the queue every 30 seconds while the app is running (only when a mailbox is set up). */
@@ -84,7 +139,9 @@ export function startEmailWorker(): void {
     if (state.busy) return;
     state.busy = true;
     try {
-      const r = await tick(emailDeps());
+      const deps = emailDeps();
+      await scanInboxes(deps).catch((e) => console.error("[email] inbox check:", e instanceof Error ? e.message : e));
+      const r = await tick(deps);
       state.last = { at: new Date().toISOString(), did: r.did, detail: r.detail };
       if (r.did !== "idle") console.log(`[email] ${r.did}: ${r.detail ?? ""}`);
     } catch (e) {
@@ -94,6 +151,21 @@ export function startEmailWorker(): void {
     }
   }, 30_000);
   state.timer.unref?.();
+}
+
+/** Every 30 minutes per mailbox: bounces, complaints and unsubscribe replies from its inbox. */
+async function scanInboxes(deps: SendDeps): Promise<void> {
+  const d = await deps.store.read();
+  for (const m of deps.mailboxes) {
+    const st = d.mailboxes[m.email];
+    if (!st?.lastAt || (st.scannedAt && Date.now() - Date.parse(st.scannedAt) < 30 * 60_000)) continue;
+    const since = new Date(Math.max(Date.parse(st.scannedAt ?? st.lastAt) - 86_400_000, Date.now() - 14 * 86_400_000));
+    const events = await imapScan(m, since);
+    if (!events) continue;
+    const optOuts = await mutate(deps.store, (x) => applyInbox(x, m.email, events));
+    for (const o of optOuts) await deps.leads.patch(o.searchId, o.leadId, { optOut: { via: o.why } });
+    if (events.length) console.log(`[email] ${m.email}: ${events.length} bounce/unsubscribe event(s) applied`);
+  }
 }
 
 export const workerStatus = () => ({ running: !!state.timer, last: state.last });

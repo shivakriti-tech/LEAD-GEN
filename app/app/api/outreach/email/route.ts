@@ -36,10 +36,13 @@ export async function GET(req: Request) {
     mailboxes: mailboxes.map((m) => {
       const st = data.mailboxes[m.email];
       const started = m.start ?? st?.startedOn ?? today;
-      return { email: m.email, name: m.name, domain: m.domain, startedOn: started, capToday: dailyCap(m, started, today), sentToday: st?.sent[today] ?? 0, lastAt: st?.lastAt, error: st?.error, replyCheck: !!m.imap };
+      const week = (r?: Record<string, number>) => Object.entries(r ?? {}).filter(([k]) => Date.parse(`${k}T00:00:00Z`) >= Date.now() - 7 * 86_400_000).reduce((t, [, n]) => t + n, 0);
+      const paused = st?.pausedUntil && Date.parse(st.pausedUntil) > Date.now() ? { until: st.pausedUntil, why: st.pauseReason } : undefined;
+      return { email: m.email, name: m.name, domain: m.domain, startedOn: started, capToday: dailyCap(m, started, today), sentToday: st?.sent[today] ?? 0, lastAt: st?.lastAt, error: st?.error, paused, sent7: week(st?.sent), bounced7: week(st?.bounces), complaints7: week(st?.complaints), replyCheck: !!m.imap };
     }),
     problems,
     health,
+    suppressed: Object.keys(data.suppressed ?? {}).length,
     counts: { queued: data.items.filter((i) => i.status === "queued").length, sentToday: data.items.filter((i) => i.status === "sent" && i.sentAt && istParts(new Date(i.sentAt)).date === today).length },
     items: items.slice(0, 300).map(({ body, sender, ...i }) => ({ ...i, from: sender.name, hasCustomText: !!body })),
   });

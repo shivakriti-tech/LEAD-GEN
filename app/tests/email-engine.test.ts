@@ -102,7 +102,7 @@ describe("the email queue", () => {
   });
 
   it("respects the warm-up limit and spacing, and pauses a mailbox whose password is wrong", async () => {
-    const leads = Array.from({ length: 7 }, (_, i) => lead(`l${i}`));
+    const leads = Array.from({ length: 7 }, (_, i) => lead(`l${i}`, { email: `dr@clinic${i}.in` }));
     const { access } = world(leads);
     const store = memoryQueueStore();
     enqueue(store.data, { searchId: "s", leads, lang: "en", tone: "friendly", sender: {}, followUps: false }, ist("2026-10-01T09:00:00"));

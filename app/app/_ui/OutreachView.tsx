@@ -37,7 +37,8 @@ export function OutreachView() {
 type Check = { ok: boolean; label: string; detail: string; fix?: string };
 type EmailData = {
   window: { open: boolean; hours: string };
-  mailboxes: Array<{ email: string; name?: string; domain: string; startedOn: string; capToday: number; sentToday: number; lastAt?: string; error?: string; replyCheck: boolean }>;
+  mailboxes: Array<{ email: string; name?: string; domain: string; startedOn: string; capToday: number; sentToday: number; lastAt?: string; error?: string; paused?: { until: string; why?: string }; sent7: number; bounced7: number; complaints7: number; replyCheck: boolean }>;
+  suppressed?: number;
   problems: Array<{ key: string; error: string }>;
   health: Array<{ domain: string; ok: boolean; mainDomain?: boolean; checks: Record<"mx" | "spf" | "dkim" | "dmarc", Check> }>;
   counts: { queued: number; sentToday: number };
@@ -89,17 +90,20 @@ function EmailTab() {
       </div>
       {msg && <p className="note">{msg}</p>}
       {d.problems.map((p) => <p className="note" key={p.key}>{p.key} {p.error}</p>)}
+      <p className="sub">Built-in protection: only checked addresses, plain text with one link at most, a spam-word check, at most 2 emails a day to one company, office hours where they are. Bounces, spam complaints and "unsubscribe" replies are read from the inbox: those addresses are never emailed again{d.suppressed ? ` (${d.suppressed} so far)` : ""}, and a mailbox pauses itself if bounces pass 3%.</p>
 
       <div className="mb-grid">
         {d.mailboxes.map((m) => {
           const day = Math.max(0, Math.round((Date.parse(`${localDate()}T00:00:00Z`) - Date.parse(`${m.startedOn}T00:00:00Z`)) / 86_400_000)) + 1;
           return (
             <article className="panel mb-card" key={m.email}>
-              <div className="row between"><b>{m.email}</b>{m.error ? <span className="tag bad">Paused</span> : <span className="tag good">Active</span>}</div>
+              <div className="row between"><b>{m.email}</b>{m.error || m.paused ? <span className="tag bad">Paused</span> : <span className="tag good">Active</span>}</div>
               <div className="mb-meter" aria-label={`${m.sentToday} of ${m.capToday} sent today`}><i style={{ width: `${Math.min(100, (m.sentToday / Math.max(1, m.capToday)) * 100)}%` }} /></div>
               <p className="sub">Warm-up day {day}: {m.sentToday} of {m.capToday} today{m.lastAt ? ` · last ${when(m.lastAt)}` : ""}</p>
               <p className="sub">{m.replyCheck ? "Checks its inbox for replies before each follow-up" : "Reply check off: mark replies yourself"}</p>
+              <p className="sub">This week: {m.sent7} sent · {m.bounced7} bounced{m.sent7 ? ` (${Math.round((m.bounced7 / m.sent7) * 100)}%, keep under 3%)` : ""}{m.complaints7 ? ` · ${m.complaints7} spam complaint${m.complaints7 === 1 ? "" : "s"}` : ""}</p>
               {m.error && <p className="pitch-warn">{m.error}</p>}
+              {m.paused && <p className="pitch-warn">{m.paused.why} Resumes {when(m.paused.until)}.</p>}
               <button className="btn sm" onClick={() => verify(m.email)}>Check sign-in</button>
             </article>
           );
