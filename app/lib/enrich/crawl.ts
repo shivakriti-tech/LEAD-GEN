@@ -319,11 +319,22 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
 
   // look at up to 2 contact/about pages for more contacts; outside India also the careers page
   const more = [...first.contactLinks, ...(currentCountry() !== "IN" && first.careersLink && !first.contactLinks.includes(first.careersLink) ? [first.careersLink] : [])];
-  for (const link of more) {
+  // loaded at the same time, then read in page order so the result doesn't depend on which answered first
+  const pages = await Promise.all(
+    more.map(async (link) => {
+      try {
+        const r = await fetchPublic(link, { headers: { Accept: "text/html" } }, 8_000);
+        if (!r.ok || !(r.headers.get("content-type") || "").includes("html")) return null;
+        return { link, html: (await r.text()).slice(0, 800_000) };
+      } catch {
+        return null;
+      }
+    }),
+  );
+  for (const page of pages) {
+    if (!page) continue;
     try {
-      const r = await fetchPublic(link, { headers: { Accept: "text/html" } }, 8_000);
-      if (!r.ok || !(r.headers.get("content-type") || "").includes("html")) continue;
-      const p = parsePage((await r.text()).slice(0, 800_000), link);
+      const p = parsePage(page.html, page.link);
       p.emails.forEach((e) => emails.add(e));
       p.phones.forEach((x) => phones.add(x));
       Object.entries(p.socials).forEach(([k, v]) => (socials[k] ??= v));

@@ -352,8 +352,9 @@ export async function checkPage(url: string, lead: Pick<Lead, "name" | "phones" 
   if (!page) return null;
   let v = verifyPageForLead(page.html, lead, area);
   if (!v.ok && /name found|name only in the text|needs the phone/.test(v.evidence)) {
-    for (const link of contactLinks(page.html, page.finalUrl)) {
-      const more = await get(link);
+    // both contact pages load at once; still checked in page order
+    const extra = await Promise.all(contactLinks(page.html, page.finalUrl).map((link) => get(link)));
+    for (const more of extra) {
       if (!more) continue;
       const v2 = verifyPageForLead(page.html + more.html, lead, area);
       if (v2.ok) {
@@ -432,8 +433,9 @@ export async function discoverWebsite(lead: Lead, area: string | undefined, deps
     }
     const tokens = significantTokens(lead.name);
     let social: string | undefined;
-    let checked = 0;
     const rejected: string[] = [];
+    /** Up to 4 results worth loading, in the search engine's order. */
+    const candidates: Array<{ h: SearchHit; d: string; ownName: boolean }> = [];
     for (const h of hits) {
       const d = domainOf(h.url);
       if (!d) continue;
@@ -455,8 +457,13 @@ export async function discoverWebsite(lead: Lead, area: string | undefined, deps
         rejected.push(`${d} (a page about it on another site)`);
         continue;
       }
-      if (checked++ >= 4) break;
-      const r = await checkPage(h.url, lead, area, slowGet);
+      if (candidates.length >= 4) break;
+      candidates.push({ h, d, ownName });
+    }
+    // loaded all at once (a slow site no longer holds up the next result), judged in search order
+    const pages = await Promise.all(candidates.map((c) => checkPage(c.h.url, lead, area, slowGet)));
+    for (const [i, { d, ownName }] of candidates.entries()) {
+      const r = pages[i];
       if (!r) continue;
       const finalDomain = domainOf(r.finalUrl) ?? d;
       const own = ownName || domainMatchesName(finalDomain, lead.name);
@@ -536,7 +543,12 @@ async function phoneSearch(
     if (!showsNumber && !showsName) continue;
     seen.add(d);
     if (seen.size > 4) break;
-    const home = await checkPage(`https://${d}/`, lead, area, get);
+  }
+  const domains = [...seen].slice(0, 4);
+  // all homepages load at once, judged in search order
+  const homes = await Promise.all(domains.map((d) => checkPage(`https://${d}/`, lead, area, get)));
+  for (const [i, d] of domains.entries()) {
+    const home = homes[i];
     if (home?.v.ok && home.v.proof === "phone") {
       return { website: home.finalUrl, evidence: `found by searching its phone number: ${home.v.evidence}`, html: home.html, tried };
     }

@@ -48,6 +48,12 @@ export interface Deps {
   apollo: typeof apolloEnrichDomain;
   /** Does this email domain accept mail? Leave out to skip the check (tests). */
   mx?: typeof domainAcceptsMail;
+  /** Businesses checked at the same time (LEAD_CONCURRENCY, default 16). */
+  concurrency?: number;
+  /** Web searches at the same time (SEARCH_CONCURRENCY, default 3). */
+  searchConcurrency?: number;
+  /** Mobile speed tests at the same time (default 6 with a PageSpeed key, 2 without). */
+  speedConcurrency?: number;
   /** Mailbox-level email check through a service (EMAIL_VERIFY_KEY); at most `emailVerifyCap` a search (default 50). */
   emailVerify?: EmailVerifier;
   emailVerifyCap?: number;
@@ -123,12 +129,13 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
   try {
     const place = params.area ? `${params.area}, ${params.city}` : params.city;
     const rawSearch = deps.makeWebSearch ? deps.makeWebSearch((m) => log(m, "warn")) : deps.webSearch;
-    // Businesses are checked many at a time; web searches still go out at most 3 at once.
-    const webSearch = rawSearch ? limited(rawSearch, 3) : undefined;
+    // Businesses are checked many at a time (LEAD_CONCURRENCY, default 16); web searches still go out
+    // at most SEARCH_CONCURRENCY at once (default 3: free engines block anything faster).
+    const webSearch = rawSearch ? limited(rawSearch, deps.searchConcurrency ?? 3) : undefined;
     // Phone numbers: only to providers that match exact numbers ("auto"), to any provider ("on"), or never.
     const phoneMode = deps.keys.phoneSearch ?? "auto";
     const rawNumber = phoneMode === "off" ? undefined : deps.makeNumberSearch?.((m) => log(m, "warn")) ?? (phoneMode === "on" ? rawSearch : undefined);
-    const numberSearch = rawNumber ? limited(rawNumber, 3) : undefined;
+    const numberSearch = rawNumber ? limited(rawNumber, deps.searchConcurrency ?? 3) : undefined;
     const cats = params.categories.map(categoryByKey).filter((c): c is NonNullable<typeof c> => !!c);
     if (!cats.length) throw new Error("Pick at least one business type.");
 
@@ -388,6 +395,39 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     const verifyStats: VerifyStats = { checked: 0, valid: 0, invalid: 0, catchAll: 0, skipped: 0 };
     const verifyEmail = deps.emailVerify ? cappedVerifier(deps.emailVerify, deps.emailVerifyCap ?? 50, verifyStats) : undefined;
     let checked = 0, changed = 0;
+    // Mobile speed tests take 10–30s each, so each one starts as soon as its website is checked
+    // and runs while the other businesses are still being checked, not all at the end.
+    // ones still waiting their turn are dropped when you press Stop
+    const speedTest = limited((url: string) => (stopped() ? Promise.resolve(undefined) : deps.pageSpeed(url, deps.keys.pageSpeed)), deps.speedConcurrency ?? (deps.keys.pageSpeed ? 6 : 2));
+    const speedStarted = new Set<Lead>();
+    const speedJobs: Promise<void>[] = [];
+    const speedErrs = new Map<string, number>();
+    let speedDone = 0, speedOk = 0, speedShown = false;
+    const speedStage = () => speedShown && emit({ type: "stage", stage: "speed", done: speedDone, total: speedStarted.size });
+    const startSpeed = (l: Lead) => {
+      if (!params.pageSpeed || stopped() || speedStarted.has(l) || l.audit?.status !== "ok") return;
+      if (l.saved && l.audit.pageSpeed && !needsCheck(l)) return; // tested within the last week
+      speedStarted.add(l);
+      speedJobs.push(
+        (async () => {
+          try {
+            const r = await speedTest(l.audit!.finalUrl || l.website!);
+            if (!r) return;
+            if (l.audit) l.audit.pageSpeed = r;
+            speedOk++;
+          } catch (e) {
+            const m = msg(e);
+            speedErrs.set(m, (speedErrs.get(m) ?? 0) + 1);
+          }
+          speedDone++;
+          speedStage();
+          if (!l.pending) {
+            Object.assign(l, score(l));
+            emit({ type: "lead", lead: l });
+          }
+        })(),
+      );
+    };
     emit({ type: "stage", stage: "enrich", done: 0, total: leads.length });
     // businesses with a phone first: they're the ones you can call
     const byPhone = (xs: Lead[]) => [...xs].sort((a, b) => Number(!!b.phone) - Number(!!a.phone));
@@ -410,6 +450,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
       const before = l.saved ? { website: l.website, phone: l.phone, audit: l.audit } : undefined;
       try {
         await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: siteSearch, numberSearch: siteSearch ? numberSearch : undefined, state, verifyEmail }, deps);
+        startSpeed(l);
       } catch (e) {
         l.websiteCheck?.tried.push(`check failed: ${msg(e)}`);
       }
@@ -426,7 +467,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     // shown one after another at a readable pace (about 20 seconds at most for the whole list)
     const pace = deps.revealMs ?? Math.max(150, Math.min(700, Math.round(20_000 / Math.max(1, ready.length))));
     await Promise.all([
-      mapLimit(byPhone(toCheck), 8, checkOne),
+      mapLimit(byPhone(toCheck), deps.concurrency ?? 16, checkOne),
       (async () => {
         for (const l of byPhone(ready)) {
           if (stopNow()) return;
@@ -470,7 +511,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
         log(`Google Maps scraper added ${added.length} new business${added.length === 1 ? "" : "es"}${known ? `; ${known} were already in the list and got their Google rating and reviews` : ""}${gone.size ? ` (${gone.size} marked permanently closed, removed)` : ""}.`);
         emit({ type: "leads", leads });
         progress.soon();
-        await mapLimit(byPhone([...added, ...again]), 8, checkOne);
+        await mapLimit(byPhone([...added, ...again]), deps.concurrency ?? 16, checkOne);
       }
     }
     if (recheck) log(`Rechecked ${recheck} saved business${recheck === 1 ? "" : "es"} last checked over a week ago: ${changed ? `${changed} changed (marked in the list)` : "no changes"}.`);
@@ -534,24 +575,18 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
       if (!deps.keys.metaToken || !deps.keys.igUserId) log(`${withIg.length} businesses have an Instagram profile. Add META_ACCESS_TOKEN and IG_BUSINESS_ACCOUNT_ID to read their followers, last post and bio website.`);
     }
 
-    const withSite = leads.filter((l) => l.audit?.status === "ok");
-    if (params.pageSpeed && withSite.length && !stopped()) {
-      log(`Checking mobile speed for ${withSite.length} websites. This is the slow part (10–30s each).`);
-      let sp = 0;
-      let ok = 0;
-      const errs = new Map<string, number>();
-      await mapLimit(withSite, 3, async (l) => {
-        try {
-          l.audit!.pageSpeed = await deps.pageSpeed(l.audit!.finalUrl || l.website!, deps.keys.pageSpeed);
-          ok++;
-        } catch (e) {
-          const m = msg(e);
-          errs.set(m, (errs.get(m) ?? 0) + 1);
-        }
-        emit({ type: "stage", stage: "speed", done: ++sp, total: withSite.length });
-      });
-      log(`Mobile speed checked for ${ok} of ${withSite.length} websites${deps.keys.pageSpeed ? " (using your PageSpeed key)" : " (no key: Google allows only a few checks without one)"}.`, ok ? "info" : "warn");
-      for (const [m, n] of errs) log(`${n} speed check${n > 1 ? "s" : ""} failed: ${m}`, "warn");
+    if (params.pageSpeed && !stopped()) {
+      // saved businesses and websites found in Instagram bios join the ones already being tested
+      for (const l of leads) startSpeed(l);
+      const left = speedStarted.size - speedDone;
+      if (left) log(`Finishing mobile speed checks: ${speedDone} of ${speedStarted.size} done, ${left} still running (10–30s each, several at once).`);
+      speedShown = true;
+      speedStage();
+    }
+    await Promise.all(speedJobs);
+    if (speedStarted.size) {
+      log(`Mobile speed checked for ${speedOk} of ${speedStarted.size} websites${deps.keys.pageSpeed ? " (using your PageSpeed key)" : " (no key: Google allows only a few checks without one)"}.`, speedOk ? "info" : "warn");
+      for (const [m, n] of speedErrs) log(`${n} speed check${n > 1 ? "s" : ""} failed: ${m}`, "warn");
     }
     if (params.sources.apollo && deps.keys.apollo && !stopped()) {
       const targets = leads.filter((l) => l.website && !isSocialHost(domainOf(l.website)));
@@ -774,6 +809,12 @@ function withMailboxCache(v?: EmailVerifier): EmailVerifier | undefined {
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+/** A whole number from .env.local between 1 and `max`, or `fallback`. */
+const envCount = (v: string | undefined, fallback: number, max: number) => {
+  const n = Math.floor(Number(v));
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, max) : fallback;
+};
+
 /**
  * Checks worth remembering between searches (see lib/cache.ts). Website checks that failed are kept
  * only a day, since sites come back; web searches and verified finds a week.
@@ -823,6 +864,9 @@ export function defaultDeps(store: Store): Deps {
     // DOMAIN_AGE=off skips the registration-date lookup
     domainAge: /^(off|0|false|no)$/i.test(process.env.DOMAIN_AGE || "") ? undefined : withDomainCache(domainRegisteredOn),
     emailVerifyCap: Math.max(0, Number(process.env.EMAIL_VERIFY_MAX) || 50),
+    concurrency: envCount(process.env.LEAD_CONCURRENCY, 16, 64),
+    searchConcurrency: envCount(process.env.SEARCH_CONCURRENCY, 3, 20),
+    speedConcurrency: process.env.PAGESPEED_CONCURRENCY ? envCount(process.env.PAGESPEED_CONCURRENCY, 6, 20) : undefined,
     cacheStats,
     // LEAD_DIRECTORY=off: every search runs fully live and nothing is saved for later searches
     directory: /^(off|0|false|no)$/i.test(process.env.LEAD_DIRECTORY || "") ? undefined : localDirectory(),

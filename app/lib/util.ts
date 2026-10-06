@@ -7,18 +7,24 @@ export function crawlerContact(): string | undefined {
 }
 export const USER_AGENT = `LeadAutopilot/0.1 (lead research tool; contact: ${crawlerContact() ?? "not set"})`;
 
-/** fetch with a hard timeout. Never throws on HTTP errors, only on network/timeout. */
+/**
+ * fetch with a hard timeout. Never throws on HTTP errors, only on network/timeout.
+ * The time limit covers reading the body too: a slow site that sends its headers and then
+ * trickles the page would otherwise hold a check for minutes.
+ */
 export async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 10_000): Promise<Response> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
+  t.unref?.(); // never keeps the server alive on its own
   try {
     return await fetch(url, {
       ...init,
       signal: ctrl.signal,
       headers: { "User-Agent": USER_AGENT, ...(init.headers || {}) },
     });
-  } finally {
+  } catch (e) {
     clearTimeout(t);
+    throw e;
   }
 }
 

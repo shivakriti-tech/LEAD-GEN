@@ -297,6 +297,10 @@ Facebook: Page search through the official API needs Meta's "Page Public Metadat
 ## Speed
 
 - All sources are searched at the same time, and results appear on screen before the website checks finish.
+- 16 businesses are checked at the same time (`LEAD_CONCURRENCY`). Each one's likely web addresses, top search results and contact pages load in parallel, not one after another.
+- Every page load has a hard time limit that includes downloading the page, so a slow site can't hold a check for minutes.
+- Mobile speed tests start as soon as each website is checked and run alongside the rest (6 at once with a PageSpeed key, `PAGESPEED_CONCURRENCY`), instead of all at the end. Saved businesses tested in the last week aren't tested again.
+- Web searches go out 3 at a time (`SEARCH_CONCURRENCY`): free engines block faster use. With Serper, Tavily or Google, 6–8 is fine and makes searches with many businesses without a listed website much faster.
 - Guessed web addresses are checked with a DNS lookup first. Most don't exist, and DNS says so in milliseconds instead of waiting for a page timeout.
 - Web searches, website checks and websites found are saved in `.data/cache` and reused for up to 7 days (failed checks: 1 day). Searching the same city again is much faster. `LEAD_CACHE=off` in `.env.local` turns this off.
 
