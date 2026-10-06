@@ -33,6 +33,6 @@ function sameText(a: string, b: string): boolean {
 
 export const config = {
   // the WhatsApp webhook is called by Meta, not a person: it checks Meta's signature instead;
-  // the unsubscribe link is opened by email recipients: it checks its own signed token
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/whatsapp/webhook|api/unsubscribe).*)"],
+  // the unsubscribe and handoff links are opened by recipients and clients: they check their own signed token
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/whatsapp/webhook|api/unsubscribe|api/handoff/).*)"],
 };

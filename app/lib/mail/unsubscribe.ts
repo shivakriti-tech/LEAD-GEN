@@ -32,6 +32,16 @@ async function secret(): Promise<string> {
 
 const sign = (key: string, email: string) => createHmac("sha256", key).update(email.toLowerCase()).digest("base64url").slice(0, 32);
 
+/** A signed token for any value (handoff links use it too): only this app can make one. */
+export async function signValue(purpose: string, value: string, key?: string): Promise<string> {
+  return sign(key ?? (await secret()), `${purpose}:${value}`);
+}
+export async function signedOk(purpose: string, value: string, token: string, key?: string): Promise<boolean> {
+  const want = Buffer.from(await signValue(purpose, value, key));
+  const got = Buffer.from(token);
+  return want.length === got.length && timingSafeEqual(want, got);
+}
+
 export async function unsubscribeToken(email: string, key?: string): Promise<string> {
   return sign(key ?? (await secret()), email);
 }

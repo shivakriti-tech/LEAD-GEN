@@ -108,6 +108,34 @@ Replies to your emails (and WhatsApp messages from leads) are read for you, and 
   - `AGENT_AI=off`: rules only.
   - `AGENT_AUTO_SEND=safe`: lets the agent itself send only polite closes (not now, not interested, wrong person, referral). Never sales replies.
 
+## Pipeline: handoff and mini CRM
+
+**Pipeline** (top menu) puts everyone who replied, from every search, on one board: *Replied: your turn*, *Meeting*, *With a client*, *Won*, *Lost*. Change a lead's status or next date right on its card. Won leads take a deal value, and the total shows at the top.
+
+- **Hand off to client:** on a replied or meeting card, pick the client and add a note. The client gets the lead with:
+  - why it's a lead and what it likely needs,
+  - the contact details,
+  - what the lead said (from the Inbox),
+  - your note.
+
+  Tick *Email it* to send it from your first mailbox to the email in the client's profile, or copy the text to WhatsApp.
+- **The client reports back (closed loop):** the message has a private link (set `APP_BASE_URL` so it works outside your computer). On that page the client picks *Contacted*, *Meeting booked*, *Won* (with the deal value), *Lost* or *Not a real lead*. Their answer moves your lead, so you see real outcomes per search and business type. The link is signed, so it needs no password and only opens that one lead. You can also set the outcome yourself on the card.
+- **One lead, one client:** a business already handed to a client can't go to another, even if it was found in a different search. The app matches it by phone number and Google listing.
+- **Exclusive areas:** give a client a city + business type (e.g. Houston · Trucking & haulage). Leads there can then only go to them.
+
+## Credits and billing
+
+Each client has a credit balance (**Clients → Credits**).
+
+- **Price per lead:** every handoff costs the client's *credits per lead*, 1 by default. Without enough credits the handoff is refused, unless you allow going below zero.
+- **Refunds:** a lead the client marks *Not a real lead* within 7 days is refunded automatically. After 7 days, or once it went to a meeting, only you can refund it.
+- **Top-ups:** record a payment you received (bank transfer, UPI, Stripe, Razorpay…) with its credits and amount. Each top-up gets a receipt number (R-2026-0001…). Payments aren't collected in the app yet.
+- **Pricing:** price per credit, currency and tax (e.g. GST 18%) are used on the statement.
+- **Statement:** *This month's statement* opens a page you can print or save as PDF. It shows the opening balance, every top-up, lead and refund, the leads delivered, their value plus tax, the payments received and the closing balance.
+- **Low balance:** a client shows *low* when fewer than 3 leads' worth of credits are left.
+
+Handoffs and credits are saved in `.data/handoffs.json` and `.data/billing.json`. Back these files up: they hold what clients owe.
+
 ## Saved lead directory (faster searches)
 
 Businesses that a search finds and checks are saved per city, area and business type in `.data/directory`. The next search for the same place starts from them instead of searching from scratch:
