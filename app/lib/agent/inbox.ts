@@ -9,6 +9,7 @@ import { checkContent } from "../mail/guard";
 import type { Mailbox } from "../mail/mailboxes";
 import { applyInbox, mutate, signature, type LeadAccess, type QueueStore, type SendDeps } from "../mail/queue";
 import { emailHtml } from "../mail/html";
+import { emailLetter } from "../mail/letter";
 import { runAgent, type AgentResult, type Msg } from "./agent";
 
 /**
@@ -183,14 +184,15 @@ export async function sendEmailReply(deps: Pick<ReplyDeps, "inbox" | "mailboxes"
   if (!conv || conv.channel !== "email") return { ok: false, error: "Conversation not found" };
   const mbox = deps.mailboxes.find((m) => m.email === conv.mailbox);
   if (!mbox) return { ok: false, error: `The mailbox ${conv.mailbox} isn't set up any more` };
-  const body = text.trim();
+  const sender = conv.sender ?? {};
+  // laid out as an email, with any sign-off removed: the signature (closing, name, company) follows
+  const body = emailLetter(text, sender);
   if (!body) return { ok: false, error: "Write a reply first" };
   const spam = checkContent(`Re: ${conv.subject ?? ""}`, body).block[0];
   if (spam) return { ok: false, error: `Spam check: ${spam}` };
-  const sender = conv.sender ?? {};
   const fromName = sender.name ? `${sender.name}${sender.company ? `, ${sender.company}` : ""}` : mbox.name;
   try {
-    const { messageId } = await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: conv.address, subject: `Re: ${conv.subject ?? ""}`.trim(), text: body + signature(sender), html: emailHtml(body + signature(sender), sender), inReplyTo: conv.lastMessageId, references: [...(conv.references ?? []), ...(conv.lastMessageId ? [conv.lastMessageId] : [])] });
+    const { messageId } = await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: conv.address, subject: `Re: ${conv.subject ?? ""}`.trim(), text: body + signature(sender), html: emailHtml(body + signature(sender), sender, { subject: `Re: ${conv.subject ?? ""}`.trim() }), inReplyTo: conv.lastMessageId, references: [...(conv.references ?? []), ...(conv.lastMessageId ? [conv.lastMessageId] : [])] });
     await updateInbox(deps.inbox, (d) => {
       const c = d.conversations.find((x) => x.id === convId);
       if (!c) return;
