@@ -296,7 +296,10 @@ Facebook: Page search through the official API needs Meta's "Page Public Metadat
 
 ## Speed
 
-- All sources are searched at the same time, and results appear on screen before the website checks finish.
+- All sources are searched at the same time, and **each business is checked the moment its source returns it**, not after every source has finished. The full check afterwards reuses that work, so nothing is checked twice.
+- **Time budget (about 4 minutes, `LEAD_TIME_BUDGET` in seconds):** after it, businesses still waiting get a quick check (their listed website and likely web addresses, no web searches), and speed tests that haven't started are skipped, so a search finishes on time. Live builds stop a search at 5 minutes anyway.
+- OpenStreetMap: all business types go to the map servers as **one** query, and the public servers are raced (if one hasn't answered in 4 seconds, the next is asked too; the first answer wins). Map results are saved for a day.
+- While it runs you see a clock, an estimate ("about 2 min left"), a progress bar, and progress in the browser tab's title. **Notify me when it's done** sends a desktop notification, so you can work in another tab.
 - 16 businesses are checked at the same time (`LEAD_CONCURRENCY`). Each one's likely web addresses, top search results and contact pages load in parallel, not one after another.
 - Every page load has a hard time limit that includes downloading the page, so a slow site can't hold a check for minutes.
 - Mobile speed tests start as soon as each website is checked and run alongside the rest (6 at once with a PageSpeed key, `PAGESPEED_CONCURRENCY`), instead of all at the end. Saved businesses tested in the last week aren't tested again.

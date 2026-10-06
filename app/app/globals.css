@@ -522,6 +522,12 @@ button.score:hover { box-shadow: 0 0 0 3px var(--accent-soft); }
 .run-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .run h2 { font-size: 22px; }
 .run-head .sub { margin: 4px 0 0; }
+.run-time { margin: 6px 0 0; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.run-time .mono { font-family: var(--mono); color: var(--ink); }
+.run-bar { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.run-bar span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .6s ease; }
+.run-notify { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+@media (prefers-reduced-motion: reduce) { .run-bar span { transition: none; } }
 .steps { list-style: none; margin: 0; padding: 0; }
 .step-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 11px 0; border-top: 1px solid var(--line); color: var(--muted); }
 .step-row .ic { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line-2); display: grid; place-items: center; }

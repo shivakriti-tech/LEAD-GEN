@@ -16,6 +16,12 @@ export async function fetchWithTimeout(url: string, init: RequestInit = {}, ms =
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   t.unref?.(); // never keeps the server alive on its own
+  // the caller can cancel too (e.g. a faster server already answered)
+  const outer = init.signal;
+  if (outer) {
+    if (outer.aborted) ctrl.abort();
+    else outer.addEventListener("abort", () => ctrl.abort(), { once: true });
+  }
   try {
     return await fetch(url, {
       ...init,

@@ -106,4 +106,57 @@ describe("search speed", () => {
     expect(order.filter((x) => x.startsWith("speed"))).toHaveLength(4);
     expect(events.some((e) => e.type === "log" && /Mobile speed checked for 4 of 4/.test(e.message))).toBe(true);
   });
+
+  const baseDeps = (over: Partial<Deps>): Deps => ({
+    keys: { google: "k" }, store: memStore(), now: () => new Date("2026-09-22"),
+    google: async () => ({ requests: 0, places: [] }),
+    geocode: async () => ({ box: { south: 0, west: 0, north: 1, east: 1 }, via: "test" }),
+    osm: async () => [],
+    discover: async () => ({ tried: [] }),
+    audit: async (w) => (w ? { ...emptyAudit("ok"), finalUrl: w } : emptyAudit("none")),
+    pageSpeed: async () => ({ score: 90 }), apollo: async () => null,
+    social: async () => [], web: async () => ({ places: [], queries: 0, rejected: [] }), gmaps: async () => [], igLookup: async () => null, fbSearch: async () => [], checkCandidate: async () => ({ ok: false, evidence: "" }),
+    ...over,
+  });
+  const params = { sells: "website_development" as const, categories: ["dentist"], city: "Pune", perCategory: 20, sources: { google: true, osm: true, apollo: false, instagram: false, facebook: false, web: false, gmaps: false }, pageSpeed: false, verifyWebsites: true, webSearch: true };
+
+  it("starts checking a source's businesses while the other sources are still searching, and checks each once", async () => {
+    const order: string[] = [];
+    const audits: string[] = [];
+    const deps = baseDeps({
+      google: async ({ category, city }) => ({ requests: 1, places: [{ source: "google", sourceId: "g1", name: "Quick Dental", category, city, website: "https://quickdental.in", phone: "+91 90000 11111" }] }),
+      osm: async ({ category, city }) => {
+        await wait(150);
+        order.push("osm returned");
+        return [{ source: "osm", sourceId: "n1", name: "Slow Smiles", category, city, website: "https://slowsmiles.in", phone: "+91 90000 22222" }];
+      },
+      audit: async (w) => {
+        if (w) (order.push(`audit ${w}`), audits.push(w));
+        return w ? { ...emptyAudit("ok"), finalUrl: w } : emptyAudit("none");
+      },
+    });
+    const { leads } = await runSearch(params, deps, () => {});
+    expect(order.indexOf("audit https://quickdental.in")).toBeLessThan(order.indexOf("osm returned"));
+    expect(audits.sort()).toEqual(["https://quickdental.in", "https://slowsmiles.in"]);
+    expect(leads.every((l) => l.audit?.status === "ok" && !l.pending)).toBe(true);
+  });
+
+  it("past the time budget, businesses still waiting get a quick check without web searches", async () => {
+    const searched: string[] = [];
+    const events: ProgressEvent[] = [];
+    const deps = baseDeps({
+      google: async ({ category, city }) => ({ requests: 1, places: [{ source: "google", sourceId: "g1", name: "No Site Clinic", category, city, phone: "+91 90000 33333" }] }),
+      webSearch: async (q) => (searched.push(q), []),
+      discover: async (_l, _a, d) => {
+        if (d?.search) await d.search("x");
+        return { tried: [d?.search ? "web search" : "likely addresses"] };
+      },
+      timeBudgetMs: 0,
+      warmUp: false,
+    });
+    const { leads } = await runSearch(params, deps, (e) => events.push(e));
+    expect(searched).toEqual([]);
+    expect(leads[0].websiteCheck?.tried.join(" ")).toMatch(/quick check \(time limit\)/);
+    expect(events.some((e) => e.type === "log" && /quick check/.test(e.message))).toBe(true);
+  });
 });

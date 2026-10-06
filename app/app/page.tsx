@@ -17,6 +17,7 @@ import type { HomeData, HomeLead } from "@/lib/home";
 import { BulkBar } from "./_ui/BulkBar";
 import { LeadPanel } from "./_ui/LeadPanel";
 import { RunPanel } from "./_ui/RunPanel";
+import { useRunAlerts } from "./_ui/runAlerts";
 import { SetupPanel } from "./_ui/SetupPanel";
 import { PitchCtx, YourDetails, type PitchPrefs } from "./_ui/pitch";
 import { IconReport, IconBell, IconCalendar, IconCheck, IconChevron, IconDownload, IconEdit, IconHistory, IconHome, IconPlus, IconSearch, IconSettings, IconSend, IconShield, IconUser } from "./_ui/icons";
@@ -94,6 +95,7 @@ export default function LeadFinder() {
   const [editing, setEditing] = useState(false);
 
   const [running, setRunning] = useState(false);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
   const [stage, setStage] = useState<{ stage: string; done: number; total: number } | null>(null);
   const [log, setLog] = useState<LogLine[]>([]);
   const [search, setSearch] = useState<SearchRecord | null>(null);
@@ -310,6 +312,7 @@ export default function LeadFinder() {
   async function run() {
     setError("");
     setRunning(true);
+    setStartedAt(Date.now());
     setEditing(false);
     setLog([]);
     setStage(null);
@@ -412,6 +415,13 @@ export default function LeadFinder() {
   }, [running, search]);
 
   const searchRunning = running || search?.status === "running";
+  // progress in the tab's title, and a notification when it's done (if you asked for one)
+  const checkedCount = leads.filter((l) => !l.pending).length;
+  const alerts = useRunAlerts(
+    !!searchRunning,
+    leads.length ? `${checkedCount}/${leads.length} checked` : "Searching…",
+    `${leads.length} lead${leads.length === 1 ? "" : "s"}, ${leads.filter((l) => !l.pending && l.tier === "hot").length} hot`,
+  );
   const isLogistics = params?.sells === "logistics";
   const isAgency = params?.sells === "agency";
 
@@ -770,6 +780,9 @@ export default function LeadFinder() {
             running={!!searchRunning}
             stopping={stopping}
             onStop={searchId ? stopSearch : undefined}
+            startedAt={running ? startedAt ?? undefined : search ? Date.parse(search.createdAt) : undefined}
+            notify={alerts.notify}
+            onNotify={alerts.ask}
           />
         )}
 

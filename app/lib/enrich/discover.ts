@@ -410,7 +410,9 @@ export async function discoverWebsite(lead: Lead, area: string | undefined, deps
     const results = await Promise.all(
       guesses.map(async (d) => {
         if (resolves && !(await resolves(d))) return null; // no such domain: skip the page load
-        return (await check(`https://${d}`)) ?? (await check(`http://${d}`));
+        // https and http at once (an old site may only answer on http); https wins when both load
+        const [secure, plain] = await Promise.all([check(`https://${d}`), check(`http://${d}`)]);
+        return secure ?? plain;
       }),
     );
     // the business's own phone number is stronger proof than its area, so prefer that site
