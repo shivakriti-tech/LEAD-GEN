@@ -35,6 +35,7 @@ describe("stopping a search", () => {
       pageSpeed: async () => ({ score: 0 }), apollo: async () => null,
       social: async () => [], web: async () => ({ places: [], queries: 0, rejected: [] }), gmaps: async () => [],
       igLookup: async () => null, fbSearch: async () => [], checkCandidate: async () => ({ ok: false, evidence: "" }),
+      warmUp: false, // count only the full checks
     };
     const events: ProgressEvent[] = [];
     const { search, leads } = await runSearch(

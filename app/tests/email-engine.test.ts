@@ -77,9 +77,12 @@ describe("the email queue", () => {
     expect(await tick(deps)).toMatchObject({ did: "sent", detail: "Clinic a (a@clinic.in) from divy@getshree.in" });
     expect(sent[0]).toMatchObject({ from: '"Divy, Pixel Craft" <divy@getshree.in>', to: "a@clinic.in", subject: "Clinic a website" });
     expect(sent[0].headers).toEqual({ "List-Unsubscribe": "<mailto:divy@getshree.in?subject=unsubscribe>" });
-    expect(sent[0].text).toMatch(/\n\nDivy\nPixel Craft\n\nIf this isn't relevant, just reply "no" and I won't email again\.$/);
+    expect(sent[0].text).toMatch(/\n\nBest regards,\nDivy\nPixel Craft\n\nIf this isn't relevant, just reply "no" and I won't email again\.$/);
+    // laid out as a letter: greeting on its own line, then paragraphs; the HTML is a whole document
+    expect(sent[0].text).toMatch(/^(Hi [^\n]+|Hello),\n\n/);
+    expect(sent[0].html).toMatch(/^<!DOCTYPE html>/);
     expect(sent[0].text).not.toMatch(/https?:|www\.|--/);
-    expect(sent[0].html).toMatch(/^<div dir="ltr">Hi there,/);
+    expect(sent[0].html).toContain("<p style=\"margin:0 0 14px;\">Hello,</p>");
     expect(patches[0]).toMatchObject({ touch: { channel: "email", messageId: "<m1@getshree.in>" }, followUpOn: "2026-10-08" });
     expect(l.followUp?.status).toBe("contacted");
     const next = store.data.items.find((i) => i.status === "queued")!;
@@ -89,7 +92,8 @@ describe("the email queue", () => {
     deps.now = () => ist("2026-10-08T13:00:00");
     expect((await tick(deps)).did).toBe("sent");
     expect(sent[1]).toMatchObject({ subject: "Re: Clinic a website", inReplyTo: "<m1@getshree.in>" });
-    expect(sent[1].text).toMatch(/^Hi there, just following up/);
+    expect(sent[1].text).toMatch(/^Hello,\n\nJust following up/);
+    expect(sent[1].text).not.toMatch(/– Divy/); // signed once, by the signature
   });
 
   it("skips a follow-up when they replied (seen in the inbox), and marks the lead Replied", async () => {

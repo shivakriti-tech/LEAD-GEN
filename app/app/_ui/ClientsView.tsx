@@ -7,6 +7,7 @@ import { isNiche, NICHE_KEYS, NICHES } from "@/lib/niches";
 import { SERVICE_CHIP, SERVICE_ORDER } from "@/lib/score/logistics";
 import type { LogisticsService, NicheKey } from "@/lib/types";
 import { IconCheck, IconClose, IconEdit, IconPlus, IconSearch } from "./icons";
+import { BillingPanel } from "./BillingPanel";
 
 /**
  * Clients: one Business Brain per client you find leads for. Add a client from their website (read by
@@ -22,6 +23,7 @@ const OFFER_LABEL: Record<ClientBrain["offer"], string> = { website_development:
 export function ClientsView({ ai, onFindLeads }: { ai: string | null; onFindLeads: (c: ClientBrain) => void }) {
   const [clients, setClients] = useState<ClientBrain[] | null>(null);
   const [mode, setMode] = useState<Mode>({ kind: "list" });
+  const [billing, setBilling] = useState<{ id: string; name: string } | null>(null);
   const [error, setError] = useState("");
   const load = () => fetch("/api/clients").then((r) => r.json()).then((d) => setClients(d.clients ?? [])).catch(() => setClients([]));
   useEffect(() => void load(), []);
@@ -86,6 +88,7 @@ export function ClientsView({ ai, onFindLeads }: { ai: string | null; onFindLead
               <div className="row tight">
                 <button className="btn sm primary" onClick={() => onFindLeads(c)}><IconSearch /> Find leads</button>
                 <button className="btn sm" onClick={() => setMode({ kind: "edit", draft: c, notes: c.analysis?.notes })}><IconEdit /> Edit</button>
+                <button className="btn sm" onClick={() => setBilling({ id: c.id, name: c.name })}>Credits</button>
                 <span className="grow" />
                 <button className="btn sm danger-ghost" onClick={() => remove(c)}>Delete</button>
               </div>
@@ -93,6 +96,7 @@ export function ClientsView({ ai, onFindLeads }: { ai: string | null; onFindLead
           ))}
         </div>
       )}
+      {billing && <BillingPanel client={billing} onClose={() => setBilling(null)} />}
     </section>
   );
 }

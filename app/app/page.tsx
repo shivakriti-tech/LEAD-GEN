@@ -10,6 +10,7 @@ import type { FollowUp, KeepOnly, Lead, ProgressEvent, SearchParams, SearchRecor
 import { DEFAULT_CATS, DEFAULT_FORM, DEFAULT_KEEP, SearchForm, sourceInfo, type Config, type FormState } from "./_ui/SearchForm";
 import { ClientsView } from "./_ui/ClientsView";
 import { OutreachView } from "./_ui/OutreachView";
+import { PipelineView } from "./_ui/PipelineView";
 import { brainServices, type ClientBrain } from "@/lib/brain";
 import { LeadList, Skeleton } from "./_ui/LeadList";
 import { HomeView } from "./_ui/HomeView";
@@ -17,9 +18,10 @@ import type { HomeData, HomeLead } from "@/lib/home";
 import { BulkBar } from "./_ui/BulkBar";
 import { LeadPanel } from "./_ui/LeadPanel";
 import { RunPanel } from "./_ui/RunPanel";
+import { useRunAlerts } from "./_ui/runAlerts";
 import { SetupPanel } from "./_ui/SetupPanel";
 import { PitchCtx, YourDetails, type PitchPrefs } from "./_ui/pitch";
-import { IconReport, IconBell, IconCalendar, IconCheck, IconChevron, IconDownload, IconEdit, IconHistory, IconHome, IconPlus, IconSearch, IconSettings, IconSend, IconShield, IconUser } from "./_ui/icons";
+import { IconReport, IconBell, IconCalendar, IconCheck, IconChevron, IconDownload, IconEdit, IconHistory, IconHome, IconPlus, IconSearch, IconSettings, IconSend, IconShield, IconTrophy, IconUser } from "./_ui/icons";
 import { Popover } from "./_ui/Popover";
 import { hasNicheReason, isNiche, NICHES } from "@/lib/niches";
 
@@ -95,6 +97,7 @@ export default function LeadFinder() {
   const [editing, setEditing] = useState(false);
 
   const [running, setRunning] = useState(false);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
   const [stage, setStage] = useState<{ stage: string; done: number; total: number } | null>(null);
   const [log, setLog] = useState<LogLine[]>([]);
   const [search, setSearch] = useState<SearchRecord | null>(null);
@@ -124,7 +127,7 @@ export default function LeadFinder() {
   const [pipe, setPipe] = useState<{ due: DueLead[]; contactedThisWeek: number; touched?: Record<string, Touched>; stats?: Record<string, CategoryStat> } | null>(null);
   const [toast, setToast] = useState<{ text: string; lead?: Lead; next?: Lead; sid?: string } | null>(null);
   /** Home (your numbers, what to do today) or Find leads. Starts on Home once you have searches. */
-  const [view, setView] = useState<"home" | "leads" | "clients" | "outreach" | null>(null);
+  const [view, setView] = useState<"home" | "leads" | "clients" | "outreach" | "pipeline" | null>(null);
   const [home, setHome] = useState<HomeData | null>(null);
   const [panelHidden, setPanelHidden] = useState(false);
   const wide = useWide("(min-width: 1280px)");
@@ -158,6 +161,7 @@ export default function LeadFinder() {
     else if (q.get("view") === "leads") setView("leads");
     else if (q.get("view") === "clients") setView("clients");
     else if (q.get("view") === "outreach") setView("outreach");
+    else if (q.get("view") === "pipeline") setView("pipeline");
     loadHistory(true);
     loadPipeline();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -182,7 +186,7 @@ export default function LeadFinder() {
   // keep the address bar in step, so a reload comes back to the same place
   useEffect(() => {
     if (!view) return;
-    const url = view === "home" ? "/" : view === "clients" ? "/?view=clients" : view === "outreach" ? "/?view=outreach" : searchId ? `/?view=leads&s=${searchId}` : "/?view=leads";
+    const url = view === "home" ? "/" : view === "clients" ? "/?view=clients" : view === "outreach" ? "/?view=outreach" : view === "pipeline" ? "/?view=pipeline" : searchId ? `/?view=leads&s=${searchId}` : "/?view=leads";
     if (window.location.pathname + window.location.search !== url) window.history.replaceState(null, "", url);
   }, [view, searchId]);
 
@@ -311,6 +315,7 @@ export default function LeadFinder() {
   async function run() {
     setError("");
     setRunning(true);
+    setStartedAt(Date.now());
     setEditing(false);
     setLog([]);
     setStage(null);
@@ -413,6 +418,13 @@ export default function LeadFinder() {
   }, [running, search]);
 
   const searchRunning = running || search?.status === "running";
+  // progress in the tab's title, and a notification when it's done (if you asked for one)
+  const checkedCount = leads.filter((l) => !l.pending).length;
+  const alerts = useRunAlerts(
+    !!searchRunning,
+    leads.length ? `${checkedCount}/${leads.length} checked` : "Searching…",
+    `${leads.length} lead${leads.length === 1 ? "" : "s"}, ${leads.filter((l) => !l.pending && l.tier === "hot").length} hot`,
+  );
   const isLogistics = params?.sells === "logistics";
   const isAgency = params?.sells === "agency";
 
@@ -628,6 +640,7 @@ export default function LeadFinder() {
             )}
           </Popover>
           <button className="tn" aria-current={view === "outreach" ? "page" : undefined} onClick={() => setView("outreach")}><span className="tn-ic"><IconSend /></span>Outreach</button>
+          <button className="tn" aria-current={view === "pipeline" ? "page" : undefined} onClick={() => setView("pipeline")}><span className="tn-ic"><IconTrophy /></span>Pipeline</button>
           <button className="tn" aria-current={view === "clients" ? "page" : undefined} onClick={() => setView("clients")}><span className="tn-ic"><IconUser /></span>Clients</button>
           <button className="tn" onClick={() => setSetupOpen(true)}><span className="tn-ic"><IconSettings /></span>Setup</button>
         </nav>
@@ -669,6 +682,8 @@ export default function LeadFinder() {
       <main>
         {view === "outreach" ? (
           <OutreachView />
+        ) : view === "pipeline" ? (
+          <PipelineView onOpenLead={(sid, id) => openSearch(sid, id)} />
         ) : view === "clients" ? (
           <ClientsView ai={config?.ai ?? null} onFindLeads={searchForClient} />
         ) : view !== "leads" ? (
@@ -780,6 +795,9 @@ export default function LeadFinder() {
             running={!!searchRunning}
             stopping={stopping}
             onStop={searchId ? stopSearch : undefined}
+            startedAt={running ? startedAt ?? undefined : search ? Date.parse(search.createdAt) : undefined}
+            notify={alerts.notify}
+            onNotify={alerts.ask}
           />
         )}
 
@@ -976,6 +994,7 @@ export default function LeadFinder() {
         <button aria-current={view === "home" ? "page" : undefined} onClick={goHome}><IconHome /><span>Home</span></button>
         <button aria-current={view === "leads" ? "page" : undefined} onClick={() => setView("leads")}><IconSearch /><span>Find leads</span></button>
         <button aria-current={view === "outreach" ? "page" : undefined} onClick={() => setView("outreach")}><IconSend /><span>Outreach</span></button>
+        <button aria-current={view === "pipeline" ? "page" : undefined} onClick={() => setView("pipeline")}><IconTrophy /><span>Pipeline</span></button>
         <button onClick={() => setRecentOpen(true)}><IconHistory /><span>Searches</span></button>
         <button aria-current={view === "clients" ? "page" : undefined} onClick={() => setView("clients")}><IconUser /><span>Clients</span></button>
       </nav>

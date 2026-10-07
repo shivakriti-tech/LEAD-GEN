@@ -134,6 +134,8 @@ describe("public paths", () => {
     expect(gate(req("/api/unsubscribe?e=a@b.c&t=x", { method: "POST" }), s, live)).toEqual({ ok: true });
     // but nothing that only looks like them
     expect(gate(req("/api/health"), s, live)).toEqual({ ok: true });
+    expect(gate(req("/api/handoff/abc?t=x"), s, live)).toEqual({ ok: true });
+    expect(gate(req("/api/handoffs"), s, live)).toMatchObject({ status: 401 });
     expect(gate(req("/api/whatsapp/webhookx"), s, live)).toMatchObject({ status: 401 });
     expect(gate(req("/api/unsubscribe-all"), s, live)).toMatchObject({ status: 401 });
   });

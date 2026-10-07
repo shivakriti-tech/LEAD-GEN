@@ -51,6 +51,16 @@ export interface Deps {
   apollo: typeof apolloEnrichDomain;
   /** Does this email domain accept mail? Leave out to skip the check (tests). */
   mx?: typeof domainAcceptsMail;
+  /** Businesses checked at the same time (LEAD_CONCURRENCY, default 16). */
+  concurrency?: number;
+  /** After this long (LEAD_TIME_BUDGET seconds, default 240) businesses still waiting get a quick check. */
+  timeBudgetMs?: number;
+  /** Start checking businesses while sources are still searching (default on). */
+  warmUp?: boolean;
+  /** Web searches at the same time (SEARCH_CONCURRENCY, default 3). */
+  searchConcurrency?: number;
+  /** Mobile speed tests at the same time (default 6 with a PageSpeed key, 2 without). */
+  speedConcurrency?: number;
   /** Mailbox-level email check through a service (EMAIL_VERIFY_KEY); at most `emailVerifyCap` a search (default 50). */
   emailVerify?: EmailVerifier;
   emailVerifyCap?: number;
@@ -137,12 +147,13 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
   try {
     const place = params.area ? `${params.area}, ${params.city}` : params.city;
     const rawSearch = deps.makeWebSearch ? deps.makeWebSearch((m) => log(m, "warn")) : deps.webSearch;
-    // Businesses are checked many at a time; web searches still go out at most 3 at once.
-    const webSearch = rawSearch ? limited(rawSearch, 3) : undefined;
+    // Businesses are checked many at a time (LEAD_CONCURRENCY, default 16); web searches still go out
+    // at most SEARCH_CONCURRENCY at once (default 3: free engines block anything faster).
+    const webSearch = rawSearch ? limited(rawSearch, deps.searchConcurrency ?? 3) : undefined;
     // Phone numbers: only to providers that match exact numbers ("auto"), to any provider ("on"), or never.
     const phoneMode = deps.keys.phoneSearch ?? "auto";
     const rawNumber = phoneMode === "off" ? undefined : deps.makeNumberSearch?.((m) => log(m, "warn")) ?? (phoneMode === "on" ? rawSearch : undefined);
-    const numberSearch = rawNumber ? limited(rawNumber, 3) : undefined;
+    const numberSearch = rawNumber ? limited(rawNumber, deps.searchConcurrency ?? 3) : undefined;
     const cats = params.categories.map(categoryByKey).filter((c): c is NonNullable<typeof c> => !!c);
     if (!cats.length) throw new Error("Pick at least one business type.");
 
@@ -159,6 +170,17 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
       const days = Math.floor(((deps.now?.() ?? new Date()).getTime() - oldest) / DAY);
       log(`Found saved data for ${[...saved.keys()].map((k) => categoryByKey(k)?.label ?? k).join(", ")} in ${place} (checked ${days < 1 ? "today" : days === 1 ? "yesterday" : `${days} days ago`}). Rechecking it and looking for new businesses.`);
     }
+
+    // Time budget: a search should be done in about 4 minutes (LEAD_TIME_BUDGET). Past it, businesses
+    // still waiting get a quick check (listed website, likely web addresses) instead of web searches.
+    const t0 = Date.now();
+    const budgetMs = deps.timeBudgetMs ?? 240_000;
+    const overTime = () => Date.now() - t0 >= budgetMs;
+    const siteSearch = params.verifyWebsites && params.webSearch ? webSearch : undefined;
+    const state = { searchBroken: false };
+    // Each website check and website hunt is done once per search, whoever asks first: the early
+    // checks that start while sources are still searching, and the full check after merging.
+    const qdeps = { ...deps, audit: once(deps.audit, (w?: string) => (w ?? "").trim().toLowerCase()), discover: onceDiscover(deps.discover) };
 
     const useGoogle = params.sources.google && !!deps.keys.google;
     if (params.sources.google && !deps.keys.google) log("Google Places is on but no API key is set. Skipping Google. Add GOOGLE_PLACES_API_KEY to .env.local.", "warn");
@@ -195,6 +217,28 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
         if (m.followUp) l.followUp = m.followUp;
       }
     };
+    // Start checking businesses the moment a source returns them, instead of waiting for every source.
+    // Results land in qdeps' memory and the full check later picks them up at once.
+    const savedKeys = new Set<string>();
+    for (const e of saved.values()) for (const s of e.leads) keysOf(s).forEach((k) => savedKeys.add(k));
+    const warmed = new Set<string>();
+    let warmOff = deps.warmUp === false;
+    const warmOne = limited(async (l: Lead) => {
+      if (warmOff || stopped() || overTime()) return;
+      await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: siteSearch, numberSearch: siteSearch ? numberSearch : undefined, state }, qdeps).catch(() => {});
+    }, deps.concurrency ?? 16);
+    const warmJobs: Promise<void>[] = [];
+    const warm = () => {
+      if (warmOff || stopped() || overTime()) return;
+      for (const l of mergePlaces(raw)) {
+        if (l.businessStatus === "CLOSED_PERMANENTLY" || chainReason(l)) continue;
+        const ks = keysOf(l);
+        if (ks.some((k) => savedKeys.has(k) || warmed.has(k))) continue;
+        ks.forEach((k) => warmed.add(k));
+        warmJobs.push(warmOne(structuredClone(l)));
+      }
+    };
+
     // While the sources are still searching, show what's been found so far (not yet checked).
     let previewLeads: Lead[] = [];
     let lastPreview = 0, previewedAt = 0;
@@ -278,6 +322,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
       }
       emit({ type: "stage", stage: "search", done: ++done, total });
       preview();
+      warm();
     };
 
     // Google Maps scraper (local testing only): one business type at a time, minutes each. It runs
@@ -311,12 +356,13 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     /** Resolves when the scraper is done, or at once when the search is stopped. */
     const untilScraperDone = () => Promise.race([gmapsP, new Promise<void>((r) => (signal?.aborted ? r() : signal?.addEventListener("abort", () => r(), { once: true })))]);
 
-    // All sources at once, each at a pace its server accepts (public OpenStreetMap servers allow ~2 at a time).
+    // All sources at once, each at a pace its server accepts. Map searches all start together: they're
+    // sent to the map servers as one query (see osmSearch).
     const group = (srcs: string[]) => jobs.filter((j) => srcs.includes(j.src));
     await Promise.all([
       mapLimit(group(["google"]), 3, runJob),
-      mapLimit(group(["osm"]), 2, runJob),
-      mapLimit(group(["web", "instagram", "facebook"]), 3, runJob),
+      mapLimit(group(["osm"]), 12, runJob),
+      mapLimit(group(["web", "instagram", "facebook"]), 6, runJob), // their web searches are rate-limited on their own
       // Google Maps scraper (local testing only): one business type at a time, minutes each.
     ]);
     let lateScraper = false;
@@ -395,13 +441,50 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     const ready = leads.filter((l) => !needsCheck(l));
     const recheck = toCheck.filter((l) => l.saved).length;
     const needSite = params.verifyWebsites ? toCheck.filter((l) => !l.chain && (!l.website || isSocialHost(domainOf(l.website)))).length : 0;
-    const siteSearch = params.verifyWebsites && params.webSearch ? webSearch : undefined;
     if (ready.length) log(`${ready.length} saved business${ready.length === 1 ? " was" : "es were"} checked in the last week: loading them${recheck ? `; rechecking ${recheck} older one${recheck === 1 ? "" : "s"}` : ""}.`);
     if (needSite) log(`Checking ${toCheck.length} businesses. ${needSite} have no website listed: looking for one (likely web addresses${siteSearch ? ", web search" : ""}${siteSearch && numberSearch ? " and their phone number" : ""}).`);
-    const state = { searchBroken: false };
     const verifyStats: VerifyStats = { checked: 0, valid: 0, invalid: 0, catchAll: 0, skipped: 0 };
     const verifyEmail = deps.emailVerify ? cappedVerifier(deps.emailVerify, deps.emailVerifyCap ?? 50, verifyStats) : undefined;
-    let checked = 0, changed = 0;
+    let checked = 0, changed = 0, quickLogged = false;
+    // Mobile speed tests take 10–30s each, so each one starts as soon as its website is checked
+    // and runs while the other businesses are still being checked, not all at the end.
+    // ones still waiting their turn are dropped when you press Stop
+    // (and, to finish on time, ones that haven't started 30s after the time budget)
+    let speedSkipped = 0;
+    const speedTest = limited((url: string) => {
+      if (stopped()) return Promise.resolve(undefined);
+      if (Date.now() - t0 > budgetMs + 30_000) return (speedSkipped++, Promise.resolve(undefined));
+      return deps.pageSpeed(url, deps.keys.pageSpeed);
+    }, deps.speedConcurrency ?? (deps.keys.pageSpeed ? 6 : 2));
+    const speedStarted = new Set<Lead>();
+    const speedJobs: Promise<void>[] = [];
+    const speedErrs = new Map<string, number>();
+    let speedDone = 0, speedOk = 0, speedShown = false;
+    const speedStage = () => speedShown && emit({ type: "stage", stage: "speed", done: speedDone, total: speedStarted.size });
+    const startSpeed = (l: Lead) => {
+      if (!params.pageSpeed || stopped() || speedStarted.has(l) || l.audit?.status !== "ok") return;
+      if (l.saved && l.audit.pageSpeed && !needsCheck(l)) return; // tested within the last week
+      speedStarted.add(l);
+      speedJobs.push(
+        (async () => {
+          try {
+            const r = await speedTest(l.audit!.finalUrl || l.website!);
+            if (!r) return;
+            if (l.audit) l.audit.pageSpeed = r;
+            speedOk++;
+          } catch (e) {
+            const m = msg(e);
+            speedErrs.set(m, (speedErrs.get(m) ?? 0) + 1);
+          }
+          speedDone++;
+          speedStage();
+          if (!l.pending) {
+            Object.assign(l, score(l));
+            emit({ type: "lead", lead: l });
+          }
+        })(),
+      );
+    };
     emit({ type: "stage", stage: "enrich", done: 0, total: leads.length });
     // businesses with a phone first: they're the ones you can call
     const byPhone = (xs: Lead[]) => [...xs].sort((a, b) => Number(!!b.phone) - Number(!!a.phone));
@@ -423,7 +506,14 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
       if (stopNow()) return;
       const before = l.saved ? { website: l.website, phone: l.phone, audit: l.audit } : undefined;
       try {
-        await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: siteSearch, numberSearch: siteSearch ? numberSearch : undefined, state, verifyEmail }, deps);
+        const quick = overTime() && !!siteSearch;
+        if (quick && !quickLogged) {
+          quickLogged = true;
+          log(`Over ${Math.round(budgetMs / 60_000)} minutes: the businesses still waiting get a quick check (their listed website and likely web addresses, no web search) so results are ready now.`, "warn");
+        }
+        await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: quick ? undefined : siteSearch, numberSearch: quick || !siteSearch ? undefined : numberSearch, state, verifyEmail }, qdeps);
+        if (quick && !l.audit?.status?.match(/^(ok|social_only)$/)) l.websiteCheck?.tried.push("quick check (time limit): no web search");
+        startSpeed(l);
       } catch (e) {
         l.websiteCheck?.tried.push(`check failed: ${msg(e)}`);
       }
@@ -440,7 +530,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     // shown one after another at a readable pace (about 20 seconds at most for the whole list)
     const pace = deps.revealMs ?? Math.max(150, Math.min(700, Math.round(20_000 / Math.max(1, ready.length))));
     await Promise.all([
-      mapLimit(byPhone(toCheck), 8, checkOne),
+      mapLimit(byPhone(toCheck), deps.concurrency ?? 16, checkOne),
       (async () => {
         for (const l of byPhone(ready)) {
           if (stopNow()) return;
@@ -449,6 +539,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
         }
       })(),
     ]);
+    warmOff = true; // early checks no one picked up (the business merged into another) aren't needed
     // 3a. the Google Maps scraper finished after the others: add its new businesses and check them;
     // ones already in the list get its rating, reviews and owner (and its website, then a recheck)
     if (lateScraper && !stopped()) {
@@ -484,11 +575,12 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
         log(`Google Maps scraper added ${added.length} new business${added.length === 1 ? "" : "es"}${known ? `; ${known} were already in the list and got their Google rating and reviews` : ""}${gone.size ? ` (${gone.size} marked permanently closed, removed)` : ""}.`);
         emit({ type: "leads", leads });
         progress.soon();
-        await mapLimit(byPhone([...added, ...again]), 8, checkOne);
+        await mapLimit(byPhone([...added, ...again]), deps.concurrency ?? 16, checkOne);
       }
     }
     if (recheck) log(`Rechecked ${recheck} saved business${recheck === 1 ? "" : "es"} last checked over a week ago: ${changed ? `${changed} changed (marked in the list)` : "no changes"}.`);
     await progress.flush();
+    await Promise.all(warmJobs);
     const found = leads.filter((l) => l.websiteCheck?.via === "domain_guess" || l.websiteCheck?.via === "web_search").length;
     if (verifyStats.checked) log(`Mailbox check (your email verification service): ${verifyStats.checked} checked, ${verifyStats.valid} verified, ${verifyStats.invalid} don't exist (skipped for the next address), ${verifyStats.catchAll} accept any address.${verifyStats.skipped ? ` ${verifyStats.skipped} not checked (limit of ${deps.emailVerifyCap ?? 50} a search; EMAIL_VERIFY_MAX to change).` : ""}`);
     if (verifyStats.stopped) log(`Email check stopped: ${verifyStats.stopped}`, "warn");
@@ -548,24 +640,18 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
       if (!deps.keys.metaToken || !deps.keys.igUserId) log(`${withIg.length} businesses have an Instagram profile. Add META_ACCESS_TOKEN and IG_BUSINESS_ACCOUNT_ID to read their followers, last post and bio website.`);
     }
 
-    const withSite = leads.filter((l) => l.audit?.status === "ok");
-    if (params.pageSpeed && withSite.length && !stopped()) {
-      log(`Checking mobile speed for ${withSite.length} websites. This is the slow part (10–30s each).`);
-      let sp = 0;
-      let ok = 0;
-      const errs = new Map<string, number>();
-      await mapLimit(withSite, 3, async (l) => {
-        try {
-          l.audit!.pageSpeed = await deps.pageSpeed(l.audit!.finalUrl || l.website!, deps.keys.pageSpeed);
-          ok++;
-        } catch (e) {
-          const m = msg(e);
-          errs.set(m, (errs.get(m) ?? 0) + 1);
-        }
-        emit({ type: "stage", stage: "speed", done: ++sp, total: withSite.length });
-      });
-      log(`Mobile speed checked for ${ok} of ${withSite.length} websites${deps.keys.pageSpeed ? " (using your PageSpeed key)" : " (no key: Google allows only a few checks without one)"}.`, ok ? "info" : "warn");
-      for (const [m, n] of errs) log(`${n} speed check${n > 1 ? "s" : ""} failed: ${m}`, "warn");
+    if (params.pageSpeed && !stopped()) {
+      // saved businesses and websites found in Instagram bios join the ones already being tested
+      for (const l of leads) startSpeed(l);
+      const left = speedStarted.size - speedDone;
+      if (left) log(`Finishing mobile speed checks: ${speedDone} of ${speedStarted.size} done, ${left} still running (10–30s each, several at once).`);
+      speedShown = true;
+      speedStage();
+    }
+    await Promise.all(speedJobs);
+    if (speedStarted.size) {
+      log(`Mobile speed checked for ${speedOk} of ${speedStarted.size} websites${deps.keys.pageSpeed ? " (using your PageSpeed key)" : " (no key: Google allows only a few checks without one)"}${speedSkipped ? `; ${speedSkipped} skipped to finish on time` : ""}.`, speedOk ? "info" : "warn");
+      for (const [m, n] of speedErrs) log(`${n} speed check${n > 1 ? "s" : ""} failed: ${m}`, "warn");
     }
     if (params.sources.apollo && deps.keys.apollo && !stopped()) {
       const targets = leads.filter((l) => l.website && !isSocialHost(domainOf(l.website)));
@@ -699,6 +785,33 @@ export async function qualifyLead(
   await checkEmails([l], deps.mx, opts.verifyEmail);
 }
 
+/**
+ * Calls with the same key share one answer (a failed call is forgotten so it can be tried again).
+ * An empty key isn't remembered: every caller gets its own answer.
+ */
+export function once<A extends unknown[], R>(fn: (...a: A) => Promise<R>, key: (...a: A) => string): (...a: A) => Promise<R> {
+  const seen = new Map<string, Promise<R>>();
+  return (...a: A) => {
+    const k = key(...a);
+    if (!k) return fn(...a);
+    let p = seen.get(k);
+    if (!p) {
+      p = fn(...a);
+      seen.set(k, p);
+      p.catch(() => seen.delete(k));
+    }
+    return p;
+  };
+}
+
+/**
+ * Website hunt, once per business per search. The key leaves out whether web search was allowed:
+ * when the time budget runs out, a quick check gladly reuses a full hunt that's already done.
+ */
+function onceDiscover(fn: Deps["discover"]): Deps["discover"] {
+  return once(fn, (l, area) => JSON.stringify([l.name, l.category, l.city, l.address, l.phone, [...l.phones].sort(), area ?? ""]));
+}
+
 /** At most `n` calls in flight; the rest wait their turn. */
 export function limited<A extends unknown[], R>(fn: (...a: A) => Promise<R>, n: number): (...a: A) => Promise<R> {
   let active = 0;
@@ -788,6 +901,12 @@ function withMailboxCache(v?: EmailVerifier): EmailVerifier | undefined {
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+/** A whole number from .env.local between 1 and `max`, or `fallback`. */
+const envCount = (v: string | undefined, fallback: number, max: number) => {
+  const n = Math.floor(Number(v));
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, max) : fallback;
+};
+
 /**
  * Checks worth remembering between searches (see lib/cache.ts). Website checks that failed are kept
  * only a day, since sites come back; web searches and verified finds a week.
@@ -796,7 +915,7 @@ function withCache(stats: CacheStats) {
   const mode = cacheMode();
   if (mode === "off") return null;
   const search = (fn: (q: string) => Promise<SearchHit[]>) => cached("websearch", fn, (q: string) => countryKey(q.trim().toLowerCase()), (hits) => (hits.length ? 7 * DAY : 0), stats);
-  if (mode === "search") return { search, audit: undefined, discover: undefined };
+  if (mode === "search") return { search, audit: undefined, discover: undefined, osm: undefined };
   const leadKey = (l: Lead, area?: string) => [simplifyName(l.name), l.phone ?? "", l.city ?? "", area ?? "", l.address ?? ""].join("|").toLowerCase();
   return {
     audit: cached("audit", auditWebsite, (w?: string) => countryKey((w ?? "").trim().toLowerCase()), (a: WebsiteAudit) => (a.status === "ok" || a.status === "social_only" ? 7 * DAY : a.status === "down" ? DAY : 0), stats),
@@ -804,6 +923,8 @@ function withCache(stats: CacheStats) {
     discover: ((l, area, d) =>
       cached("discover", (_l: Lead) => discoverWebsite(l, area, d), () => countryKey(`${leadKey(l, area)}|${d?.search ? "search" : "guess"}${d?.numberSearch ? "+phone" : ""}`), (r) => (r.website ? 7 * DAY : r.tried.some((t) => /failed|captcha|No web search/i.test(t)) ? 0 : 3 * DAY), stats)(l)) as typeof discoverWebsite,
     search,
+    // map results: businesses don't change by the hour, and public map servers are often busy
+    osm: cached("osm", osmSearch, (o: Parameters<typeof osmSearch>[0]) => countryKey(JSON.stringify([o.box ?? o.place, o.filters, o.category, o.city, o.max])), () => DAY, stats),
   };
 }
 
@@ -820,7 +941,7 @@ export function defaultDeps(store: Store): Deps {
       return s && c ? c.search(s) : s;
     },
     google: googleTextSearch,
-    osm: osmSearch,
+    osm: c?.osm ?? osmSearch,
     geocode: geocodeBBox,
     discover: c?.discover ?? discoverWebsite,
     social: socialSearch,
@@ -837,6 +958,10 @@ export function defaultDeps(store: Store): Deps {
     // DOMAIN_AGE=off skips the registration-date lookup
     domainAge: /^(off|0|false|no)$/i.test(process.env.DOMAIN_AGE || "") ? undefined : withDomainCache(domainRegisteredOn),
     emailVerifyCap: Math.max(0, Number(process.env.EMAIL_VERIFY_MAX) || 50),
+    concurrency: envCount(process.env.LEAD_CONCURRENCY, 16, 64),
+    timeBudgetMs: envCount(process.env.LEAD_TIME_BUDGET, 240, 3600) * 1000,
+    searchConcurrency: envCount(process.env.SEARCH_CONCURRENCY, 3, 20),
+    speedConcurrency: process.env.PAGESPEED_CONCURRENCY ? envCount(process.env.PAGESPEED_CONCURRENCY, 6, 20) : undefined,
     cacheStats,
     // LEAD_DIRECTORY=off: every search runs fully live and nothing is saved for later searches
     directory: /^(off|0|false|no)$/i.test(process.env.LEAD_DIRECTORY || "") ? undefined : localDirectory(),

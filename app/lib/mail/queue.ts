@@ -3,6 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Lead } from "../types";
 import { emailHtml } from "./html";
+import { emailLetter } from "./letter";
 import { unsubscribeHeaders } from "./unsubscribe";
 import type { FollowUpPatch } from "../followups";
 import { CADENCE, canContact, followUpAfter, MAX_STEPS, messageForStep, nextStep, statusOf, subjectLine, type Lang, type Sender, type Tone } from "../outreach";
@@ -130,17 +131,17 @@ export function subjectFor(l: Pick<Lead, "name" | "pitchFor">): string {
 
 /** The line under every email: who it's from and how to stop them. */
 /**
- * The end of every email, the way a person signs off: name, company, the postal address when
- * one is set (required for the US and Canada), and one plain line on how to stop. No "--"
- * separator, no legal wording, no unsubscribe link: those mark an email as bulk mail.
+ * The end of every email, the way a person signs off: a closing, name, company, the postal
+ * address when one is set (required for the US and Canada), and one plain line on how to stop.
+ * No "--" separator, no legal wording, no unsubscribe link: those mark an email as bulk mail.
  */
 export function footer(sender: Sender, _mailbox?: Pick<Mailbox, "email">): string {
   return `${signature(sender)}\n\nIf this isn't relevant, just reply "no" and I won't email again.`;
 }
-/** Name, company and (when set) postal address, one per line: for replies in a conversation. */
+/** "Best regards," then name, company and (when set) postal address, one per line. Also used for replies. */
 export function signature(sender: Sender): string {
   const sign = [sender.name, sender.company, sender.address].map((x) => x?.trim()).filter(Boolean).join("\n");
-  return sign ? `\n\n${sign}` : "";
+  return sign ? `\n\nBest regards,\n${sign}` : "";
 }
 
 /** US (CAN-SPAM) and Canadian (CASL) law: marketing email must carry the sender's postal address. */
@@ -307,7 +308,8 @@ export async function tick(deps: SendDeps): Promise<{ did: "sent" | "skipped" | 
     }
     const subject = item.subject ?? (item.threadSubject ? `Re: ${item.threadSubject.replace(/^re:\s*/i, "")}` : subjectFor(lead));
     // the first email carries no link: links in a first message from a stranger are a top spam signal
-    const plain = item.body ?? messageForStep(lead, item.lang, item.step === 0 ? { ...item.sender, link: undefined } : item.sender, item.tone, item.step);
+    // laid out as an email (greeting, short paragraphs), with any sign-off removed: the signature follows
+    const plain = emailLetter(item.body ?? messageForStep(lead, item.lang, item.step === 0 ? { ...item.sender, link: undefined } : item.sender, item.tone, item.step), item.sender);
     const spam = checkContent(subject, plain).block;
     if (spam.length) return finish("skipped", `Spam check: ${spam[0]}`);
     if (deps.domainProblem) {
@@ -321,7 +323,7 @@ export async function tick(deps: SendDeps): Promise<{ did: "sent" | "skipped" | 
     const fromName = item.sender.name ? `${item.sender.name}${item.sender.company ? `, ${item.sender.company}` : ""}` : mbox.name;
     let messageId: string;
     try {
-      messageId = (await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: item.to, subject, text, html: emailHtml(text, item.sender), inReplyTo: item.inReplyTo, references: item.references, headers: await unsubscribeHeaders(item.to, mbox.email) })).messageId;
+      messageId = (await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: item.to, subject, text, html: emailHtml(text, item.sender, { subject }), inReplyTo: item.inReplyTo, references: item.references, headers: await unsubscribeHeaders(item.to, mbox.email) })).messageId;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       const auth = /auth|login|credentials|535|534|password/i.test(msg) && !isBlock(msg);

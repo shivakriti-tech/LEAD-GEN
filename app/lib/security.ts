@@ -12,7 +12,8 @@ import { isIP } from "node:net";
  *  - Other sites can't make your browser act for you (CSRF): changes must come from this app's own pages.
  *  - Expensive actions (searches, reading a client's site, PDFs) have a per-address rate limit,
  *    and every request has a size limit.
- *  - Meta's webhook and the unsubscribe link stay public (they check their own signatures), but rate limited.
+ *  - Meta's webhook, the unsubscribe link and a client's handoff page stay public (they check their own
+ *    signatures), but rate limited.
  */
 
 export type Env = Record<string, string | undefined>;
@@ -145,7 +146,7 @@ export function hostOkWithoutPassword(hostHeader: string | null, env: Env = proc
 }
 
 /** Paths called by outside services, not people: they check their own signature or token (health says only "ok"). */
-export const PUBLIC_PATHS = ["/api/whatsapp/webhook", "/api/unsubscribe", "/api/health"];
+export const PUBLIC_PATHS = ["/api/whatsapp/webhook", "/api/unsubscribe", "/api/handoff", "/api/health"];
 export const isPublicPath = (p: string) => PUBLIC_PATHS.some((x) => p === x || p.startsWith(`${x}/`));
 
 /** Biggest request body accepted (bytes): a bulk email queue carries edited texts, everything else is small. */
@@ -161,6 +162,7 @@ export const LIMITS: Array<{ name: string; method: string; match: RegExp; limit:
   { name: "report", method: "GET", match: /^\/api\/searches\/[^/]+\/report$/, limit: 40, windowMs: 10 * 60_000 },
   { name: "send", method: "POST", match: /^\/api\/(outreach\/(whatsapp|email\/queue)|agent\/inbox\/[^/]+)$/, limit: 60, windowMs: 10 * 60_000 },
   { name: "unsubscribe", method: "*", match: /^\/api\/unsubscribe$/, limit: 30, windowMs: 60_000 },
+  { name: "handoff", method: "*", match: /^\/api\/handoff\//, limit: 60, windowMs: 60_000 },
   { name: "webhook", method: "*", match: /^\/api\/whatsapp\/webhook$/, limit: 600, windowMs: 60_000 },
   { name: "api", method: "*", match: /^\/api\//, limit: 900, windowMs: 60_000 },
 ];

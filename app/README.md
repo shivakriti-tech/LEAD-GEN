@@ -130,6 +130,34 @@ Replies to your emails (and WhatsApp messages from leads) are read for you, and 
   - `AGENT_AI=off`: rules only.
   - `AGENT_AUTO_SEND=safe`: lets the agent itself send only polite closes (not now, not interested, wrong person, referral). Never sales replies.
 
+## Pipeline: handoff and mini CRM
+
+**Pipeline** (top menu) puts everyone who replied, from every search, on one board: *Replied: your turn*, *Meeting*, *With a client*, *Won*, *Lost*. Change a lead's status or next date right on its card. Won leads take a deal value, and the total shows at the top.
+
+- **Hand off to client:** on a replied or meeting card, pick the client and add a note. The client gets the lead with:
+  - why it's a lead and what it likely needs,
+  - the contact details,
+  - what the lead said (from the Inbox),
+  - your note.
+
+  Tick *Email it* to send it from your first mailbox to the email in the client's profile, or copy the text to WhatsApp.
+- **The client reports back (closed loop):** the message has a private link (set `APP_BASE_URL` so it works outside your computer). On that page the client picks *Contacted*, *Meeting booked*, *Won* (with the deal value), *Lost* or *Not a real lead*. Their answer moves your lead, so you see real outcomes per search and business type. The link is signed, so it needs no password and only opens that one lead. You can also set the outcome yourself on the card.
+- **One lead, one client:** a business already handed to a client can't go to another, even if it was found in a different search. The app matches it by phone number and Google listing.
+- **Exclusive areas:** give a client a city + business type (e.g. Houston · Trucking & haulage). Leads there can then only go to them.
+
+## Credits and billing
+
+Each client has a credit balance (**Clients → Credits**).
+
+- **Price per lead:** every handoff costs the client's *credits per lead*, 1 by default. Without enough credits the handoff is refused, unless you allow going below zero.
+- **Refunds:** a lead the client marks *Not a real lead* within 7 days is refunded automatically. After 7 days, or once it went to a meeting, only you can refund it.
+- **Top-ups:** record a payment you received (bank transfer, UPI, Stripe, Razorpay…) with its credits and amount. Each top-up gets a receipt number (R-2026-0001…). Payments aren't collected in the app yet.
+- **Pricing:** price per credit, currency and tax (e.g. GST 18%) are used on the statement.
+- **Statement:** *This month's statement* opens a page you can print or save as PDF. It shows the opening balance, every top-up, lead and refund, the leads delivered, their value plus tax, the payments received and the closing balance.
+- **Low balance:** a client shows *low* when fewer than 3 leads' worth of credits are left.
+
+Handoffs and credits are saved in `.data/handoffs.json` and `.data/billing.json`. Back these files up: they hold what clients owe.
+
 ## Saved lead directory (faster searches)
 
 Businesses that a search finds and checks are saved per city, area and business type in `.data/directory`. The next search for the same place starts from them instead of searching from scratch:
@@ -193,7 +221,7 @@ In a search, tick leads and press **Email** or **LinkedIn** in the bar at the bo
   - *Domain records:* a mailbox doesn't send until its domain has MX, SPF and DMARC (Gmail and Yahoo require them for bulk senders). To skip this check, set `MAIL_REQUIRE_DNS=off`.
   - Outreach → Email shows each mailbox's sent / bounced numbers for the week and why it's paused.
 - **Follow-ups:** first message, then a follow-up after 3 days, then a last short one after 4 more. Follow-ups come from the same mailbox as a reply in the same email thread. Before each one, the app checks that mailbox's inbox: if the lead replied, the follow-up is cancelled and the lead is marked Replied. Every email ends with your name, company (and postal address when set) and one line: "If this isn't relevant, just reply "no" and I won't email again."
-- **Looks typed, not designed (Primary inbox, not Promotions):** each email is plain text plus the same text as HTML. By default the HTML is Gmail-style (one `<div>` with line breaks). `EMAIL_STYLE=formal` gives a clean business-letter look instead: one font, paragraphs, your name in bold, the opt-out line small and grey. Either way there are no backgrounds, banners, buttons, tables or images, which are what Gmail files under Promotions. Subjects are short and lower-case ("maple & oak store"). The first email has no link: your link goes in follow-ups and replies. No X-Mailer header.
+- **Written like a business email (Primary inbox, not Promotions):** each email is plain text plus the same text as HTML. The text is laid out as a letter: greeting on its own line, short paragraphs, the question on its own, then "Best regards," with your name and company (a sign-off already in the message, like "– Riya", is removed so you're never signed twice). The HTML part is a complete HTML document (an HTML part without `<html>` is itself a spam-filter signal) in a clean business-letter style: one font, paragraphs, your name in bold, the opt-out line small and grey. `EMAIL_STYLE=plain` gives a Gmail-style typed look instead. Either way there are no backgrounds, banners, buttons, tables or images, which are what Gmail files under Promotions. Subjects are short and lower-case ("maple & oak store"). The first email has no link: your link goes in follow-ups and replies. No X-Mailer header. AI-drafted replies follow the same rules: greeting, 1–2 short paragraphs, no hype words, exclamation marks, emojis or "Dear Sir/Madam".
 - **One-click unsubscribe:** every cold email carries `List-Unsubscribe` (Gmail shows its own "Unsubscribe" button). Set `APP_BASE_URL=https://your-app-address` (reachable from the internet) to add a signed one-click link (`List-Unsubscribe-Post`); without it the header has a mailto, which the inbox scan reads. People who can leave easily unsubscribe instead of pressing "Report spam".
 - **Free mailbox check before sending:** `EMAIL_VERIFY=smtp` (no key) asks each company's mail server whether the address exists, then hangs up before sending anything. It needs outgoing port 25, which many home and office connections block; if it's blocked, the check switches itself off for that search. Gmail- and Outlook-hosted addresses always say "yes", so they show as "can't confirm". ZeroBounce is the more reliable choice.
 
@@ -318,7 +346,14 @@ Facebook: Page search through the official API needs Meta's "Page Public Metadat
 
 ## Speed
 
-- All sources are searched at the same time, and results appear on screen before the website checks finish.
+- All sources are searched at the same time, and **each business is checked the moment its source returns it**, not after every source has finished. The full check afterwards reuses that work, so nothing is checked twice.
+- **Time budget (about 4 minutes, `LEAD_TIME_BUDGET` in seconds):** after it, businesses still waiting get a quick check (their listed website and likely web addresses, no web searches), and speed tests that haven't started are skipped, so a search finishes on time. Live builds stop a search at 5 minutes anyway.
+- OpenStreetMap: all business types go to the map servers as **one** query, and the public servers are raced (if one hasn't answered in 4 seconds, the next is asked too; the first answer wins). Map results are saved for a day.
+- While it runs you see a clock, an estimate ("about 2 min left"), a progress bar, and progress in the browser tab's title. **Notify me when it's done** sends a desktop notification, so you can work in another tab.
+- 16 businesses are checked at the same time (`LEAD_CONCURRENCY`). Each one's likely web addresses, top search results and contact pages load in parallel, not one after another.
+- Every page load has a hard time limit that includes downloading the page, so a slow site can't hold a check for minutes.
+- Mobile speed tests start as soon as each website is checked and run alongside the rest (6 at once with a PageSpeed key, `PAGESPEED_CONCURRENCY`), instead of all at the end. Saved businesses tested in the last week aren't tested again.
+- Web searches go out 3 at a time (`SEARCH_CONCURRENCY`): free engines block faster use. With Serper, Tavily or Google, 6–8 is fine and makes searches with many businesses without a listed website much faster.
 - Guessed web addresses are checked with a DNS lookup first. Most don't exist, and DNS says so in milliseconds instead of waiting for a page timeout.
 - Web searches, website checks and websites found are saved in `.data/cache` and reused for up to 7 days (failed checks: 1 day). Searching the same city again is much faster. `LEAD_CACHE=off` in `.env.local` turns this off.
 
@@ -411,7 +446,7 @@ See **DEPLOY.md**: Render (one-click blueprint), Railway, or any server with Doc
 ## Checks
 
 ```
-npm test          # 386 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 408 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```
