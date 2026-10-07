@@ -1,6 +1,6 @@
 import { mailboxesFromEnv, dailyCap, inSendWindow, istParts } from "@/lib/mail/mailboxes";
 import { checkDomain, type DomainHealth } from "@/lib/mail/dnsHealth";
-import { localQueueStore } from "@/lib/mail/queue";
+import { queueStore } from "@/lib/mail/queue";
 import { startEmailWorker, workerStatus } from "@/lib/mail/send";
 import { getClientStore } from "@/lib/store";
 import { domainOf } from "@/lib/util";
@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   startEmailWorker();
   const fresh = new URL(req.url).searchParams.get("fresh") === "1";
   const { mailboxes, problems } = mailboxesFromEnv();
-  const data = await localQueueStore().read();
+  const data = await queueStore().read();
   const today = istParts(new Date()).date;
   const mainDomains = (await getClientStore().listClients().catch(() => [])).map((c) => domainOf(c.website)).filter(Boolean) as string[];
   const domains = [...new Set(mailboxes.map((m) => m.domain))];

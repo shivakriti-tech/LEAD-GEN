@@ -1,5 +1,5 @@
-import { promises as fs } from "node:fs";
 import path from "node:path";
+import { fileDoc, savedDoc } from "../saved";
 import { randomUUID } from "node:crypto";
 import type { Lead } from "../types";
 import { emailHtml } from "./html";
@@ -79,22 +79,13 @@ export interface QueueStore {
   write(d: QueueData): Promise<void>;
 }
 
+const emptyQueue = (): QueueData => ({ items: [], mailboxes: {} });
+/** The app's email queue: Supabase when it's set up, otherwise .data/outreach/email.json. */
+export function queueStore(): QueueStore {
+  return savedDoc("outreach/email", emptyQueue);
+}
 export function localQueueStore(file = () => path.join(process.cwd(), ".data", "outreach", "email.json")): QueueStore {
-  return {
-    async read() {
-      try {
-        return JSON.parse(await fs.readFile(file(), "utf8")) as QueueData;
-      } catch {
-        return { items: [], mailboxes: {} };
-      }
-    },
-    async write(d) {
-      await fs.mkdir(path.dirname(file()), { recursive: true });
-      const tmp = `${file()}.tmp`;
-      await fs.writeFile(tmp, JSON.stringify(d));
-      await fs.rename(tmp, file());
-    },
-  };
+  return fileDoc(file, emptyQueue);
 }
 export function memoryQueueStore(init: QueueData = { items: [], mailboxes: {} }): QueueStore & { data: QueueData } {
   const box = { data: structuredClone(init) };

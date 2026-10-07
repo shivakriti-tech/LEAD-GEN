@@ -1,11 +1,13 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Lead } from "./types";
+import { supabase } from "./store";
 
 /**
  * The saved lead directory: businesses already found and checked, per city, area and business type.
  * Filled by searches and by `npm run prefill`, so a later search starts from checked data and only
- * has to recheck what's old and look for what's new. Stored as JSON files in .data/directory.
+ * has to recheck what's old and look for what's new. Stored in Supabase, or as JSON files in .data/directory.
  *
  * Only public business facts are kept here. Your statuses, notes and scores stay with each search.
  */
@@ -74,6 +76,38 @@ export function localDirectory(root = () => path.join(process.cwd(), ".data", "d
       return out.sort((x, y) => y.savedAt.localeCompare(x.savedAt));
     },
   };
+}
+
+/** One row per city/area/business type in Supabase's `directory` table. */
+export function supabaseDirectory(db: SupabaseClient): Directory {
+  const key = (c: string, a: string | undefined, cat: string) => `${slug(c)}/${slug(a)}/${slug(cat)}`;
+  return {
+    async get(city, area, category) {
+      const { data, error } = await db.from("directory").select("data").eq("key", key(city, area, category)).maybeSingle();
+      if (error) throw new Error(`Supabase: ${error.message}`);
+      const e = (data as { data: DirectoryEntry } | null)?.data;
+      return e && Date.now() - Date.parse(e.savedAt) < DIRECTORY_MAX_AGE && e.leads.length ? e : undefined;
+    },
+    async put(e) {
+      const { error } = await db.from("directory").upsert({
+        key: key(e.city, e.area, e.category), city: e.city, area: e.area ?? null, category: e.category, saved_at: e.savedAt, count: e.leads.length, data: e,
+      });
+      if (error) throw new Error(`Supabase: ${error.message}`);
+    },
+    async list(city) {
+      let q = db.from("directory").select("key, city, area, category, saved_at, count").order("saved_at", { ascending: false }).limit(2000);
+      if (city) q = q.like("key", `${slug(city)}/%`);
+      const { data, error } = await q;
+      if (error) throw new Error(`Supabase: ${error.message}`);
+      return (data ?? []).map((r: any) => ({ city: r.city, area: r.area ?? undefined, category: r.category, savedAt: new Date(r.saved_at).toISOString(), count: r.count }));
+    },
+  };
+}
+
+/** The app's directory: Supabase when it's set up, otherwise .data/directory. */
+export function getDirectory(): Directory {
+  const db = supabase();
+  return db ? supabaseDirectory(db) : localDirectory();
 }
 
 /** For tests and the prefill script's dry runs: a directory that lives in memory. */

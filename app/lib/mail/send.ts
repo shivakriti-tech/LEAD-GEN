@@ -4,12 +4,12 @@ import { getStore } from "../store";
 import { mergeFollowUp } from "../followups";
 import { live } from "../live";
 import { mailboxesFromEnv, type Mailbox } from "./mailboxes";
-import { applyInbox, localQueueStore, mutate, tick, type InboxEvent, type LeadAccess, type SendDeps } from "./queue";
+import { applyInbox, queueStore, mutate, tick, type InboxEvent, type LeadAccess, type SendDeps } from "./queue";
 import { bouncedAddress, isBounceMail, isUnsubscribeReply } from "./guard";
 import { checkDomain } from "./dnsHealth";
 import { simpleParser } from "mailparser";
 import { cleanReply } from "../agent/intent";
-import { handleEmailReply, localInboxStore } from "../agent/inbox";
+import { handleEmailReply, inboxStore } from "../agent/inbox";
 import { getClientStore } from "../store";
 
 /** The real connections for the email queue: SMTP (nodemailer), IMAP reply checks, saved leads. */
@@ -141,7 +141,7 @@ export const savedLeads: LeadAccess = {
 };
 
 export function emailDeps(): SendDeps {
-  return { store: localQueueStore(), leads: savedLeads, mailboxes: mailboxesFromEnv().mailboxes, send: smtpSend, replied: imapReplied, domainProblem };
+  return { store: queueStore(), leads: savedLeads, mailboxes: mailboxesFromEnv().mailboxes, send: smtpSend, replied: imapReplied, domainProblem };
 }
 
 /** Run the queue every 30 seconds while the app is running (only when a mailbox is set up). */
@@ -188,7 +188,7 @@ async function scanInboxes(deps: SendDeps): Promise<void> {
 /** What the conversation agent needs: the inbox, the queue, leads, mailboxes and client profiles. */
 export function replyDeps(deps: SendDeps = emailDeps()) {
   return {
-    inbox: localInboxStore(),
+    inbox: inboxStore(),
     queue: deps.store,
     leads: deps.leads,
     mailboxes: deps.mailboxes,

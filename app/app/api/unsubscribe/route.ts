@@ -1,5 +1,5 @@
 import { tokenOk } from "@/lib/mail/unsubscribe";
-import { applyInbox, localQueueStore, mutate } from "@/lib/mail/queue";
+import { applyInbox, queueStore, mutate } from "@/lib/mail/queue";
 import { savedLeads } from "@/lib/mail/send";
 
 export const runtime = "nodejs";
@@ -9,7 +9,7 @@ const page = (title: string, body: string) =>
   new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title></head><body style="font-family:system-ui,sans-serif;max-width:480px;margin:15vh auto;padding:0 20px;color:#222;line-height:1.5">${body}</body></html>`, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 
 async function unsubscribe(email: string) {
-  const queue = localQueueStore();
+  const queue = queueStore();
   const d = await queue.read();
   const mailbox = d.items.find((i) => i.to.toLowerCase() === email && i.mailbox)?.mailbox ?? "";
   const leads = await mutate(queue, (x) => applyInbox(x, mailbox, [{ kind: "unsubscribe", address: email }]));

@@ -1,6 +1,6 @@
 import { getStore } from "@/lib/store";
 import { live } from "@/lib/live";
-import { enqueue, localQueueStore, mutate } from "@/lib/mail/queue";
+import { enqueue, queueStore, mutate } from "@/lib/mail/queue";
 import { startEmailWorker } from "@/lib/mail/send";
 import type { Lang, Sender, Tone } from "@/lib/outreach";
 
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   const s = (b?.sender ?? {}) as Record<string, unknown>;
   const sender: Sender = { name: str(s.name, 80), work: str(s.work, 80), city: str(s.city, 80), link: str(s.link, 300), company: str(s.company, 120), usp: str(s.usp, 200), priceLine: str(s.priceLine, 120), address: str(s.address, 300) };
   const texts = b?.texts && typeof b.texts === "object" ? Object.fromEntries(Object.entries(b.texts as Record<string, unknown>).filter(([k, v]) => want.has(k) && typeof v === "string").map(([k, v]) => [k, (v as string).slice(0, 5000)])) : undefined;
-  const r = await mutate(localQueueStore(), (d) =>
+  const r = await mutate(queueStore(), (d) =>
     enqueue(d, {
       searchId,
       leads: leadsNow.filter((l) => want.has(l.id) && !l.pending),

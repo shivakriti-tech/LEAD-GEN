@@ -1,0 +1,25 @@
+# Render Blueprint: Dashboard → New → Blueprint → pick this repo.
+# Everything is saved in Supabase, so no disk is needed. The plan is "starter" because free
+# services sleep after 15 minutes idle, and a sleeping app doesn't send queued emails.
+services:
+  - type: web
+    name: lead-autopilot
+    runtime: node
+    plan: starter
+    region: singapore
+    rootDir: app
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: APP_PASSWORD
+        sync: false
+      - key: CRAWLER_CONTACT
+        sync: false
+      - key: APP_BASE_URL
+        sync: false

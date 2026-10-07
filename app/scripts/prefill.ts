@@ -24,7 +24,7 @@ const opt = (n: string) => args.find((a) => a.startsWith(`--${n}=`))?.slice(n.le
 async function main() {
   const { VADODARA, prefillPlan, runPrefill } = await import("../lib/prefill");
   const { defaultDeps } = await import("../lib/pipeline");
-  const { localDirectory } = await import("../lib/directory");
+  const { getDirectory } = await import("../lib/directory");
   const { noStore } = await import("../lib/prefill");
 
   const offer = opt("offer");
@@ -35,7 +35,7 @@ async function main() {
   ].filter((a) => !only || a.area.toLowerCase() === only.toLowerCase());
   if (!areas.length) throw new Error(`No area called "${only}". Areas: ${[...VADODARA.website, ...VADODARA.logistics].join(", ")}`);
 
-  const directory = localDirectory();
+  const directory = getDirectory();
   const { jobs, skipped } = await prefillPlan({ city: VADODARA.city, areas, directory, force: flag("force") });
   const sources = { osm: true, web: flag("web"), google: flag("google") };
   console.log(`Prefill ${VADODARA.city}: ${jobs.length} search${jobs.length === 1 ? "" : "es"} to run (${areas.length} areas; ${skipped} area × type sets already fresh).`);

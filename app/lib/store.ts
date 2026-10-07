@@ -30,11 +30,19 @@ export interface ClientStore {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+let db: SupabaseClient | null | undefined;
+/** The Supabase client when SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set, otherwise null (use .data). */
+export function supabase(): SupabaseClient | null {
+  if (db !== undefined) return db;
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return (db = url && key ? createClient(url, key, { auth: { persistSession: false } }) : null);
+}
+
 let cached: Store | null = null;
 export function getStore(): Store {
   if (cached) return cached;
-  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  cached = url && key ? supabaseStore(createClient(url, key, { auth: { persistSession: false } })) : localStore();
+  const db = supabase();
+  cached = db ? supabaseStore(db) : localStore();
   return cached;
 }
 
@@ -227,7 +235,7 @@ function supabaseClients(db: SupabaseClient): ClientStore {
 let cachedClients: ClientStore | null = null;
 export function getClientStore(): ClientStore {
   if (cachedClients) return cachedClients;
-  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  cachedClients = url && key ? supabaseClients(createClient(url, key, { auth: { persistSession: false } })) : localClients();
+  const db = supabase();
+  cachedClients = db ? supabaseClients(db) : localClients();
   return cachedClients;
 }

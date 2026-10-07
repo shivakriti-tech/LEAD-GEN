@@ -58,3 +58,25 @@ create table if not exists public.clients (
   data jsonb not null     -- the full brain as the app uses it
 );
 alter table public.clients enable row level security;
+
+-- Outreach and app state (email queue, inbox, LinkedIn tasks, WhatsApp log, usage counts,
+-- unsubscribe secret): one JSON document per key, so nothing lives on the server's disk.
+create table if not exists public.app_state (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.app_state enable row level security;
+
+-- The lead directory: checked businesses per city / area / business type, reused by later searches.
+create table if not exists public.directory (
+  key text primary key,   -- city/area/category
+  city text not null,
+  area text,
+  category text not null,
+  saved_at timestamptz not null,
+  count int not null default 0,
+  data jsonb not null     -- the full entry as the app uses it
+);
+create index if not exists directory_saved_idx on public.directory (saved_at desc);
+alter table public.directory enable row level security;

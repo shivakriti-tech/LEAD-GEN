@@ -30,7 +30,7 @@ With no keys at all it already works: leads come from OpenStreetMap (free) and e
 | `META_ACCESS_TOKEN`, `IG_BUSINESS_ACCOUNT_ID` | Instagram followers, last post and bio website for each business profile, through Meta's official API | See **Instagram setup** below |
 | `FB_PAGE_SEARCH` | Official Facebook Page search (address, phone, website). Leave `off` until Meta approves your app | Needs Meta App Review + business verification for "Page Public Metadata Access" |
 | `APOLLO_API_KEY` | Company size and LinkedIn page. Only the client's own key | Apollo → Settings → API. You can also paste it in the app for one search. |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Save searches in a real database instead of the `.data` folder | supabase.com → new project → SQL Editor → run `supabase/schema.sql` → Project Settings → API |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Save everything (searches, clients, lead directory, email queue, inbox, LinkedIn and WhatsApp logs) in a real database instead of the `.data` folder. Needed when hosting. Copy what you already have with `npm run to-supabase` | supabase.com → new project → SQL Editor → run `supabase/schema.sql` → Project Settings → API |
 | `CRAWLER_CONTACT` | Your email in the crawler's User-Agent (OpenStreetMap asks for one) | Any address you check |
 | `PDF_BROWSER` | Only if the *Report* PDF says no Chrome or Edge was found: the full path to Chrome, Edge or Chromium | e.g. `C:\Program Files\Google\Chrome\Application\chrome.exe` |
 | `EMAIL_VERIFY`, `EMAIL_VERIFY_KEY` | Checks the best email on each lead at mailbox level (does it exist, or does the domain accept any address). `zerobounce` (100 free checks a month) or `millionverifier` (cheapest for bulk). Up to 50 checks a search (`EMAIL_VERIFY_MAX` to change), answers remembered 30 days. Without it, every email's domain is still checked for a mail server | https://www.zerobounce.net or https://www.millionverifier.com → API key |
@@ -352,7 +352,7 @@ lib/bench.ts, bench/         Vadodara lead-quality benchmark (npm run bench)
 lib/safeFetch.ts             blocks private/internal addresses when checking websites in a live build
 proxy.ts                     password protection (APP_PASSWORD)
 lib/categories.ts            business types and their search terms
-supabase/schema.sql          database tables
+supabase/schema.sql          database tables (re-run after updates: it only adds what's missing)
 searxng/                     free self-hosted web search (docker compose up -d)
 gmaps-scraper/               Google Maps scraper for local testing only (docker compose up -d)
 tests/                       npm test

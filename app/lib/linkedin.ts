@@ -1,5 +1,4 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
+import { savedDoc } from "./saved";
 import { randomUUID } from "node:crypto";
 import type { Lead } from "./types";
 import { addDays, canContact, linkedinOf, type Sender } from "./outreach";
@@ -126,21 +125,16 @@ export function plan(d: LinkedInData, today: string): void {
   }
 }
 
-const file = () => path.join(process.cwd(), ".data", "outreach", "linkedin.json");
+const doc = () => savedDoc<LinkedInData>("outreach/linkedin", () => ({ team: [], tasks: [] }));
 export async function readLinkedIn(): Promise<LinkedInData> {
-  try {
-    return JSON.parse(await fs.readFile(file(), "utf8")) as LinkedInData;
-  } catch {
-    return { team: [], tasks: [] };
-  }
+  return doc().read();
 }
 let chain: Promise<unknown> = Promise.resolve();
 export function updateLinkedIn<T>(fn: (d: LinkedInData) => T): Promise<T> {
   const run = chain.then(async () => {
     const d = await readLinkedIn();
     const out = fn(d);
-    await fs.mkdir(path.dirname(file()), { recursive: true });
-    await fs.writeFile(file(), JSON.stringify(d));
+    await doc().write(d);
     return out;
   });
   chain = run.catch(() => {});

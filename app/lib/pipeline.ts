@@ -17,7 +17,7 @@ import { webLeadSearch } from "./sources/webSearch";
 import { gmapsScrapeBatch, gmapsScraperUrl } from "./sources/gmapsScraper";
 import { mergeBySocial, rememberSocial } from "./dedupe";
 import { cached, cacheMode, DAY, type CacheStats } from "./cache";
-import { forDirectory, localDirectory, RECHECK_AFTER, whatChanged, type Directory, type DirectoryEntry } from "./directory";
+import { forDirectory, getDirectory, RECHECK_AFTER, whatChanged, type Directory, type DirectoryEntry } from "./directory";
 import { classifyEmail, isDisposable, looksLikeEmail, rankEmails, usable } from "./enrich/email";
 import { domainRegisteredOn, registrableDomain } from "./enrich/domainAge";
 import { cappedVerifier, verifierFromEnv, type EmailVerifier, type MailboxCheck, type VerifyStats } from "./enrich/verifyEmail";
@@ -825,7 +825,7 @@ export function defaultDeps(store: Store): Deps {
     emailVerifyCap: Math.max(0, Number(process.env.EMAIL_VERIFY_MAX) || 50),
     cacheStats,
     // LEAD_DIRECTORY=off: every search runs fully live and nothing is saved for later searches
-    directory: /^(off|0|false|no)$/i.test(process.env.LEAD_DIRECTORY || "") ? undefined : localDirectory(),
+    directory: /^(off|0|false|no)$/i.test(process.env.LEAD_DIRECTORY || "") ? undefined : getDirectory(),
     keys: {
       google: process.env.GOOGLE_PLACES_API_KEY || undefined,
       pageSpeed: process.env.PAGESPEED_API_KEY || undefined,

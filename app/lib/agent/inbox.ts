@@ -1,5 +1,5 @@
-import { promises as fs } from "node:fs";
 import path from "node:path";
+import { fileDoc, savedDoc } from "../saved";
 import { randomUUID } from "node:crypto";
 import type { ClientBrain } from "../brain";
 import type { FollowUpPatch } from "../followups";
@@ -13,7 +13,7 @@ import { runAgent, type AgentResult, type Msg } from "./agent";
 
 /**
  * The inbox: every reply from a lead, what it means, and the drafted answer waiting for you.
- * Saved in .data/outreach/inbox.json.
+ * Saved in Supabase (app_state) or .data/outreach/inbox.json.
  */
 
 export type ConvStatus = "drafted" | "handoff" | "sent" | "closed";
@@ -47,20 +47,13 @@ export interface InboxStore {
   write(d: InboxData): Promise<void>;
 }
 
+const emptyInbox = (): InboxData => ({ conversations: [] });
+/** The app's inbox: Supabase when it's set up, otherwise .data/outreach/inbox.json. */
+export function inboxStore(): InboxStore {
+  return savedDoc("outreach/inbox", emptyInbox);
+}
 export function localInboxStore(file = () => path.join(process.cwd(), ".data", "outreach", "inbox.json")): InboxStore {
-  return {
-    async read() {
-      try {
-        return JSON.parse(await fs.readFile(file(), "utf8")) as InboxData;
-      } catch {
-        return { conversations: [] };
-      }
-    },
-    async write(d) {
-      await fs.mkdir(path.dirname(file()), { recursive: true });
-      await fs.writeFile(file(), JSON.stringify(d));
-    },
-  };
+  return fileDoc(file, emptyInbox);
 }
 export function memoryInboxStore(init: InboxData = { conversations: [] }): InboxStore & { data: InboxData } {
   const s = { data: init, read: async () => s.data, write: async (d: InboxData) => void (s.data = d) };

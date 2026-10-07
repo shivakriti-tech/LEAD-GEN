@@ -2,7 +2,9 @@ import { currentMarket } from "../marketContext";
 import type { SearchHit } from "./discover";
 import { braveSearch, duckDuckGoSearch } from "./discover";
 import { fetchWithTimeout } from "../util";
-import { fileUsage, memoryUsage, parseLimits, type Limit, type UsageBook } from "../usage";
+import { fileUsage, memoryUsage, parseLimits, savedUsage, type Limit, type UsageBook } from "../usage";
+import { savedDoc } from "../saved";
+import { supabase } from "../store";
 
 /**
  * Web search providers. Each one is a plug: adding a paid service later means adding a key,
@@ -150,9 +152,9 @@ export function providersFromEnv(env: Record<string, string | undefined> = proce
 }
 
 let usageBook: UsageBook | undefined;
-/** One usage book per server, stored in .data/usage.json. */
+/** One usage book per server, stored in Supabase or .data/usage.json. */
 export function sharedUsage(): UsageBook {
-  return (usageBook ??= process.env.NODE_ENV === "test" ? memoryUsage() : fileUsage());
+  return (usageBook ??= process.env.NODE_ENV === "test" ? memoryUsage() : supabase() ? savedUsage(savedDoc("usage", () => ({}))) : fileUsage());
 }
 
 /** How much of each provider's free allowance is used, for the app's status panel. */

@@ -1,6 +1,8 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { savedDoc } from "../saved";
+import { supabase } from "../store";
 
 /**
  * One-click unsubscribe (RFC 8058), the way Gmail and Yahoo want it: every email carries
@@ -19,6 +21,15 @@ let cached: string | undefined;
 async function secret(): Promise<string> {
   if (process.env.UNSUBSCRIBE_SECRET?.trim()) return process.env.UNSUBSCRIBE_SECRET.trim();
   if (cached) return cached;
+  if (supabase()) {
+    // Kept in Supabase so links in emails already sent keep working after a redeploy.
+    const doc = savedDoc<{ secret?: string }>("unsubscribe-secret", () => ({}));
+    const saved = (await doc.read()).secret;
+    if (saved) return (cached = saved);
+    const fresh = randomBytes(32).toString("hex");
+    await doc.write({ secret: fresh });
+    return (cached = fresh);
+  }
   const file = path.join(process.cwd(), ".data", "unsubscribe-secret");
   try {
     cached = (await fs.readFile(file, "utf8")).trim();
