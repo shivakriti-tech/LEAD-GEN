@@ -10,6 +10,8 @@ import { readCapped } from "@/lib/http";
 import { localStore, oneAtATime } from "@/lib/store";
 import { autoSafe } from "@/lib/agent/inbox";
 import type { Lead, SearchRecord } from "@/lib/types";
+// loaded once up front: it pulls in the mail libraries, slow to load on some computers (the route reads its settings per request)
+import { GET, POST } from "@/app/api/whatsapp/webhook/route";
 
 const basic = (pw: string, user = "me") => `Basic ${Buffer.from(`${user}:${pw}`).toString("base64")}`;
 const PW = "a-long-test-password";
@@ -269,7 +271,6 @@ describe("WhatsApp webhook", () => {
     vi.stubEnv("WHATSAPP_PHONE_NUMBER_ID", "1");
     vi.stubEnv("WHATSAPP_APP_SECRET", "secret");
     vi.stubEnv("WHATSAPP_VERIFY_TOKEN", "verify-me");
-    const { GET, POST } = await import("@/app/api/whatsapp/webhook/route");
     const unsigned = await POST(new Request("http://x/api/whatsapp/webhook", { method: "POST", body: "{}" }));
     expect(unsigned.status).toBe(401);
     const huge = await POST(new Request("http://x/api/whatsapp/webhook", { method: "POST", body: "x".repeat(1_100_000) }));
