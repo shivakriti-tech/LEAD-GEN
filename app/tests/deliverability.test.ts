@@ -24,17 +24,24 @@ describe("one-click unsubscribe", () => {
   });
 });
 
-describe("formal style (EMAIL_STYLE=formal)", () => {
-  const text = "Hi Jane,\n\nI saw your store.\nWorth a chat?\n\nRiya\nShivakriti Tech\n\nIf this isn't relevant, just reply \"no\" and I won't email again.";
+describe("formal style (the default)", () => {
+  const text = "Hi Jane,\n\nI saw your store.\nWorth a chat?\n\nBest regards,\nRiya\nShivakriti Tech\n\nIf this isn't relevant, just reply \"no\" and I won't email again.";
   it("a clean letter: one font, paragraphs, bold name, small opt-out; no banners, buttons, tables or images", () => {
-    const h = emailHtml(text, { name: "Riya" }, undefined, "formal");
-    expect(h).toContain('font-family:Arial,Helvetica,sans-serif;font-size:14px');
-    expect(h).toContain("<b>Riya</b><br>Shivakriti Tech");
-    expect(h).toContain('font-size:12px;color:#888888;">If this isn&#39;t relevant');
+    const h = emailHtml(text, { name: "Riya" }, { subject: "maple & oak store" });
+    expect(h).toContain("font-family:Arial,Helvetica,sans-serif;font-size:14px");
+    expect(h).toContain("Best regards,<br><b>Riya</b><br>Shivakriti Tech");
+    expect(h).toContain('font-size:12px;line-height:1.5;color:#777777;">If this isn&#39;t relevant');
     expect(h).not.toMatch(/<table|background|gradient|border|<img|<a /i);
   });
-  it("plain is the default", () => {
-    expect(emailHtml(text, { name: "Riya" }, undefined, undefined)).toMatch(/^<div dir="ltr">Hi Jane,<br><br>/);
+  it("is a complete HTML document (an HTML part without <html> is a spam-filter signal)", () => {
+    const h = emailHtml(text, { name: "Riya" }, { subject: "maple & oak store" });
+    expect(h).toMatch(/^<!DOCTYPE html>\n<html lang="en">\n<head>/);
+    expect(h).toContain('<meta http-equiv="Content-Type" content="text/html; charset=utf-8">');
+    expect(h).toContain("<title>maple &amp; oak store</title>");
+    expect(h).toMatch(/<body>\n<div dir="ltr"[\s\S]*<\/div>\n<\/body>\n<\/html>\n$/);
+  });
+  it("EMAIL_STYLE=plain gives the Gmail-style message instead", () => {
+    expect(emailHtml(text, { name: "Riya" }, { style: "plain" })).toContain('<body>\n<div dir="ltr">Hi Jane,<br><br>');
   });
 });
 

@@ -40,6 +40,22 @@ describe("Overpass (OpenStreetMap) when servers are busy", () => {
     expect(await overpass("q", { endpoints: EPS, sleep: async () => {} })).toHaveLength(2);
   });
 
+  it("races the servers: a hanging one doesn't hold the answer up, and is cancelled", async () => {
+    let aborted = false;
+    vi.stubGlobal("fetch", (url: string, init: RequestInit) =>
+      new URL(url).host === "a.test"
+        ? new Promise((_, reject) => init.signal?.addEventListener("abort", () => ((aborted = true), reject(new Error("aborted")))))
+        : Promise.resolve(json({ elements: [node] })),
+    );
+    // queries start on alternating servers, so one of two runs starts on the hanging one
+    for (let i = 0; i < 2; i++) {
+      const t = Date.now();
+      expect(await overpass("q", { endpoints: EPS, sleep: async () => {}, hedgeMs: 50, timeoutMs: 10_000 })).toHaveLength(1);
+      expect(Date.now() - t).toBeLessThan(2000);
+    }
+    expect(aborted).toBe(true);
+  });
+
   it("an empty answer without a remark is a real 'nothing here'", async () => {
     vi.stubGlobal("fetch", async () => json({ elements: [] }));
     expect(await overpass("q", { endpoints: EPS, sleep: async () => {} })).toEqual([]);

@@ -8,7 +8,7 @@ import { fetchWithTimeout } from "../util";
 export async function pageSpeedMobile(url: string, apiKey?: string): Promise<{ score: number; lcp?: string }> {
   const q = new URLSearchParams({ url, strategy: "mobile", category: "performance" });
   if (apiKey) q.set("key", apiKey);
-  const res = await fetchWithTimeout(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${q}`, {}, 90_000);
+  const res = await fetchWithTimeout(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${q}`, {}, 60_000);
   const text = await res.text();
   let json: any = {};
   try {

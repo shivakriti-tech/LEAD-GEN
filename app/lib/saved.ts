@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { supabase } from "./store";
+import { supabase, writeAtomic } from "./store";
 
 /**
  * One JSON document the app keeps between restarts (the email queue, the inbox, the WhatsApp log…).
@@ -15,7 +15,7 @@ export interface SavedDoc<T> {
 
 export function savedDoc<T>(name: string, empty: () => T): SavedDoc<T> {
   const db = supabase();
-  if (!db) return fileDoc(() => path.join(process.cwd(), ".data", `${name}.json`), empty);
+  if (!db) return fileDoc(() => path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", `${name}.json`), empty);
   return {
     async read() {
       const { data, error } = await db.from("app_state").select("value").eq("key", name).maybeSingle();
@@ -33,16 +33,14 @@ export function fileDoc<T>(file: () => string, empty: () => T): SavedDoc<T> {
   return {
     async read() {
       try {
-        return JSON.parse(await fs.readFile(file(), "utf8")) as T;
+        return JSON.parse(await fs.readFile(/*turbopackIgnore: true*/ file(), "utf8")) as T;
       } catch {
         return empty();
       }
     },
     async write(d) {
       await fs.mkdir(path.dirname(file()), { recursive: true });
-      const tmp = `${file()}.tmp`;
-      await fs.writeFile(tmp, JSON.stringify(d));
-      await fs.rename(tmp, file());
+      await writeAtomic(file(), JSON.stringify(d));
     },
   };
 }

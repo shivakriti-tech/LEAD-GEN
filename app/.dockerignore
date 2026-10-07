@@ -1,0 +1,11 @@
+node_modules
+.next
+.data
+.env
+.env.*
+!.env.example
+tests
+bench
+gmaps-scraper/gmapsdata
+*.log
+.git

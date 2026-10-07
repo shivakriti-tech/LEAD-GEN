@@ -2,6 +2,7 @@ import { savedDoc } from "./saved";
 import { randomUUID } from "node:crypto";
 import type { Lead } from "./types";
 import { addDays, canContact, linkedinOf, type Sender } from "./outreach";
+import { NICHES } from "./niches";
 
 /**
  * LinkedIn tasks for your team. LinkedIn doesn't allow automated sending (accounts get restricted),
@@ -49,6 +50,7 @@ export function linkedinNote(l: Pick<Lead, "name" | "category" | "owner" | "pitc
   const about =
     l.pitchFor?.kind === "logistics" ? "I work with manufacturers and exporters on shipping and customs"
     : l.pitchFor?.kind === "agency" ? (l.pitchFor.track === "store" ? "I build online stores for product brands" : "I build websites, CRM/ERP and automation for companies like yours")
+    : l.pitchFor?.kind === "niche" ? NICHES[l.pitchFor.niche].doing
     : `I help ${l.category.toLowerCase()} businesses with their websites`;
   const where = l.city ? ` in ${l.city}` : "";
   const variants = [

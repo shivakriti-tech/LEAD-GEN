@@ -1,3 +1,5 @@
+import type { NicheKey, Offer } from "./types";
+
 /**
  * Business types a website-development agency typically sells to.
  * `google` is the Text Search phrase; `osm` are OpenStreetMap tag filters.
@@ -8,8 +10,8 @@ export interface CategoryPreset {
   group: string;
   google: string;
   osm: string[]; // Overpass filter fragments, e.g. ["amenity"="dentist"]; empty = not on the map
-  /** Which offering this type is for (default: websites). */
-  sells?: "logistics" | "agency";
+  /** Which offering this type is for (default: websites). "niche": only for the niches in lib/niches.ts. */
+  sells?: "logistics" | "agency" | "niche";
   /** Agency searches: an online store (store upgrades) or a mid-size company (CRM/ERP, automation). */
   track?: "store" | "company";
 }
@@ -50,6 +52,32 @@ export const CATEGORIES: CategoryPreset[] = [
   { key: "hotel", label: "Hotel & homestay", group: "Travel", google: "hotel", osm: ['["tourism"="hotel"]', '["tourism"="guest_house"]'] },
   { key: "furniture", label: "Furniture shop", group: "Retail", google: "furniture shop", osm: ['["shop"="furniture"]'] },
   { key: "retail", label: "Retail shop", group: "Retail", google: "clothing store", osm: ['["shop"="clothes"]', '["shop"="boutique"]'] },
+  // more local businesses that win customers online
+  { key: "vet", label: "Vet & pet clinic", group: "Clinics", google: "veterinary clinic pet clinic", osm: ['["amenity"="veterinary"]', '["shop"="pet_grooming"]'] },
+  { key: "diagnostic", label: "Diagnostic lab", group: "Clinics", google: "diagnostic centre pathology lab", osm: ['["healthcare"="laboratory"]', '["healthcare"]["name"~"diagnostic|patholog|path lab|imaging|scan centre",i]'] },
+  { key: "pharmacy", label: "Pharmacy & chemist", group: "Clinics", google: "pharmacy medical store", osm: ['["amenity"="pharmacy"]', '["shop"="chemist"]'] },
+  { key: "optician", label: "Optician", group: "Clinics", google: "optician eye clinic", osm: ['["shop"="optician"]', '["healthcare"="optometrist"]'] },
+  { key: "preschool", label: "Preschool & daycare", group: "Education", google: "preschool play school daycare", osm: ['["amenity"="kindergarten"]', '["amenity"="childcare"]'] },
+  { key: "classes", label: "Dance, music & art classes", group: "Education", google: "dance music art classes", osm: ['["amenity"="music_school"]', '["amenity"="dancing_school"]', '["leisure"="dance"]'] },
+  { key: "driving", label: "Driving school", group: "Education", google: "driving school", osm: ['["amenity"="driving_school"]'] },
+  { key: "venue", label: "Banquet & wedding venue", group: "Events", google: "banquet hall wedding venue party plot", osm: ['["amenity"="events_venue"]', '["amenity"="conference_centre"]', '["amenity"]["name"~"banquet|party plot|marriage hall|wedding hall|lawns",i]'] },
+  { key: "photographer", label: "Photographer & studio", group: "Events", google: "photographer photo studio", osm: ['["craft"="photographer"]', '["shop"="photo"]', '["shop"="photo_studio"]'] },
+  { key: "travel", label: "Travel agent", group: "Travel", google: "travel agency tour operator", osm: ['["shop"="travel_agency"]', '["office"="travel_agent"]'] },
+  { key: "car_service", label: "Car & bike service", group: "Auto", google: "car service centre garage", osm: ['["shop"="car_repair"]', '["shop"="motorcycle_repair"]', '["amenity"="car_wash"]'] },
+  { key: "car_dealer", label: "Car & bike dealer", group: "Auto", google: "car dealer showroom used cars", osm: ['["shop"="car"]', '["shop"="motorcycle"]'] },
+  { key: "architect", label: "Architect", group: "Services", google: "architect firm", osm: ['["office"="architect"]'] },
+  { key: "jeweller", label: "Jewellery shop", group: "Retail", google: "jewellery shop", osm: ['["shop"="jewelry"]'] },
+  { key: "electronics", label: "Electronics & mobile shop", group: "Retail", google: "mobile phone electronics shop", osm: ['["shop"="electronics"]', '["shop"="mobile_phone"]', '["shop"="computer"]'] },
+  { key: "hardware", label: "Hardware, paints & tiles", group: "Retail", google: "hardware paint tiles shop", osm: ['["shop"="hardware"]', '["shop"="paint"]', '["shop"="doityourself"]', '["shop"="tiles"]'] },
+
+  // only for the niches (lib/niches.ts): big sites, institutions and offices
+  ...niche([
+    { key: "hospital", label: "Hospital & nursing home", group: "Institutions", google: "hospital nursing home", osm: ['["amenity"="hospital"]', '["healthcare"="hospital"]'] },
+    { key: "school", label: "School & college", group: "Institutions", google: "school college", osm: ['["amenity"="school"]["name"]', '["amenity"="college"]', '["amenity"="university"]'] },
+    { key: "cold_storage", label: "Cold storage & ice plant", group: "Factories", google: "cold storage", osm: inIndustry("cold storage|cold chain|ice (plant|factory)|frozen|freez") },
+    { key: "warehouse", label: "Warehouse & godown", group: "Factories", google: "warehouse godown", osm: ['["building"="warehouse"]["name"]', '["industrial"="warehouse"]["name"]', ...inOffices("warehous|godown|logistics park")] },
+    { key: "it_company", label: "IT & services company", group: "Offices", google: "IT company software services", osm: ['["office"="it"]', '["office"="company"]["name"~"tech|software|solutions|infotech|systems|digital|consult",i]'] },
+  ]),
 
   // Businesses that ship goods: leads for a logistics client
   { key: "manufacturer", label: "Manufacturer", group: "Factories", google: "manufacturer", osm: ['["man_made"="works"]', '["industrial"="factory"]', '["building"~"^(industrial|factory)$"]', `["landuse"="industrial"]${NOT_ESTATE}`, '["name"~"industries|manufactur|udyog|products|mfg",i]["office"]'], sells: "logistics" },
@@ -94,6 +122,9 @@ export const CATEGORIES: CategoryPreset[] = [
 ];
 
 type AgencyPreset = Omit<CategoryPreset, "group" | "sells" | "track">;
+function niche(xs: Array<Omit<CategoryPreset, "sells" | "track">>): CategoryPreset[] {
+  return xs.map((x) => ({ ...x, sells: "niche" }));
+}
 function store(xs: AgencyPreset[]): CategoryPreset[] {
   return xs.map((x) => ({ ...x, group: "Online stores", sells: "agency", track: "store" }));
 }
@@ -101,7 +132,22 @@ function company(xs: AgencyPreset[]): CategoryPreset[] {
   return xs.map((x) => ({ ...x, group: "Companies", sells: "agency", track: "company" }));
 }
 
-/** The business types for an offering. */
-export const categoriesFor = (sells: "website_development" | "logistics" | "agency") => CATEGORIES.filter((c) => (c.sells ?? "website_development") === sells);
+/** The business types for an offering. A niche picks its own from every list (see lib/niches.ts). */
+export const categoriesFor = (sells: Offer): CategoryPreset[] => {
+  if (sells === "website_development" || sells === "logistics" || sells === "agency") return CATEGORIES.filter((c) => (c.sells ?? "website_development") === sells);
+  return (NICHE_CATEGORIES[sells] ?? []).map((k) => CATEGORIES.find((c) => c.key === k)).filter((c): c is CategoryPreset => !!c);
+};
+
+/**
+ * Who each niche sells to. Kept here (not in lib/niches.ts) so the search form can list them without
+ * loading the scoring and messages.
+ */
+export const NICHE_CATEGORIES: Record<NicheKey, string[]> = {
+  marketing: ["dentist", "skin", "physio", "clinic", "vet", "diagnostic", "optician", "salon", "gym", "restaurant", "cafe", "hotel", "coaching", "preschool", "classes", "realestate", "interior", "car_service", "car_dealer", "jeweller", "furniture", "retail", "venue", "travel"],
+  solar: ["manufacturer", "textile", "chemical", "pharma", "engineering", "food_proc", "furniture_mfr", "cold_storage", "warehouse", "hospital", "school", "hotel"],
+  accounting: ["wholesaler", "distributor", "manufacturer", "textile", "engineering", "exporter", "importer", "online_seller", "retail", "restaurant", "it_company", "clinic", "dentist"],
+  staffing: ["manufacturer", "engineering", "textile", "pharma", "food_proc", "warehouse", "hospital", "hotel", "restaurant", "retail", "it_company", "school"],
+  insurance: ["exporter", "importer", "manufacturer", "chemical", "pharma", "textile", "engineering", "food_proc", "warehouse", "cold_storage", "hospital", "school", "hotel", "it_company", "wholesaler"],
+};
 
 export const categoryByKey = (key: string) => CATEGORIES.find((c) => c.key === key);

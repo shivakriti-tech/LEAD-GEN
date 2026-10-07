@@ -13,7 +13,7 @@ import path from "node:path";
  * Bump CACHE_VERSION when the website check or website matching logic changes, so old answers
  * made by the old logic aren't reused.
  */
-export const CACHE_VERSION = 7;
+export const CACHE_VERSION = 8;
 
 export const DAY = 86_400_000;
 
@@ -28,12 +28,12 @@ export function cacheMode(env: Record<string, string | undefined> = process.env)
   return /^search$/i.test(env.LEAD_CACHE || "") ? "search" : "all";
 }
 
-const root = () => path.join(process.cwd(), ".data", "cache");
+const root = () => path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", "cache");
 const fileFor = (ns: string, key: string) => path.join(root(), ns, createHash("sha1").update(`v${CACHE_VERSION}|${key}`).digest("hex") + ".json");
 
 export async function cacheGet<T>(ns: string, key: string): Promise<T | undefined> {
   try {
-    const { at, ttl, value } = JSON.parse(await fs.readFile(fileFor(ns, key), "utf8")) as { at: number; ttl: number; value: T };
+    const { at, ttl, value } = JSON.parse(await fs.readFile(/*turbopackIgnore: true*/ fileFor(ns, key), "utf8")) as { at: number; ttl: number; value: T };
     return Date.now() - at < ttl ? value : undefined;
   } catch {
     return undefined;

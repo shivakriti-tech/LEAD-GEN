@@ -197,9 +197,11 @@ export function searchChain(providers: Provider[], onSwitch?: (msg: string) => v
         return hits;
       } catch (e) {
         lastErr = e;
+        // searches running at the same time can all fail at once: say it once
+        const already = isDead(p.id);
         deadUntil.set(p.id, now() + retryMs);
         const next = providers.find((x) => !isDead(x.id));
-        if (!wasDead) onSwitch?.(`${p.label} search stopped: ${e instanceof Error ? e.message : e}.${next ? ` Using ${next.label} instead, and trying ${p.label} again in ${Math.round(retryMs / 60_000)} minutes.` : ""}`);
+        if (!wasDead && !already) onSwitch?.(`${p.label} search stopped: ${e instanceof Error ? e.message : e}.${next ? ` Using ${next.label} instead, and trying ${p.label} again in ${Math.round(retryMs / 60_000)} minutes.` : ""}`);
       }
     }
     throw new Error(`No web search available${lastErr instanceof Error ? ` (${lastErr.message})` : ""}`);

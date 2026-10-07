@@ -1,6 +1,7 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import { fetchWithTimeout } from "./util";
+import { liveBuild } from "./security";
 
 /**
  * Business websites come from map data, search results and Instagram bios, so anyone can
@@ -20,20 +21,34 @@ export function isPrivateIp(ip: string): boolean {
       (a === 172 && b >= 16 && b <= 31) ||
       (a === 192 && b === 168) ||
       (a === 192 && b === 0) ||
+      (a === 192 && b === 88 && Number(ip.split(".")[2]) === 99) || // 6to4 relay
       (a === 198 && (b === 18 || b === 19)) ||
+      (a === 198 && b === 51 && Number(ip.split(".")[2]) === 100) || // documentation
+      (a === 203 && b === 0 && Number(ip.split(".")[2]) === 113) || // documentation
       a >= 224 // multicast, reserved, broadcast
     );
   }
   if (v === 6) {
     const s = ip.toLowerCase();
-    const mapped = s.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (mapped) return isPrivateIp(mapped[1]);
-    return s === "::" || s === "::1" || /^f[cd]/.test(s) || /^fe[89ab]/.test(s) || s.startsWith("ff");
+    // an IPv4 address inside IPv6: mapped (::ffff:), compatible (::), NAT64 (64:ff9b::), written as dots or hex
+    const v4 = s.match(/^(?:::ffff:|::|64:ff9b::)(?:0:)?(\d+\.\d+\.\d+\.\d+)$/)?.[1] ?? hexV4(s.match(/^(?:::ffff:|::|64:ff9b::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/));
+    if (v4) return isPrivateIp(v4);
+    // 6to4 (2002:AABB:CCDD::) carries an IPv4 address in its second and third groups
+    const six = s.match(/^2002:([0-9a-f]{1,4}):([0-9a-f]{1,4}):/);
+    if (six) return isPrivateIp(hexV4(six)!);
+    return s === "::" || s === "::1" || /^f[cd]/.test(s) || /^fe[89ab]/.test(s) || s.startsWith("ff") || s.startsWith("2001:db8:") || s.startsWith("100::");
   }
   return false;
 }
 
-const blockPrivate = (env: Record<string, string | undefined> = process.env) => env.NODE_ENV === "production" || !!env.VERCEL || !!env.RENDER;
+/** Two hex groups (from a regex match's groups 1 and 2) as a dotted IPv4 address. */
+function hexV4(m: RegExpMatchArray | null): string | undefined {
+  if (!m) return undefined;
+  const hi = parseInt(m[1], 16), lo = parseInt(m[2], 16);
+  return [hi >> 8, hi & 255, lo >> 8, lo & 255].join(".");
+}
+
+const blockPrivate = () => liveBuild();
 
 /** Throws if the URL isn't plain http(s) to a public address. */
 export async function assertPublicUrl(url: string): Promise<void> {

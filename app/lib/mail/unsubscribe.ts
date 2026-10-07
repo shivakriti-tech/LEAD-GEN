@@ -30,9 +30,9 @@ async function secret(): Promise<string> {
     await doc.write({ secret: fresh });
     return (cached = fresh);
   }
-  const file = path.join(process.cwd(), ".data", "unsubscribe-secret");
+  const file = path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", "unsubscribe-secret");
   try {
-    cached = (await fs.readFile(file, "utf8")).trim();
+    cached = (await fs.readFile(/*turbopackIgnore: true*/ file, "utf8")).trim();
   } catch {
     cached = randomBytes(32).toString("hex");
     await fs.mkdir(path.dirname(file), { recursive: true });
@@ -42,6 +42,16 @@ async function secret(): Promise<string> {
 }
 
 const sign = (key: string, email: string) => createHmac("sha256", key).update(email.toLowerCase()).digest("base64url").slice(0, 32);
+
+/** A signed token for any value (handoff links use it too): only this app can make one. */
+export async function signValue(purpose: string, value: string, key?: string): Promise<string> {
+  return sign(key ?? (await secret()), `${purpose}:${value}`);
+}
+export async function signedOk(purpose: string, value: string, token: string, key?: string): Promise<boolean> {
+  const want = Buffer.from(await signValue(purpose, value, key));
+  const got = Buffer.from(token);
+  return want.length === got.length && timingSafeEqual(want, got);
+}
 
 export async function unsubscribeToken(email: string, key?: string): Promise<string> {
   return sign(key ?? (await secret()), email);

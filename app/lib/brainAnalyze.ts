@@ -2,11 +2,12 @@ import * as cheerio from "cheerio";
 import { z } from "zod";
 import { fetchPublic } from "./safeFetch";
 import { parsePage } from "./enrich/crawl";
-import { CATEGORIES } from "./categories";
+import { CATEGORIES, categoriesFor } from "./categories";
+import { isNiche, NICHE_KEYS } from "./niches";
 import { CITY_CENTRES } from "./sources/cityCentres";
 import { ALL_SERVICES } from "./score/logistics";
 import { parseBrain, type BrainInput } from "./brain";
-import type { LogisticsService } from "./types";
+import type { LogisticsService, NicheKey, Offer } from "./types";
 
 /**
  * Onboarding: read a client's website and draft their Business Brain for you to review.
@@ -89,6 +90,23 @@ export async function readClientSite(website: string, f: typeof fetchPublic = fe
 const GENERIC_HEADING = /^(home|about( us)?|contact( us)?|our (team|clients|story|mission|vision)|testimonials?|reviews|faq|blog|news|gallery|careers?|why (choose )?us|get in touch|follow us|quick links|useful links|menu|welcome.*|copyright.*|privacy.*|terms.*|we are.*|let'?s talk.*|subscribe.*|newsletter)$/i;
 const LOGISTICS_WORDS = /\b(logistics|freight|forwarding|customs|clearance|cargo|shipping|icegate|dgft|warehous|transport|courier|CHA)\b/gi;
 const WEB_WORDS = /\b(website|web design|web development|seo|digital marketing|e-?commerce|app development|landing page|wordpress|shopify)\b/gi;
+/** Words that show the client sells one of the niches (lib/niches.ts). */
+const NICHE_WORDS: Record<NicheKey, RegExp> = {
+  marketing: /\b(digital marketing|social media (marketing|management)|google ads|meta ads|facebook ads|performance marketing|local seo|google (business profile|my business)|lead generation|branding)\b/gi,
+  solar: /\b(solar|rooftop|photovoltaic|on-?grid|off-?grid|net metering|kwp|inverter|renewable)\b/gi,
+  accounting: /\b(chartered accountant|gst (filing|return|registration)|income tax|tds|bookkeeping|accounting|audit|roc (filing|compliance)|company registration|payroll)\b/gi,
+  staffing: /\b(recruitment|staffing|manpower|placement|hiring solutions|talent acquisition|contract staff|executive search)\b/gi,
+  insurance: /\b(insurance|marine cargo|fire policy|group health|liability cover|insurer|claims settlement|policy renewal)\b/gi,
+};
+
+/** What the client sells, from the words on its site: logistics, a niche, or websites. */
+export function offerFromWords(all: string): Exclude<Offer, "agency"> {
+  const count = (re: RegExp) => all.match(re)?.length ?? 0;
+  const logisticsHits = count(LOGISTICS_WORDS), webHits = count(WEB_WORDS);
+  const [niche, nicheHits] = (Object.entries(NICHE_WORDS) as Array<[NicheKey, RegExp]>).map(([k, re]) => [k, count(re)] as const).sort((a, b) => b[1] - a[1])[0];
+  if (nicheHits >= 3 && nicheHits > logisticsHits && nicheHits > webHits) return niche;
+  return logisticsHits > webHits ? "logistics" : "website_development";
+}
 
 const LOGISTICS_MATCH: Array<[RegExp, LogisticsService]> = [
   [/custom/i, "customs"], [/document/i, "documentation"], [/dgft|iec|licen[cs]e/i, "dgft"], [/icegate|shipping bill|bill of entry/i, "icegate"],
@@ -109,8 +127,7 @@ export function pricesIn(text: string): Array<{ price: string; before: string }>
 
 export function draftFromRules(site: ClientSite, hint: { name?: string } = {}): BrainInput {
   const all = site.pages.map((p) => p.text).join(" ");
-  const logisticsHits = all.match(LOGISTICS_WORDS)?.length ?? 0, webHits = all.match(WEB_WORDS)?.length ?? 0;
-  const offer = logisticsHits > webHits ? "logistics" : "website_development";
+  const offer = offerFromWords(all);
   const domain = new URL(site.url).hostname.replace(/^www\./, "");
   const name = hint.name?.trim() || site.siteName || site.pages[0]?.title.split(/\s[|\-–—:]\s/)[0]?.trim() || domain;
   // services: short headings on service/pricing pages (or the home page)
@@ -122,7 +139,7 @@ export function draftFromRules(site: ClientSite, hint: { name?: string } = {}): 
       const w = h.split(/\s+/).length, k = h.toLowerCase();
       if (w < 1 || w > 7 || GENERIC_HEADING.test(h) || /[?!]$/.test(h) || seen.has(k) || k === name.toLowerCase()) return false;
       seen.add(k);
-      return offer === "logistics" ? !!logisticsKeyFor(h) || /service/i.test(h) : /web|site|seo|design|develop|app|market|ecommerce|e-commerce|package|plan|hosting|brand|social/i.test(h);
+      return offer === "logistics" ? !!logisticsKeyFor(h) || /service/i.test(h) : isNiche(offer) ? new RegExp(NICHE_WORDS[offer].source, "i").test(h) || /service|plan|package/i.test(h) : /web|site|seo|design|develop|app|market|ecommerce|e-commerce|package|plan|hosting|brand|social/i.test(h);
     })
     .slice(0, 15);
   const prices = pricesIn(servicePages.map((p) => p.text).join(" "));
@@ -166,12 +183,12 @@ export function draftFromRules(site: ClientSite, hint: { name?: string } = {}): 
 
 /* ---------- Claude draft ---------- */
 
-const offerCats = (offer: "website_development" | "logistics") => CATEGORIES.filter((c) => (offer === "logistics" ? c.sells === "logistics" : !c.sells));
+const offerCats = (offer: Exclude<Offer, "agency">) => (isNiche(offer) ? categoriesFor(offer) : CATEGORIES.filter((c) => (offer === "logistics" ? c.sells === "logistics" : !c.sells)));
 const catKeys = CATEGORIES.filter((c) => c.sells !== "agency").map((c) => c.key) as [string, ...string[]];
 
 export const DraftSchema = z.object({
   name: z.string().describe("The business name as the site shows it"),
-  offer: z.enum(["website_development", "logistics"]).describe("website_development if they sell websites/digital services to local businesses; logistics if they move goods or handle customs"),
+  offer: z.enum(["website_development", "logistics", ...NICHE_KEYS] as [Exclude<Offer, "agency">, ...Array<Exclude<Offer, "agency">>]).describe("website_development if they sell websites to local businesses; logistics if they move goods or handle customs; marketing if they sell SEO, social media or ads; solar if they install solar; accounting if they are a CA / tax / GST firm; staffing if they recruit or supply staff; insurance if they sell business insurance"),
   summary: z.string().describe("One plain sentence: what they do and for whom"),
   city: z.string().nullable(),
   phone: z.string().nullable(),
@@ -201,7 +218,7 @@ const SYSTEM = `You set up a lead-generation profile ("Business Brain") for an I
 Use only what the pages say. Never invent prices, numbers, clients or certifications: leave price null when a service has no price on the site, and list what's missing in notes.
 Write services in the business's own words. Keep every item short (one line). Suggest message rules that fit the business: practical do's and don'ts for polite WhatsApp/email outreach in India, and banned phrases for claims they can't promise.
 Audience categories must come from this list (key: label):
-${CATEGORIES.filter((c) => c.sells !== "agency").map((c) => `${c.key}: ${c.label}${c.sells ? " (for logistics clients)" : ""}`).join("\n")}`;
+${CATEGORIES.filter((c) => c.sells !== "agency").map((c) => `${c.key}: ${c.label}${c.sells === "logistics" ? " (for logistics clients)" : c.sells === "niche" ? " (large sites and offices)" : ""}`).join("\n")}`;
 
 /** An AI that reads the pages and returns a draft checked against DraftSchema. */
 export interface Drafter {

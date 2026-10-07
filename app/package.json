@@ -21,7 +21,7 @@
     "imapflow": "^2.1.2",
     "libphonenumber-js": "^1.13.14",
     "mailparser": "^3.9.32",
-    "next": "^16.3.5",
+    "next": "^16.4.0",
     "nodemailer": "^10.0.13",
     "playwright-core": "^1.63.0",
     "react": "^19.3.0",

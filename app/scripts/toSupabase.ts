@@ -20,7 +20,7 @@ import type { ClientBrain } from "../lib/brain";
 import type { Lead, SearchRecord } from "../lib/types";
 
 const force = process.argv.includes("--force");
-const data = path.join(process.cwd(), ".data");
+const data = path.join(/*turbopackIgnore: true*/ process.cwd(), ".data");
 const readJson = async <T>(f: string): Promise<T | undefined> => {
   try {
     return JSON.parse(await fs.readFile(f, "utf8")) as T;
@@ -68,7 +68,7 @@ async function main() {
   }
   console.log(`Lead directory sets copied: ${n}`);
 
-  for (const name of ["outreach/email", "outreach/inbox", "outreach/linkedin", "outreach/whatsapp", "usage"]) {
+  for (const name of ["outreach/email", "outreach/inbox", "outreach/linkedin", "outreach/whatsapp", "usage", "handoffs", "billing"]) {
     const local = await readJson<unknown>(path.join(data, `${name}.json`));
     if (local === undefined) continue;
     const { data: row, error } = await db.from("app_state").select("key").eq("key", name).maybeSingle();

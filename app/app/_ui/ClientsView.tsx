@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { parsePriceList, type BrainInput, type ClientBrain } from "@/lib/brain";
-import { CATEGORIES } from "@/lib/categories";
+import { CATEGORIES, categoriesFor } from "@/lib/categories";
+import { isNiche, NICHE_KEYS, NICHES } from "@/lib/niches";
 import { SERVICE_CHIP, SERVICE_ORDER } from "@/lib/score/logistics";
-import type { LogisticsService } from "@/lib/types";
+import type { LogisticsService, NicheKey } from "@/lib/types";
 import { IconCheck, IconClose, IconEdit, IconPlus, IconSearch } from "./icons";
+import { BillingPanel } from "./BillingPanel";
 
 /**
  * Clients: one Business Brain per client you find leads for. Add a client from their website (read by
@@ -16,11 +18,12 @@ type Draft = BrainInput & { id?: string };
 type Mode = { kind: "list" } | { kind: "add" } | { kind: "edit"; draft: Draft; notes?: string[]; by?: "gpt" | "gemini" | "claude" | "rules"; warning?: string };
 
 const EMPTY: Draft = { name: "", offer: "website_development", services: [], audience: { categories: [], areas: [] }, usps: [], proof: [], rules: { dos: [], donts: [], bannedPhrases: [] }, pitch: { mentionPrice: false }, sender: {} };
-const OFFER_LABEL = { website_development: "Website clients", logistics: "Logistics" } as const;
+const OFFER_LABEL: Record<ClientBrain["offer"], string> = { website_development: "Website clients", logistics: "Logistics", ...(Object.fromEntries(NICHE_KEYS.map((k) => [k, NICHES[k].label])) as Record<NicheKey, string>) };
 
 export function ClientsView({ ai, onFindLeads }: { ai: string | null; onFindLeads: (c: ClientBrain) => void }) {
   const [clients, setClients] = useState<ClientBrain[] | null>(null);
   const [mode, setMode] = useState<Mode>({ kind: "list" });
+  const [billing, setBilling] = useState<{ id: string; name: string } | null>(null);
   const [error, setError] = useState("");
   const load = () => fetch("/api/clients").then((r) => r.json()).then((d) => setClients(d.clients ?? [])).catch(() => setClients([]));
   useEffect(() => void load(), []);
@@ -85,6 +88,7 @@ export function ClientsView({ ai, onFindLeads }: { ai: string | null; onFindLead
               <div className="row tight">
                 <button className="btn sm primary" onClick={() => onFindLeads(c)}><IconSearch /> Find leads</button>
                 <button className="btn sm" onClick={() => setMode({ kind: "edit", draft: c, notes: c.analysis?.notes })}><IconEdit /> Edit</button>
+                <button className="btn sm" onClick={() => setBilling({ id: c.id, name: c.name })}>Credits</button>
                 <span className="grow" />
                 <button className="btn sm danger-ghost" onClick={() => remove(c)}>Delete</button>
               </div>
@@ -92,6 +96,7 @@ export function ClientsView({ ai, onFindLeads }: { ai: string | null; onFindLead
           ))}
         </div>
       )}
+      {billing && <BillingPanel client={billing} onClose={() => setBilling(null)} />}
     </section>
   );
 }
@@ -164,7 +169,7 @@ function BrainEditor({ initial, notes, by, warning, onCancel, onSaved }: { initi
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setB((x) => ({ ...x, [k]: v }));
   const services = b.services ?? [];
   const setService = (i: number, patch: Partial<(typeof services)[number]>) => set("services", services.map((s, j) => (j === i ? { ...s, ...patch } : s)));
-  const cats = CATEGORIES.filter((c) => (b.offer === "logistics" ? c.sells === "logistics" : !c.sells));
+  const cats = isNiche(b.offer) ? categoriesFor(b.offer) : CATEGORIES.filter((c) => (b.offer === "logistics" ? c.sells === "logistics" : !c.sells));
   const picked = new Set(b.audience?.categories ?? []);
   const logistics = b.offer === "logistics";
 
@@ -206,10 +211,9 @@ function BrainEditor({ initial, notes, by, warning, onCancel, onSaved }: { initi
             <label className="field"><span className="lbl">Email</span><input type="text" value={b.email ?? ""} onChange={(e) => set("email", e.target.value || undefined)} /></label>
             <div className="field">
               <span className="lbl">Leads to find for them</span>
-              <div className="seg" role="group" aria-label="Offer">
-                <button type="button" aria-pressed={b.offer === "website_development"} onClick={() => set("offer", "website_development")}>Website clients</button>
-                <button type="button" aria-pressed={b.offer === "logistics"} onClick={() => set("offer", "logistics")}>Logistics</button>
-              </div>
+              <select aria-label="Offer" value={b.offer} onChange={(e) => set("offer", e.target.value as ClientBrain["offer"])}>
+                {(Object.keys(OFFER_LABEL) as Array<ClientBrain["offer"]>).map((k) => <option key={k} value={k}>{OFFER_LABEL[k]}</option>)}
+              </select>
             </div>
           </div>
           <label className="field"><span className="lbl">What they do <span className="opt">one line</span></span><textarea rows={2} value={b.summary ?? ""} onChange={(e) => set("summary", e.target.value || undefined)} /></label>

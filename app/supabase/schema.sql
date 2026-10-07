@@ -59,8 +59,8 @@ create table if not exists public.clients (
 );
 alter table public.clients enable row level security;
 
--- Outreach and app state (email queue, inbox, LinkedIn tasks, WhatsApp log, usage counts,
--- unsubscribe secret): one JSON document per key, so nothing lives on the server's disk.
+-- Outreach and app state (email queue, inbox, LinkedIn tasks, WhatsApp log, handoffs, credits
+-- ledger, usage counts, unsubscribe secret): one JSON document per key, so nothing lives on the server's disk.
 create table if not exists public.app_state (
   key text primary key,
   value jsonb not null,
