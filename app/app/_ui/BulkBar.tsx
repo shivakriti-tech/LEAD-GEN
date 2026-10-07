@@ -1,0 +1,74 @@
+"use client";
+
+import { useState } from "react";
+import { addDays, FOLLOW_UP, type FollowUpStatus } from "@/lib/outreach";
+import type { FollowUpPatch } from "@/lib/followups";
+import { IconClose, IconDownload, IconMail, IconUser } from "./icons";
+
+/** Appears at the bottom when leads are ticked: act on all of them at once. */
+export function BulkBar({
+  count,
+  onPatch,
+  onExport,
+  onDelete,
+  onClear,
+  locked,
+  onEmail,
+  onLinkedIn,
+}: {
+  count: number;
+  onPatch: (p: FollowUpPatch) => void;
+  onExport: () => void;
+  onDelete: () => void;
+  onClear: () => void;
+  locked: boolean;
+  /** Put the selected leads in the email queue / make LinkedIn tasks for them. */
+  onEmail?: () => void;
+  onLinkedIn?: () => void;
+}) {
+  const [confirm, setConfirm] = useState(false);
+  if (!count) return null;
+  return (
+    <div className="bulk" role="region" aria-label="Actions for selected leads">
+      <b>{count} selected</b>
+      {confirm ? (
+        <>
+          <span>Delete {count} lead{count > 1 ? "s" : ""} from this search? This can't be undone.</span>
+          <button type="button" className="btn danger sm" onClick={() => { setConfirm(false); onDelete(); }}>Delete</button>
+          <button type="button" className="btn sm" onClick={() => setConfirm(false)}>Cancel</button>
+        </>
+      ) : (
+        <>
+          <button type="button" className="btn sm primary" onClick={() => onPatch({ status: "contacted" })}>Mark contacted</button>
+          <select
+            className="sm"
+            value=""
+            aria-label="Set status"
+            onChange={(e) => e.target.value && onPatch({ status: e.target.value as FollowUpStatus })}
+          >
+            <option value="">Set status…</option>
+            {FOLLOW_UP.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </select>
+          <select
+            className="sm"
+            value=""
+            aria-label="Set follow-up"
+            onChange={(e) => e.target.value && onPatch({ followUpOn: e.target.value === "clear" ? null : e.target.value })}
+          >
+            <option value="">Follow up…</option>
+            <option value={addDays(1)}>Tomorrow</option>
+            <option value={addDays(3)}>In 3 days</option>
+            <option value={addDays(7)}>Next week</option>
+            <option value="clear">Clear date</option>
+          </select>
+          {onEmail && <button type="button" className="btn sm" onClick={onEmail} title="Queue their next email (first message, then follow-ups)"><IconMail /> Email</button>}
+          {onLinkedIn && <button type="button" className="btn sm" onClick={onLinkedIn} title="Make LinkedIn tasks for your team"><IconUser /> LinkedIn</button>}
+          <button type="button" className="btn sm" onClick={onExport}><IconDownload /> Export</button>
+          <button type="button" className="btn sm danger-ghost" onClick={() => setConfirm(true)} disabled={locked} title={locked ? "You can delete leads once the search has finished" : undefined}>Delete</button>
+        </>
+      )}
+      <span className="grow" />
+      <button type="button" className="icon-btn" onClick={onClear} aria-label="Clear selection"><IconClose /></button>
+    </div>
+  );
+}

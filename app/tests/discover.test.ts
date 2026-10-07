@@ -29,8 +29,12 @@ describe("verifyPageForLead", () => {
     expect(verifyPageForLead(page("Blog post about tea", "We post tea recipes from Pune"), lead()).ok).toBe(false);
   });
   it("won't verify names that are only generic words", () => {
-    expect(verifyPageForLead(page("Dental Clinic", "Pune 9000012345"), lead({ name: "Dental Clinic" }))).toMatchObject({ ok: false, evidence: /too generic/ });
-    expect(significantTokens("Sai Dental Clinic & Implant Centre")).toEqual(["sai", "implant"]);
+    // only generic words: the full name plus the business's own phone number is the only proof accepted
+    expect(verifyPageForLead(page("Dental Clinic", "Pune, call us"), lead({ name: "Dental Clinic" }))).toMatchObject({ ok: false, evidence: /needs the phone/ });
+    expect(verifyPageForLead(page("Dental Clinic", "Pune 9000012345"), lead({ name: "Dental Clinic" }))).toMatchObject({ ok: true, proof: "phone" });
+    expect(verifyPageForLead(page("Smile Dental Clinic", "Pune 9000012345"), lead({ name: "Dental Clinic" }))).toMatchObject({ ok: true });
+    expect(verifyPageForLead(page("Best clinics", "Pune 9000012345"), lead({ name: "Dental Clinic" }))).toMatchObject({ ok: false, evidence: /not on the page/ });
+    expect(significantTokens("Sai Dental Clinic & Implant Centre")).toEqual(["sai"]);
   });
 });
 
@@ -66,7 +70,7 @@ describe("discoverWebsite", () => {
     const r = await discoverWebsite(lead(), "Baner", { fetchHtml: async () => null, search: async () => [] });
     expect(r.website).toBeUndefined();
     expect(r.tried[0]).toMatch(/likely web addresses \(teapost\.com/);
-    expect(r.tried[1]).toBe('web search for "Tea Post Baner Pune"');
+    expect(r.tried[1]).toBe('web search: "Tea Post" Baner Pune');
   });
   it("knows directories", () => {
     expect(isDirectory("www.justdial.com".replace("www.", ""))).toBe(true);

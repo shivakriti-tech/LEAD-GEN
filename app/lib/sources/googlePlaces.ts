@@ -1,3 +1,4 @@
+import { currentCountry } from "../marketContext";
 import type { RawPlace } from "../types";
 import { fetchWithTimeout } from "../util";
 
@@ -61,7 +62,7 @@ export async function googleTextSearch(opts: {
       textQuery: query,
       pageSize: Math.min(20, max - places.length),
       languageCode: "en",
-      regionCode: "IN",
+      regionCode: currentCountry(),
     };
     if (pageToken) body.pageToken = pageToken;
 

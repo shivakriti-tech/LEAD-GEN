@@ -1,3 +1,5 @@
+import { findPhoneNumbersInText, parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js/min";
+import { mobileIn } from "./markets";
 /** A real contact email from .env.local, or undefined if it's missing or still the placeholder. */
 export function crawlerContact(): string | undefined {
   const c = (process.env.CRAWLER_CONTACT || "").trim();
@@ -5,18 +7,30 @@ export function crawlerContact(): string | undefined {
 }
 export const USER_AGENT = `LeadAutopilot/0.1 (lead research tool; contact: ${crawlerContact() ?? "not set"})`;
 
-/** fetch with a hard timeout. Never throws on HTTP errors, only on network/timeout. */
+/**
+ * fetch with a hard timeout. Never throws on HTTP errors, only on network/timeout.
+ * The time limit covers reading the body too: a slow site that sends its headers and then
+ * trickles the page would otherwise hold a check for minutes.
+ */
 export async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 10_000): Promise<Response> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
+  t.unref?.(); // never keeps the server alive on its own
+  // the caller can cancel too (e.g. a faster server already answered)
+  const outer = init.signal;
+  if (outer) {
+    if (outer.aborted) ctrl.abort();
+    else outer.addEventListener("abort", () => ctrl.abort(), { once: true });
+  }
   try {
     return await fetch(url, {
       ...init,
       signal: ctrl.signal,
       headers: { "User-Agent": USER_AGENT, ...(init.headers || {}) },
     });
-  } finally {
+  } catch (e) {
     clearTimeout(t);
+    throw e;
   }
 }
 
@@ -35,18 +49,29 @@ export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, i:
 }
 
 /**
- * Normalise Indian phone numbers to +91XXXXXXXXXX (mobile, 10 digits after +91)
- * or +91XXXXXXXXXXX (landline with STD code, 10–11 digits after +91).
+ * Normalise a phone number to +<country code><number>. Indian numbers follow India's rules
+ * (mobile 10 digits, landline with STD code, 1800 toll-free); other countries' through
+ * libphonenumber, read as a number of `country` when it has no +code.
  * Returns undefined if it doesn't look valid.
  */
-export function normalizePhone(input?: string): string | undefined {
+export function normalizePhone(input?: string, country = "IN"): string | undefined {
   if (!input) return undefined;
+  const cc = country.toUpperCase();
   let d = input.replace(/[^\d+]/g, "");
+  if (cc !== "IN" && !d.startsWith("+91") && !d.startsWith("0091")) {
+    const p = parsePhoneNumberFromString(input, cc as CountryCode);
+    return p?.isValid() ? p.number : undefined;
+  }
   if (d.startsWith("+")) {
-    if (!d.startsWith("+91")) return d.length >= 9 ? d : undefined; // keep foreign numbers as-is
+    if (!d.startsWith("+91")) {
+      const p = parsePhoneNumberFromString(d);
+      return p?.isValid() ? p.number : undefined;
+    }
     d = d.slice(3);
   } else if (d.startsWith("0091")) d = d.slice(4);
   else if (d.startsWith("91") && d.length === 12) d = d.slice(2);
+  // toll-free and shared-cost numbers: 1800 / 1860 xxx xxxx
+  if (/^1(800|860)\d{6,7}$/.test(d)) return "+91" + d;
   // Strip leading 0 (STD prefix): 020-2555-1234 → 202555 1234
   if (d.startsWith("0")) d = d.slice(1);
   // mobiles: 10 digits starting 6-9
@@ -57,11 +82,30 @@ export function normalizePhone(input?: string): string | undefined {
   return undefined;
 }
 
-/** True if the number is an Indian mobile (reachable on WhatsApp). */
-export const isMobile = (p?: string) => !!p && /^\+91[6-9]\d{9}$/.test(p);
+/** Phone numbers written in a page's text, for a country (other countries' numbers need their +code). */
+export function phonesInText(text: string, country = "IN"): string[] {
+  return [...new Set(findPhoneNumbersInText(text.slice(0, 200_000), country.toUpperCase() as CountryCode).map((x) => x.number.number as string))];
+}
+
+/** True if the number is a mobile (reachable on WhatsApp): India, the Gulf, Australia, NZ. */
+export const isMobile = (p?: string) => !!p && (/^\+91[6-9]\d{9}$/.test(p) || mobileIn(p));
 
 /** True if the number is an Indian landline (STD code + local number). */
 export const isLandline = (p?: string) => !!p && /^\+91[2-8]\d{9,10}$/.test(p) && !isMobile(p);
+
+/** Toll-free (1800) or shared-cost (1860) number: usually a call centre, not the owner. */
+export const isTollFree = (p?: string) => !!p && (/^\+911(800|860)\d{6,7}$/.test(p) || /^\+1(800|833|844|855|866|877|888)\d{7}$/.test(p) || /^\+611[38]00\d{6}$/.test(p) || /^\+971800\d{3,7}$/.test(p));
+
+export type PhoneKind = "mobile" | "landline" | "tollfree" | "phone";
+/** What kind of number this is: a mobile (WhatsApp, reaches a person), an office landline, toll-free, or just a phone (US/Canada numbers don't say). */
+export function phoneKind(p?: string): PhoneKind | undefined {
+  if (!p) return undefined;
+  if (isMobile(p)) return "mobile";
+  if (isTollFree(p)) return "tollfree";
+  if (isLandline(p)) return "landline";
+  return p.startsWith("+") ? "phone" : undefined;
+}
+export const PHONE_KIND_LABEL: Record<PhoneKind, string> = { mobile: "Mobile", landline: "Landline", tollfree: "Toll-free", phone: "Phone" };
 
 export function domainOf(url?: string): string | undefined {
   if (!url) return undefined;
@@ -102,3 +146,14 @@ export function simplifyName(name: string): string {
 
 export const uid = () =>
   (globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
+
+/** Only http(s) links from outside data become clickable (no javascript:, data:, file:). */
+export function safeHref(u?: string): string | undefined {
+  if (!u) return undefined;
+  try {
+    const x = new URL(u);
+    return x.protocol === "http:" || x.protocol === "https:" ? x.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}

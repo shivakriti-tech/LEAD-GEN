@@ -50,7 +50,28 @@ describe("providers", () => {
     expect(await s("q1")).toHaveLength(1);
     expect(await s("q2")).toHaveLength(1);
     expect(calls).toEqual(["sx", "tv", "tv"]);
-    expect(msgs).toEqual(["SearXNG search stopped: not running. Using Tavily instead."]);
+    expect(msgs).toEqual(["SearXNG search stopped: not running. Using Tavily instead, and trying SearXNG again in 5 minutes."]);
+  });
+  it("tries a failed provider again after a while, so a short block doesn't use up the paid quota", async () => {
+    let t = 0, sxUp = false;
+    const calls: string[] = [];
+    const msgs: string[] = [];
+    const s = searchChain(
+      [
+        { id: "searxng", label: "SearXNG", search: async () => { calls.push("sx"); if (!sxUp) throw new Error("engines blocked"); return [{ url: "https://a.in", title: "A" }]; } },
+        { id: "tavily", label: "Tavily", search: async () => { calls.push("tv"); return [{ url: "https://b.in", title: "B" }]; } },
+      ],
+      (m) => msgs.push(m), 60_000, () => t,
+    );
+    await s("q1");
+    t = 30_000; await s("q2"); // still resting
+    t = 61_000; await s("q3"); // retried, still blocked
+    sxUp = true;
+    t = 125_000; await s("q4"); // retried, back
+    await s("q5");
+    expect(calls).toEqual(["sx", "tv", "tv", "sx", "tv", "sx", "sx"]);
+    expect(msgs).toHaveLength(2);
+    expect(msgs[1]).toBe("SearXNG search is working again.");
   });
   it("says clearly when every provider has failed", async () => {
     const s = searchChain([{ id: "duckduckgo", label: "DuckDuckGo", search: async () => { throw new Error("captcha"); } }]);

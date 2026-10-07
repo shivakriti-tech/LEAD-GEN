@@ -1,0 +1,694 @@
+{
+ "at": "2026-09-25T10:06:10.807Z",
+ "args": [
+  "--fresh"
+ ],
+ "totalSec": 99,
+ "headline": {
+  "website precision %": null,
+  "website recall %": 0,
+  "wrong websites": 0,
+  "mobile/WhatsApp %": 22.6,
+  "email %": 9.7,
+  "personal email %": 3.2,
+  "owner name %": 0,
+  "hand-checked email found %": null,
+  "hand-checked mobile found %": null,
+  "hand-checked owner found %": null,
+  "tier agrees with you %": null,
+  "sec per business (avg)": 10.8,
+  "sec per business (p90)": 17.4
+ },
+ "report": {
+  "businesses": 31,
+  "website": {
+   "checked": 1,
+   "correct": 0,
+   "wrong": 0,
+   "missed": 1,
+   "correctNone": 0,
+   "precision": null,
+   "recall": 0
+  },
+  "contacts": {
+   "mobileOrWhatsapp": 22.6,
+   "email": 9.7,
+   "personalEmail": 3.2,
+   "owner": 0
+  },
+  "handChecked": {
+   "emailFound": null,
+   "mobileFound": null,
+   "ownerFound": null,
+   "tierAgrees": null,
+   "labelled": 0
+  },
+  "speed": {
+   "avgSec": 10.8,
+   "p90Sec": 17.4
+  }
+ },
+ "websiteRows": [
+  {
+   "id": "node/4914777904",
+   "name": "Hampton by Hilton Vadodara-Alkapuri",
+   "truth": "hilton.com",
+   "verdict": "missed"
+  }
+ ],
+ "perBusiness": [
+  {
+   "id": "node/4423234471",
+   "name": "Astha Physiotherapy Clinic",
+   "sec": 16.3,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (asthaphysiotherapyclinic.com, asthaphysiotherapyclinic.in, asthaphysiotherapyclinic.co.in…)",
+    "web search for \"Astha Physiotherapy Clinic Vadodara\"",
+    "rejected aasthatv.tv (name found but no matching phone or location), aasthatv.tv (name found but no matching phone or location), myasta.avadhutsathe.in (business name not on the page), astha.bracbank.com (business name not on the page)"
+   ],
+   "phones": [
+    "+919998846171"
+   ],
+   "score": 60,
+   "tier": "warm",
+   "signals": [
+    "No website",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "node/12849288682",
+   "name": "Shree Ram Physio Care",
+   "sec": 10.6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (shreeramphysiocare.com, shreeramphysiocare.in, shreeramphysiocare.co.in…)",
+    "web search for \"Shree Ram Physio Care Vadodara\"",
+    "rejected eporner.com (business name not on the page), hotindiansexy.com (business name not on the page), mastiwala.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4349341791",
+   "name": "k hair salon",
+   "sec": 5.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (khairsalon.com, khairsalon.in, khairsalon.co.in…)",
+    "web search for \"k hair salon Vadodara\"",
+    "rejected en.wikipedia.org (listing site), krmangalam.edu.in (name is too generic to verify), youtube.com (listing site), youtube.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4326495896",
+   "name": "the fitness forever",
+   "sec": 7.8,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (thefitnessforever.com, thefitnessforever.in, thefitnessforever.co.in…)",
+    "web search for \"the fitness forever Vadodara\"",
+    "rejected fitpass.co.in (business name not on the page), anytimefitness.com (business name not on the page), justdial.com (listing site), anytimefitness.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6350984285",
+   "name": "Fitness Track",
+   "sec": 15,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (fitnesstrack.com, fitnesstrack.in, fitnesstrack.co.in…)",
+    "web search for \"Fitness Track Vadodara\"",
+    "rejected fitpass.co.in (name found but no matching phone or location), anytimefitness.com (name found but no matching phone or location), justdial.com (listing site), anytimefitness.com (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6357758241",
+   "name": "Fitness Track Gym",
+   "sec": 12.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (fitnesstrackgym.com, fitnesstrackgym.in, fitnesstrackgym.co.in…)",
+    "web search for \"Fitness Track Gym Vadodara\"",
+    "rejected fitpass.co.in (name found but no matching phone or location), anytimefitness.com (name found but no matching phone or location), justdial.com (listing site), anytimefitness.com (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "way/700289962",
+   "name": "Our Gym",
+   "sec": 7.7,
+   "website": "https://ourgym.in/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (ourgym.com, ourgym.in, ourgym.co.in…)"
+   ],
+   "email": "kumarvijay6556@gmail.com",
+   "emailInfo": [
+    {
+     "email": "kumarvijay6556@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    },
+    {
+     "email": "ourgymfitnics07@gmail.com",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+918511149249",
+    "+919471969646"
+   ],
+   "score": 10,
+   "tier": "cold",
+   "signals": [
+    "Has a phone number",
+    "Has a personal email"
+   ]
+  },
+  {
+   "id": "node/3320465231",
+   "name": "Delhi Express",
+   "sec": 2.1,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (delhiexpress.com, delhiexpress.in, delhiexpress.co.in…)",
+    "web search for \"Delhi Express Vadodara\"",
+    "rejected en.wikipedia.org (listing site), delhi.gov.in (business name not on the page), delhitourism.gov.in (business name not on the page), incredibleindia.gov.in (business name not on the page)"
+   ],
+   "phones": [
+    "+912656585555"
+   ],
+   "score": 60,
+   "tier": "warm",
+   "signals": [
+    "No website",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "node/4470087289",
+   "name": "Pizza Mēo",
+   "sec": 17.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (pizzamo.com, pizzamo.in, pizzamo.co.in…)",
+    "web search for \"Pizza Mēo Vadodara\"",
+    "rejected dominos.co.in (name is too generic to verify), zomato.com (listing site), dominos.co.in (name is too generic to verify), lapinozpizza.in (name is too generic to verify)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/8932000241",
+   "name": "Spice Kraft",
+   "sec": 4.6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (spicekraft.com, spicekraft.in, spicekraft.co.in…)",
+    "web search for \"Spice Kraft Vadodara\"",
+    "rejected spicemoney.com (business name not on the page), en.wikipedia.org (listing site), indianspices.com (business name not on the page), spicejet.com (business name not on the page)"
+   ],
+   "phones": [
+    "+919099034796"
+   ],
+   "score": 60,
+   "tier": "warm",
+   "signals": [
+    "No website",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "node/11502663110",
+   "name": "white house panjabi khana",
+   "sec": 2.1,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (whitehousepanjabikhana.com, whitehousepanjabikhana.in, whitehousepanjabikhana.co.in…)",
+    "web search for \"white house panjabi khana Vadodara\"",
+    "rejected en.wikipedia.org (listing site), en.wikipedia.org (listing site), whitescreen.im (business name not on the page), whitescreen.online (business name not on the page)"
+   ],
+   "phones": [
+    "+919724623813"
+   ],
+   "score": 60,
+   "tier": "warm",
+   "signals": [
+    "No website",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "node/4473292490",
+   "name": "Kalyan",
+   "sec": 15.8,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "6 likely web addresses (kalyan.com, kalyan.in, kalyan.co.in…)",
+    "web search for \"Kalyan Vadodara\"",
+    "rejected mydpboss.com (name found but no matching phone or location), madhurstarline.com (a page about it on another site), dpbossx.net (name found but no matching phone or location), kalyanjewellers.net (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/5240630041",
+   "name": "The Gateway Hotel",
+   "sec": 17.2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (thegatewayhotel.com, thegatewayhotel.in, thegatewayhotel.co.in…)",
+    "web search for \"The Gateway Hotel Vadodara\"",
+    "rejected translate.google.co.in (business name not on the page), google.co.in (business name not on the page), google.co.in (business name not on the page), books.google.co.in (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6050547003",
+   "name": "Giriraj",
+   "sec": 16.1,
+   "website": "https://www.giriraj.co.in/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page",
+   "tried": [
+    "OpenStreetMap listing",
+    "6 likely web addresses (giriraj.com, giriraj.in, giriraj.co.in…)"
+   ],
+   "email": "sales@giriraj.co.in",
+   "emailInfo": [
+    {
+     "email": "sales@giriraj.co.in",
+     "kind": "own_generic",
+     "deliverable": true
+    },
+    {
+     "email": "support@giriraj.co.in",
+     "kind": "own_generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919374693429",
+    "+919377693430",
+    "+912652525262"
+   ],
+   "score": 15,
+   "tier": "cold",
+   "signals": [
+    "Running since 1997",
+    "Has a phone number",
+    "Has an email"
+   ]
+  },
+  {
+   "id": "node/6357743403",
+   "name": "Da Pizza Planet",
+   "sec": 2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (dapizzaplanet.com, dapizzaplanet.in, dapizzaplanet.co.in…)",
+    "web search for \"Da Pizza Planet Vadodara\"",
+    "rejected indianpaycalculator.in (business name not on the page), cleartax.in (business name not on the page), 7thpaycommissionnews.in (business name not on the page), bankbazaar.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6357743405",
+   "name": "Ready Platter",
+   "sec": 1.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (readyplatter.com, readyplatter.in, readyplatter.co.in…)",
+    "web search for \"Ready Platter Vadodara\"",
+    "rejected pinterest.com (listing site), m.youtube.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6357758242",
+   "name": "The Chocolate Room",
+   "sec": 9.1,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (thechocolateroom.com, thechocolateroom.in, thechocolateroom.co.in…)",
+    "web search for \"The Chocolate Room Vadodara\"",
+    "rejected dir.indiamart.com (listing site), en.wikipedia.org (listing site), dir.indiamart.com (listing site), getbestindia.in (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/7098040237",
+   "name": "Pizza Hut",
+   "sec": 3.9,
+   "website": "https://restaurants.pizzahut.co.in/Jammu%20And%20Kashmir-Jammu",
+   "via": "web_search",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page, and the web address matches the name",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (pizzahut.com, pizzahut.in, pizzahut.co.in…)",
+    "web search for \"Pizza Hut Vadodara\"",
+    "rejected dominos.co.in (business name not on the page), zomato.com (listing site), dominos.co.in (business name not on the page), lapinozpizza.in (business name not on the page)"
+   ],
+   "phones": [
+    "+918929025335",
+    "+917208346279",
+    "+919600519382",
+    "+919297451898",
+    "+917993673998"
+   ],
+   "score": 5,
+   "tier": "cold",
+   "signals": [
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "node/7098062368",
+   "name": "Pizza Hut",
+   "sec": 2.9,
+   "website": "https://restaurants.pizzahut.co.in/Jammu%20And%20Kashmir-Jammu",
+   "via": "web_search",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page, and the web address matches the name",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (pizzahut.com, pizzahut.in, pizzahut.co.in…)",
+    "web search for \"Pizza Hut Vadodara\"",
+    "rejected dominos.co.in (business name not on the page), zomato.com (listing site), dominos.co.in (business name not on the page), lapinozpizza.in (business name not on the page)"
+   ],
+   "phones": [
+    "+918929025335",
+    "+917208346279",
+    "+919600519382",
+    "+919297451898",
+    "+917993673998"
+   ],
+   "score": 5,
+   "tier": "cold",
+   "signals": [
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "node/4914777904",
+   "name": "Hampton by Hilton Vadodara-Alkapuri",
+   "sec": 7.3,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (hamptonbyhiltonvadodaraalkapuri.com, hamptonbyhiltonvadodaraalkapuri.in, hamptonbyhiltonvadodaraalkapuri.co.in…)",
+    "web search for \"Hampton by Hilton Vadodara-Alkapuri Vadodara\"",
+    "rejected thehamptons.in (business name not on the page), thehamptons.in (business name not on the page), en.wikipedia.org (listing site), en.wikipedia.org (listing site)"
+   ],
+   "email": "reservations@hamptonvadodara.com",
+   "emailInfo": [
+    {
+     "email": "reservations@hamptonvadodara.com",
+     "kind": "generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+912652303000"
+   ],
+   "score": 65,
+   "tier": "hot",
+   "signals": [
+    "No website",
+    "Has a phone number",
+    "Has an email"
+   ]
+  },
+  {
+   "id": "node/2562424748",
+   "name": "Hotel Legend",
+   "sec": 31.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (hotellegend.com, hotellegend.in, hotellegend.co.in…)",
+    "web search for \"Hotel Legend Vadodara\"",
+    "rejected booking.com (listing site), goibibo.com (listing site), booking.com (listing site), makemytrip.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/2562424749",
+   "name": "Hotel Nirmal",
+   "sec": 20.5,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (hotelnirmal.com, hotelnirmal.in, hotelnirmal.co.in…)",
+    "web search for \"Hotel Nirmal Vadodara\"",
+    "rejected booking.com (listing site), goibibo.com (listing site), booking.com (listing site), makemytrip.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4437105689",
+   "name": "MSUniversity",
+   "sec": 14.8,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "6 likely web addresses (msuniversity.com, msuniversity.in, msuniversity.co.in…)",
+    "web search for \"MSUniversity Vadodara\"",
+    "rejected youtube.com (listing site), music.youtube.com (listing site), youtube.com (listing site), music.youtube.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4546445593",
+   "name": "Kismat kathiyavadi",
+   "sec": 6.1,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (kismatkathiyavadi.com, kismatkathiyavadi.in, kismatkathiyavadi.co.in…)",
+    "web search for \"Kismat kathiyavadi Vadodara\"",
+    "rejected translate.google.co.in (business name not on the page), google.co.in (business name not on the page), google.co.in (business name not on the page), books.google.co.in (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4704652035",
+   "name": "Shagun Residency",
+   "sec": 10,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (shagunresidency.com, shagunresidency.in, shagunresidency.co.in…)",
+    "web search for \"Shagun Residency Vadodara\"",
+    "rejected pujayagna.com (business name not on the page), shagun.cc (business name not on the page), shagunsweets.co (business name not on the page), rudraksha-ratna.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4813160325",
+   "name": "Sunrise",
+   "sec": 17.2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "6 likely web addresses (sunrise.com, sunrise.in, sunrise.co.in…)",
+    "web search for \"Sunrise Vadodara\"",
+    "rejected sunsetnmoonrise.com (name found but no matching phone or location), sunrisesunset.io (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/5242745277",
+   "name": "Sri Krishna",
+   "sec": 12.8,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (srikrishna.com, srikrishna.in, srikrishna.co.in…)",
+    "web search for \"Sri Krishna Vadodara\"",
+    "rejected sri.com (business name not on the page), nimsme.gov.in (business name not on the page), srisritattva.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6400625389",
+   "name": "Mine",
+   "sec": 13.1,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "6 likely web addresses (mine.com, mine.in, mine.co.in…)",
+    "web search for \"Mine Vadodara\"",
+    "rejected saymine.com (name found but no matching phone or location), play.google.com (listing site), crazygames.com (a page about it on another site), play.google.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/11799688569",
+   "name": "द फर्न",
+   "sec": 6.3,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "web search for \"द फर्न Vadodara\"",
+    "rejected hi.wikipedia.org (listing site), en.wiktionary.org (name is too generic to verify), m.youtube.com (listing site), m.youtube.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "way/1386078497",
+   "name": "Hotel Airport",
+   "sec": 23.3,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (hotelairport.com, hotelairport.in, hotelairport.co.in…)",
+    "web search for \"Hotel Airport Vadodara\"",
+    "rejected booking.com (listing site), goibibo.com (listing site), booking.com (listing site), makemytrip.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "relation/7834561",
+   "name": "Tansha Regal by Mango Hotel",
+   "sec": 1.2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (tansharegalbymangohotel.com, tansharegalbymangohotel.in, tansharegalbymangohotel.co.in…)",
+    "web search for \"Tansha Regal by Mango Hotel Vadodara\"",
+    "rejected ewaybillgst.gov.in (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  }
+ ]
+}

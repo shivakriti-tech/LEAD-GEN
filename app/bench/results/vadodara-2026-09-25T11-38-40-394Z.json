@@ -1,0 +1,1070 @@
+{
+ "at": "2026-09-25T11:38:40.409Z",
+ "args": [
+  "--fresh"
+ ],
+ "businessList": "2d256c7d72d2",
+ "totalSec": 86,
+ "headline": {
+  "website precision %": null,
+  "website recall %": 0,
+  "wrong websites": 0,
+  "businesses with a known answer": 1,
+  "mobile/WhatsApp %": 5.6,
+  "email %": 3.7,
+  "personal email %": 1.9,
+  "owner name %": 0,
+  "hand-checked email found %": null,
+  "hand-checked mobile found %": null,
+  "hand-checked owner found %": null,
+  "tier agrees with you %": null,
+  "sec per business (avg)": 5.9,
+  "sec per business (p90)": 16.7
+ },
+ "report": {
+  "businesses": 54,
+  "website": {
+   "checked": 1,
+   "correct": 0,
+   "wrong": 0,
+   "missed": 1,
+   "correctNone": 0,
+   "chainsSkipped": 3,
+   "precision": null,
+   "recall": 0
+  },
+  "contacts": {
+   "mobileOrWhatsapp": 5.6,
+   "email": 3.7,
+   "personalEmail": 1.9,
+   "owner": 0
+  },
+  "handChecked": {
+   "emailFound": null,
+   "mobileFound": null,
+   "ownerFound": null,
+   "tierAgrees": null,
+   "labelled": 0
+  },
+  "speed": {
+   "avgSec": 5.9,
+   "p90Sec": 16.7
+  }
+ },
+ "websiteRows": [
+  {
+   "id": "node/8244971790",
+   "name": "Max Fashion",
+   "truth": "maxfashion.in",
+   "verdict": "missed"
+  }
+ ],
+ "perBusiness": [
+  {
+   "id": "node/6975781970",
+   "name": "Toshi Dental Clinic",
+   "sec": 8.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (toshidentalclinic.com, toshidentalclinic.in, toshidentalclinic.co.in…)",
+    "web search for \"Toshi Dental Clinic Vadodara\"",
+    "rejected toshi.co.in (name found but no matching phone or location), toshiautomation.com (name found but no matching phone or location), coinmarketcap.com (name found but no matching phone or location), ja.wikipedia.org (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6981646331",
+   "name": "Vakade Centre For Dental Excellence",
+   "sec": 6.1,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (vakadecentrefordentalexcellence.com, vakadecentrefordentalexcellence.in, vakadecentrefordentalexcellence.co.in…)",
+    "web search for \"Vakade Centre For Dental Excellence Vadodara\"",
+    "rejected xhamster19.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6990989119",
+   "name": "Parshwa Dental Clinic",
+   "sec": 17.6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (parshwadentalclinic.com, parshwadentalclinic.in, parshwadentalclinic.co.in…)",
+    "web search for \"Parshwa Dental Clinic Vadodara\"",
+    "rejected vietnam.travel (business name not on the page), foodvietnamese.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/7866013247",
+   "name": "Disha Dental Care",
+   "sec": 20.2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (dishadentalcare.com, dishadentalcare.in, dishadentalcare.co.in…)",
+    "web search for \"Disha Dental Care Vadodara\"",
+    "rejected incometax.gov.in (business name not on the page), incometax.gov.in (business name not on the page), canada.ca (business name not on the page), canada.ca (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/7866013261",
+   "name": "Vadodara Smiles Dental Clinic",
+   "sec": 5.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (vadodarasmilesdentalclinic.com, vadodarasmilesdentalclinic.in, vadodarasmilesdentalclinic.co.in…)",
+    "web search for \"Vadodara Smiles Dental Clinic Vadodara\"",
+    "rejected en.wikipedia.org (listing site), tripadvisor.in (listing site), trawell.in (business name not on the page), holidify.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/7866085823",
+   "name": "Kiansh Dental Clinic and Implant Centre",
+   "sec": 4.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (kianshdentalclinicandimplantcentre.com, kianshdentalclinicandimplantcentre.in, kianshdentalclinicandimplantcentre.co.in…)",
+    "web search for \"Kiansh Dental Clinic and Implant Centre Vadodara\"",
+    "rejected en.wikipedia.org (listing site), chinahighlights.com (business name not on the page), hanfutonghao.com (business name not on the page), travelchinaguide.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/7866687036",
+   "name": "Dayamadhav Dental Clinic",
+   "sec": 2.3,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (dayamadhavdentalclinic.com, dayamadhavdentalclinic.in, dayamadhavdentalclinic.co.in…)",
+    "web search for \"Dayamadhav Dental Clinic Vadodara\"",
+    "rejected flow.google.com (listing site), labs.google (business name not on the page), app.flow.ai (business name not on the page), flowaistudio.app (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/12850024945",
+   "name": "Ishwar Dental Clinic",
+   "sec": 4.8,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (ishwardentalclinic.com, ishwardentalclinic.in, ishwardentalclinic.co.in…)",
+    "web search for \"Ishwar Dental Clinic Vadodara\"",
+    "rejected en.wikipedia.org (listing site), youtube.com (listing site), ishwargiripathashale.com (name found but no matching phone or location), vajiramandravi.com (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4275241789",
+   "name": "Nital skin clinic",
+   "sec": 23.2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (nitalskinclinic.com, nitalskinclinic.in, nitalskinclinic.co.in…)",
+    "web search for \"Nital skin clinic Vadodara\"",
+    "rejected nirvanhospital.com (business name not on the page), narcoordindia.gov.in (business name not on the page), recovery.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6968406121",
+   "name": "Alpana Clinic",
+   "sec": 3.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (alpanaclinic.com, alpanaclinic.in, alpanaclinic.co.in…)",
+    "web search for \"Alpana Clinic Vadodara\"",
+    "rejected en.wikipedia.org (listing site), in.pinterest.com (listing site), dharma.werindia.com (name found but no matching phone or location), culturalindia.net (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6968861312",
+   "name": "Rushabh Nursing Home and Clinic",
+   "sec": 4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (rushabhnursinghomeandclinic.com, rushabhnursinghomeandclinic.in, rushabhnursinghomeandclinic.co.in…)",
+    "web search for \"Rushabh Nursing Home and Clinic Vadodara\"",
+    "rejected xxx18hot.com (business name not on the page), xxx18hot.com (business name not on the page), sexvid.xxx (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6969842707",
+   "name": "Priyal Clinic",
+   "sec": 2.7,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (priyalclinic.com, priyalclinic.in, priyalclinic.co.in…)",
+    "web search for \"Priyal Clinic Vadodara\""
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970343550",
+   "name": "Acharya Nursing Home and Icu",
+   "sec": 2.2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (acharyanursinghomeandicu.com, acharyanursinghomeandicu.in, acharyanursinghomeandicu.co.in…)",
+    "web search for \"Acharya Nursing Home and Icu Vadodara\"",
+    "rejected en.m.wikipedia.org (listing site), acharya.ac.in (name found but no matching phone or location), en.m.wikipedia.org (listing site), acharyaprashant.org (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970622256",
+   "name": "Kamubala Poly Clinic",
+   "sec": 3.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (kamubalapolyclinic.com, kamubalapolyclinic.in, kamubalapolyclinic.co.in…)",
+    "web search for \"Kamubala Poly Clinic Vadodara\"",
+    "rejected xhamster3.com (business name not on the page), xhamster3.com (business name not on the page), xhamster3.com (business name not on the page), xhamster3.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970636559",
+   "name": "Rishabh Nursing Home",
+   "sec": 1.7,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (rishabhnursinghome.com, rishabhnursinghome.in, rishabhnursinghome.co.in…)",
+    "web search for \"Rishabh Nursing Home Vadodara\"",
+    "rejected support.google.com (listing site), support.google.com (listing site), zhihu.com (business name not on the page), support.google.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970669189",
+   "name": "Shrey Nursing Home and Iccu",
+   "sec": 2.3,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (shreynursinghomeandiccu.com, shreynursinghomeandiccu.in, shreynursinghomeandiccu.co.in…)",
+    "web search for \"Shrey Nursing Home and Iccu Vadodara\"",
+    "rejected forum.xnxx.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970680766",
+   "name": "Aditya Oral And Maxillofacial Clinic",
+   "sec": 2.3,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (adityaoralandmaxillofacialclinic.com, adityaoralandmaxillofacialclinic.in, adityaoralandmaxillofacialclinic.co.in…)",
+    "web search for \"Aditya Oral And Maxillofacial Clinic Vadodara\"",
+    "rejected adityabirla.com (business name not on the page), adityauniversity.in (business name not on the page), aditya.ac.in (business name not on the page), en.wikipedia.org (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970701030",
+   "name": "Prutha Maternity Nursing Home",
+   "sec": 2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (pruthamaternitynursinghome.com, pruthamaternitynursinghome.in, pruthamaternitynursinghome.co.in…)",
+    "web search for \"Prutha Maternity Nursing Home Vadodara\"",
+    "rejected forum.xnxx.com (business name not on the page), forum.xnxx.com (business name not on the page), support.google.com (listing site), support.google.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970717636",
+   "name": "Dr. Girish K. Zinzuvadia",
+   "sec": 4.3,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (drgirishkzinzuvadia.com, drgirishkzinzuvadia.in, drgirishkzinzuvadia.co.in…)",
+    "web search for \"Dr. Girish K. Zinzuvadia Vadodara\"",
+    "rejected q1hospitals.com (business name not on the page), drvskrishnagdc.edu.in (business name not on the page), practo.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6970724566",
+   "name": "Swar Clinic",
+   "sec": 6.7,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (swarclinic.com, swarclinic.in, swarclinic.co.in…)",
+    "web search for \"Swar Clinic Vadodara\"",
+    "rejected hindivarnamala.in (business name not on the page), cheggindia.com (business name not on the page), bsebresult.in (business name not on the page), hindios.in (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4349341791",
+   "name": "k hair salon",
+   "sec": 4.1,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (khairsalon.com, khairsalon.in, khairsalon.co.in…)",
+    "web search for \"k hair salon Vadodara\"",
+    "rejected en.wikipedia.org (listing site), youtube.com (listing site), youtube.com (listing site), us.sofatutor.com (name is too generic to verify)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/3320465231",
+   "name": "Delhi Express",
+   "sec": 2.2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (delhiexpress.com, delhiexpress.in, delhiexpress.co.in…)",
+    "web search for \"Delhi Express Vadodara\"",
+    "rejected en.wikipedia.org (listing site), delhi.gov.in (business name not on the page), delhitourism.gov.in (business name not on the page), incredibleindia.gov.in (business name not on the page)"
+   ],
+   "phones": [
+    "+912656585555"
+   ],
+   "score": 60,
+   "tier": "warm",
+   "signals": [
+    "No website",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "node/4470087289",
+   "name": "Pizza Mēo",
+   "sec": 15.6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (pizzamo.com, pizzamo.in, pizzamo.co.in…)",
+    "web search for \"Pizza Mēo Vadodara\"",
+    "rejected dominos.co.in (name is too generic to verify), zomato.com (listing site), dominos.co.in (name is too generic to verify), lapinozpizza.in (name is too generic to verify)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/8932000241",
+   "name": "Spice Kraft",
+   "sec": 4.1,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (spicekraft.com, spicekraft.in, spicekraft.co.in…)",
+    "web search for \"Spice Kraft Vadodara\"",
+    "rejected spicemoney.com (business name not on the page), en.wikipedia.org (listing site), indianspices.com (business name not on the page), spicejet.com (business name not on the page)"
+   ],
+   "phones": [
+    "+919099034796"
+   ],
+   "score": 60,
+   "tier": "warm",
+   "signals": [
+    "No website",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "node/11502663110",
+   "name": "white house panjabi khana",
+   "sec": 1.8,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (whitehousepanjabikhana.com, whitehousepanjabikhana.in, whitehousepanjabikhana.co.in…)",
+    "web search for \"white house panjabi khana Vadodara\"",
+    "rejected en.wikipedia.org (listing site), en.wikipedia.org (listing site), whitescreen.im (business name not on the page), whitescreen.online (business name not on the page)"
+   ],
+   "phones": [
+    "+919724623813"
+   ],
+   "score": 60,
+   "tier": "warm",
+   "signals": [
+    "No website",
+    "Has a phone number"
+   ]
+  },
+  {
+   "id": "node/4473292490",
+   "name": "Kalyan",
+   "sec": 16.7,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "6 likely web addresses (kalyan.com, kalyan.in, kalyan.co.in…)",
+    "web search for \"Kalyan Vadodara\"",
+    "rejected mydpboss.com (name found but no matching phone or location), madhurstarline.com (a page about it on another site), dpbossx.net (name found but no matching phone or location), kalyanjewellers.net (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/5240630041",
+   "name": "The Gateway Hotel",
+   "sec": 16.8,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (thegatewayhotel.com, thegatewayhotel.in, thegatewayhotel.co.in…)",
+    "web search for \"The Gateway Hotel Vadodara\"",
+    "rejected gateway.esic.gov.in (name found but no matching phone or location), geeksforgeeks.org (name found but no matching phone or location), en.wikipedia.org (listing site), biblegateway.com (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6050547003",
+   "name": "Giriraj",
+   "sec": 16,
+   "website": "https://www.giriraj.co.in/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page",
+   "tried": [
+    "OpenStreetMap listing",
+    "6 likely web addresses (giriraj.com, giriraj.in, giriraj.co.in…)"
+   ],
+   "email": "sales@giriraj.co.in",
+   "emailInfo": [
+    {
+     "email": "sales@giriraj.co.in",
+     "kind": "own_generic",
+     "deliverable": true
+    },
+    {
+     "email": "support@giriraj.co.in",
+     "kind": "own_generic",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+919374693429",
+    "+919377693430",
+    "+912652525262"
+   ],
+   "score": 15,
+   "tier": "cold",
+   "signals": [
+    "Running since 1997",
+    "Has a phone number",
+    "Has an email"
+   ]
+  },
+  {
+   "id": "node/6357743403",
+   "name": "Da Pizza Planet",
+   "sec": 1.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (dapizzaplanet.com, dapizzaplanet.in, dapizzaplanet.co.in…)",
+    "web search for \"Da Pizza Planet Vadodara\"",
+    "rejected indianpaycalculator.in (business name not on the page), cleartax.in (business name not on the page), bankbazaar.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6357743405",
+   "name": "Ready Platter",
+   "sec": 4.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (readyplatter.com, readyplatter.in, readyplatter.co.in…)",
+    "web search for \"Ready Platter Vadodara\"",
+    "rejected m.youtube.com (listing site), en.m.wikipedia.org (listing site), m.youtube.com (listing site), login.i-ready.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6357758242",
+   "name": "The Chocolate Room",
+   "sec": 0,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing"
+   ],
+   "phones": [],
+   "score": 10,
+   "tier": "cold",
+   "signals": [
+    "No website",
+    "Chain or franchise (a well-known chain)"
+   ]
+  },
+  {
+   "id": "node/7098040237",
+   "name": "Pizza Hut",
+   "sec": 0,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing"
+   ],
+   "phones": [],
+   "score": 10,
+   "tier": "cold",
+   "signals": [
+    "No website",
+    "Chain or franchise (a well-known chain)"
+   ]
+  },
+  {
+   "id": "node/7098062368",
+   "name": "Pizza Hut",
+   "sec": 0,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing"
+   ],
+   "phones": [],
+   "score": 10,
+   "tier": "cold",
+   "signals": [
+    "No website",
+    "Chain or franchise (a well-known chain)"
+   ]
+  },
+  {
+   "id": "node/2095556797",
+   "name": "J.N.V Vadodara",
+   "sec": 4.2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (jnvvadodara.com, jnvvadodara.in, jnvvadodara.co.in…)",
+    "web search for \"J.N.V Vadodara Vadodara\"",
+    "rejected en.wikipedia.org (listing site), youtube.com (listing site), youtube.com (listing site), junaidjamshed.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/2153514988",
+   "name": "Navarachana School",
+   "sec": 1.6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (navarachanaschool.com, navarachanaschool.in, navarachanaschool.co.in…)",
+    "web search for \"Navarachana School Vadodara\"",
+    "rejected support.google.com (listing site), support.google.com (listing site), zhihu.com (business name not on the page), support.google.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/2343996418",
+   "name": "Maharani Kanya Vidyalaya",
+   "sec": 1.2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (maharanikanyavidyalaya.com, maharanikanyavidyalaya.in, maharanikanyavidyalaya.co.in…)",
+    "web search for \"Maharani Kanya Vidyalaya Vadodara\"",
+    "rejected bollywoodhungama.com (business name not on the page), en.m.wikipedia.org (listing site), m.youtube.com (listing site), digit.in (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/2344001571",
+   "name": "Maharani English Medium School",
+   "sec": 1.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (maharanienglishmediumschool.com, maharanienglishmediumschool.in, maharanienglishmediumschool.co.in…)",
+    "web search for \"Maharani English Medium School Vadodara\"",
+    "rejected forum.lowyat.net (business name not on the page), forum.lowyat.net (business name not on the page), learn.microsoft.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/3647017657",
+   "name": "Cricket Pitch",
+   "sec": 5.6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (cricketpitch.com, cricketpitch.in, cricketpitch.co.in…)",
+    "web search for \"Cricket Pitch Vadodara\"",
+    "rejected xhamster19.com (business name not on the page), xhamster3.com (business name not on the page), xhamster.tv (business name not on the page), xhamster19.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4323397091",
+   "name": "Ambe school",
+   "sec": 7.8,
+   "website": "https://ambeschool.com/",
+   "via": "domain_guess",
+   "evidence": "business name (in the page title) and \"vadodara\" are on the page",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (ambeschool.com, ambeschool.in, ambeschool.co.in…)"
+   ],
+   "email": "ambe_parivar@yahoo.co.in",
+   "emailInfo": [
+    {
+     "email": "ambe_parivar@yahoo.co.in",
+     "kind": "personal",
+     "deliverable": true
+    }
+   ],
+   "phones": [
+    "+912652644262",
+    "+912652642264",
+    "+912652648263"
+   ],
+   "score": 10,
+   "tier": "cold",
+   "signals": [
+    "Has a phone number",
+    "Has a personal email"
+   ]
+  },
+  {
+   "id": "node/4326504192",
+   "name": "suman deep vidhyapeeth",
+   "sec": 1.7,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (sumandeepvidhyapeeth.com, sumandeepvidhyapeeth.in, sumandeepvidhyapeeth.co.in…)",
+    "web search for \"suman deep vidhyapeeth Vadodara\"",
+    "rejected en.wikipedia.org (listing site), nhsrcindia.org (business name not on the page), starsunfolded.com (business name not on the page), en.wikipedia.org (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4547413889",
+   "name": "Jivan bharti school",
+   "sec": 3.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (jivanbhartischool.com, jivanbhartischool.in, jivanbhartischool.co.in…)",
+    "web search for \"Jivan bharti school Vadodara\"",
+    "rejected ujjivansfb.bank.in (business name not on the page), jivan.bank.in (business name not on the page), youtube.com (listing site), jaljeevanmission.gov.in (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4944062721",
+   "name": "Rameshwar school",
+   "sec": 14.3,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (rameshwarschool.com, rameshwarschool.in, rameshwarschool.co.in…)",
+    "web search for \"Rameshwar school Vadodara\"",
+    "rejected en.wikipedia.org (listing site), tripadvisor.in (listing site), en.wikipedia.org (listing site), rameswaramtourism.com (name found but no matching phone or location)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6305492274",
+   "name": "Computer Application Department",
+   "sec": 1.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (computerapplicationdepartment.com, computerapplicationdepartment.in, computerapplicationdepartment.co.in…)",
+    "web search for \"Computer Application Department Vadodara\"",
+    "rejected en.wikipedia.org (listing site), geeksforgeeks.org (business name not on the page), en.wikipedia.org (listing site), computechstore.in (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6305492275",
+   "name": "Statistics Department",
+   "sec": 2.6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (statisticsdepartment.com, statisticsdepartment.in, statisticsdepartment.co.in…)",
+    "web search for \"Statistics Department Vadodara\"",
+    "rejected geeksforgeeks.org (business name not on the page), en.wikipedia.org (listing site), geeksforgeeks.org (business name not on the page), w3schools.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/6305492276",
+   "name": "Mathematics Department",
+   "sec": 1.2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (mathematicsdepartment.com, mathematicsdepartment.in, mathematicsdepartment.co.in…)",
+    "web search for \"Mathematics Department Vadodara\"",
+    "rejected en.wikipedia.org (listing site), geeksforgeeks.org (business name not on the page), khanacademy.org (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/12852240993",
+   "name": "Maruti Lining & Furniture",
+   "sec": 1.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (marutiliningandfurniture.com, marutiliningandfurniture.in, marutiliningandfurniture.co.in…)",
+    "web search for \"Maruti Lining & Furniture Vadodara\"",
+    "rejected marutisuzuki.com (business name not on the page), carwale.com (business name not on the page), marutisuzuki.com (business name not on the page), en.wikipedia.org (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/8244971790",
+   "name": "Max Fashion",
+   "sec": 17.8,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (maxfashion.com, maxfashion.in, maxfashion.co.in…)",
+    "web search for \"Max Fashion Vadodara\"",
+    "rejected support.microsoft.com (business name not on the page), how2shout.com (business name not on the page), wikihow.com (name found but no matching phone or location), thetechgorilla.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/2346907388",
+   "name": "Sachin Tailor",
+   "sec": 1.6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (sachintailor.com, sachintailor.in, sachintailor.co.in…)",
+    "web search for \"Sachin Tailor Vadodara\"",
+    "rejected en.wikipedia.org (listing site), live.sachinacademy.com (business name not on the page), en.wikipedia.org (listing site), youtube.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/4273735300",
+   "name": "Palav shree ani Madayali",
+   "sec": 6.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (palavshreeanimadayali.com, palavshreeanimadayali.in, palavshreeanimadayali.co.in…)",
+    "web search for \"Palav shree ani Madayali Vadodara\"",
+    "rejected jingyan.baidu.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/12830392193",
+   "name": "Westside",
+   "sec": 3.9,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "6 likely web addresses (westside.com, westside.in, westside.co.in…)",
+    "web search for \"Westside Vadodara\"",
+    "rejected youtube.com (listing site), youtube.com (listing site), play.google.com (listing site), music.youtube.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/13970132197",
+   "name": "Westside",
+   "sec": 2.6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "6 likely web addresses (westside.com, westside.in, westside.co.in…)",
+    "web search for \"Westside Vadodara\"",
+    "rejected zhihu.com (business name not on the page), forums.commentcamarche.net (business name not on the page), zhihu.com (business name not on the page), forums.commentcamarche.net (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/14005921574",
+   "name": "Marks And Spencers",
+   "sec": 15.6,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (marksandspencers.com, marksandspencers.in, marksandspencers.co.in…)",
+    "web search for \"Marks And Spencers Vadodara\"",
+    "rejected web.getmarks.app (business name not on the page), getmarks.app (business name not on the page), web.getmarks.app (business name not on the page), play.google.com (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/14005921575",
+   "name": "Rare Rabbit",
+   "sec": 4.2,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "9 likely web addresses (rarerabbit.com, rarerabbit.in, rarerabbit.co.in…)",
+    "web search for \"Rare Rabbit Vadodara\"",
+    "rejected thehouseofrare.com (name found but no matching phone or location), en.wikipedia.org (listing site), thehouseofrare.com (a page about it on another site), rareindia.com (business name not on the page)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  },
+  {
+   "id": "node/14005944280",
+   "name": "Gini & Jony",
+   "sec": 5.4,
+   "via": "none_found",
+   "tried": [
+    "OpenStreetMap listing",
+    "10 likely web addresses (giniandjony.com, giniandjony.in, giniandjony.co.in…)",
+    "web search for \"Gini & Jony Vadodara\"",
+    "rejected en.wikipedia.org (listing site), data.worldbank.org (business name not on the page), gini.org (business name not on the page), en.wikipedia.org (listing site)"
+   ],
+   "phones": [],
+   "score": 55,
+   "tier": "warm",
+   "signals": [
+    "No website"
+   ]
+  }
+ ]
+}

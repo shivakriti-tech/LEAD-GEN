@@ -1,0 +1,42 @@
+# One-click deploy on Render: New → Blueprint → pick this repo. See app/DEPLOY.md.
+# Render asks for every value marked "sync: false" when you create it; nothing secret lives in this file.
+services:
+  - type: web
+    name: lead-autopilot
+    runtime: docker
+    rootDir: ./app
+    dockerfilePath: ./app/Dockerfile
+    dockerContext: ./app
+    # Next.js plus Chromium for PDF reports needs more than the smallest plan
+    plan: 1c-2g
+    region: singapore
+    healthCheckPath: /api/health
+    # Everything is saved in Supabase (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY below), so no disk.
+    # Not using Supabase? Add a disk instead, or searches vanish on every restart:
+    # disk:
+    #   name: lead-data
+    #   mountPath: /app/.data
+    #   sizeGB: 1
+    envVars:
+      - key: APP_PASSWORD
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: CRAWLER_CONTACT
+        sync: false
+      - key: UNSUBSCRIBE_SECRET
+        generateValue: true
+      - key: TRUST_PROXY_HOPS
+        value: "1"
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false
+      - key: SERPER_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: FEEDBACK_EMAIL
+        sync: false

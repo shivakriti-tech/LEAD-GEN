@@ -1,3 +1,4 @@
+import { currentCountry } from "./marketContext";
 import type { Lead, RawPlace } from "./types";
 import { facebookPage, instagramHandle, socialKey } from "./sources/social";
 import { domainOf, isSocialHost, metres, normalizePhone, simplifyName, uid } from "./util";
@@ -14,7 +15,7 @@ export function mergePlaces(raw: RawPlace[]): Lead[] {
   const bySocial = new Map<string, Lead>();
 
   for (const r of raw) {
-    const phone = normalizePhone(r.phone);
+    const phone = normalizePhone(r.phone, currentCountry());
     const dom = domainOf(r.website);
     const domKey = dom && !isSocialHost(dom) ? dom : undefined;
     const simple = simplifyName(r.name);
@@ -59,6 +60,12 @@ export function mergePlaces(raw: RawPlace[]): Lead[] {
         reviews: r.reviews,
         businessStatus: r.businessStatus,
         brand: r.brand,
+        owner: r.owner ? { name: r.owner, via: "google_maps" } : undefined,
+        priceRange: r.priceRange,
+        orderLinks: r.orderLinks,
+        photos: r.photos,
+        openHours: r.openHours,
+        about: r.about,
         signals: [],
         score: 0,
         tier: "cold",
@@ -102,6 +109,12 @@ function mergeInto(l: Lead, r: RawPlace, phone?: string) {
   if (r.reviews != null) l.reviews = r.reviews;
   if (r.businessStatus) l.businessStatus = r.businessStatus;
   l.brand ??= r.brand;
+  if (r.owner && !l.owner) l.owner = { name: r.owner, via: "google_maps" };
+  l.priceRange ??= r.priceRange;
+  l.photos ??= r.photos;
+  l.openHours ??= r.openHours;
+  l.about ??= r.about;
+  for (const o of r.orderLinks ?? []) if (!(l.orderLinks ??= []).some((x) => x.url === o.url)) l.orderLinks.push(o);
 }
 
 /** Keep Instagram/Facebook links on the lead even when a real website wins the "website" field. */

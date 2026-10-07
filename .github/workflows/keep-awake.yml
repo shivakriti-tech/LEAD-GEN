@@ -1,0 +1,25 @@
+# Keeps the free Render instance awake during testing (free services sleep after 15 minutes idle,
+# and a sleeping app doesn't send queued emails). Delete this file once you move to a paid plan.
+#
+# Setup: GitHub repo → Settings → Secrets and variables → Actions → Variables → New repository variable
+#   Name: APP_URL   Value: https://your-app.onrender.com
+# Scheduled workflows only run from the default branch (main).
+name: Keep Render awake
+
+on:
+  schedule:
+    - cron: "*/10 * * * *" # every 10 minutes (GitHub may run it a few minutes late)
+  workflow_dispatch: # "Run workflow" button, to test it by hand
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /api/health
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          if [ -z "$APP_URL" ]; then echo "Set the APP_URL repository variable first."; exit 1; fi
+          # a sleeping instance takes up to a minute to wake, so wait for it
+          curl -fsS --retry 3 --retry-delay 10 --retry-all-errors --max-time 120 "${APP_URL%/}/api/health"

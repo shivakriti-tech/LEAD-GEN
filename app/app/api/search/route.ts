@@ -1,7 +1,15 @@
+import { isCountry, type CountryCode } from "@/lib/markets";
 import { defaultDeps, runSearch } from "@/lib/pipeline";
 import { getStore } from "@/lib/store";
-import type { ProgressEvent, SearchParams } from "@/lib/types";
-import { CATEGORIES } from "@/lib/categories";
+import type { AgencyService, LogisticsService, Offer, ProgressEvent, SearchParams } from "@/lib/types";
+import { isNiche } from "@/lib/niches";
+import { categoriesFor } from "@/lib/categories";
+import { ALL_SERVICES } from "@/lib/score/logistics";
+import { ALL_AGENCY } from "@/lib/score/agency";
+import { live, track } from "@/lib/live";
+
+/** Searches this server runs at once (each one checks many websites); more wait with a clear message. */
+const maxRunning = () => Math.max(1, Number(process.env.MAX_RUNNING_SEARCHES) || 3);
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,10 +23,21 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ error: "Send the search as JSON." }, { status: 400 });
   }
-  const valid = new Set(CATEGORIES.map((c) => c.key));
+  const sells: Offer = body.sells === "logistics" || body.sells === "agency" || isNiche(body.sells) ? body.sells : "website_development";
+  const valid = new Set(categoriesFor(sells).map((c) => c.key));
+  const clientId = typeof body.clientId === "string" && /^[0-9a-f-]{36}$/i.test(body.clientId) ? body.clientId : undefined;
+  const services = (Array.isArray(body.client?.services) ? body.client!.services : []).filter((x): x is LogisticsService => (ALL_SERVICES as string[]).includes(x));
+  const agencyServices = (Array.isArray(body.agency?.services) ? body.agency!.services : []).filter((x): x is AgencyService => (ALL_AGENCY as string[]).includes(x));
   const params: SearchParams = {
-    sells: "website_development",
-    categories: (body.categories ?? []).filter((c) => valid.has(c)).slice(0, 8),
+    sells,
+    client:
+      sells === "logistics" ? { name: body.client?.name ? String(body.client.name).trim().slice(0, 80) : undefined, services: services.length ? services : ALL_SERVICES }
+      : clientId && body.client?.name ? { name: String(body.client.name).trim().slice(0, 80), services: [] }
+      : undefined,
+    clientId,
+    agency: sells === "agency" ? { services: agencyServices.length ? agencyServices : ALL_AGENCY } : undefined,
+    country: isCountry(body.country) ? (String(body.country).toUpperCase() as CountryCode) : "IN",
+    categories: (Array.isArray(body.categories) ? body.categories : []).filter((c) => valid.has(c)).slice(0, 8),
     city: String(body.city ?? "").trim().slice(0, 80),
     area: body.area ? String(body.area).trim().slice(0, 80) : undefined,
     perCategory: Math.min(60, Math.max(5, Number(body.perCategory) || 20)),
@@ -34,21 +53,41 @@ export async function POST(req: Request) {
     pageSpeed: !!body.pageSpeed,
     verifyWebsites: body.verifyWebsites !== false,
     webSearch: body.webSearch !== false,
+    fresh: !!body.fresh,
+    keep: body.keep && typeof body.keep === "object" ? { skipChains: !!body.keep.skipChains, needPhone: !!body.keep.needPhone, notContacted: !!body.keep.notContacted, goodRating: !!body.keep.goodRating } : undefined,
   };
   if (!params.city) return Response.json({ error: "Enter a city." }, { status: 400 });
   if (!params.categories.length) return Response.json({ error: "Pick at least one business type." }, { status: 400 });
+  if (live.size >= maxRunning()) return Response.json({ error: `${live.size} searches are already running. Wait for one to finish (or stop it), then try again.` }, { status: 429 });
 
   const deps = defaultDeps(getStore());
   // The client's own Apollo key, used for this search only and never saved.
-  if (body.apolloKey) deps.keys.apollo = String(body.apolloKey).trim();
+  if (typeof body.apolloKey === "string" && body.apolloKey.trim()) deps.keys.apollo = body.apolloKey.trim().slice(0, 200);
 
   const enc = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
-      const emit = (e: ProgressEvent) => controller.enqueue(enc.encode(JSON.stringify(e) + "\n"));
-      const result = await runSearch(params, deps, emit);
-      emit({ type: "done", search: result.search, leads: result.leads });
-      controller.close();
+      let closed = false;
+      const ctrl = new AbortController(); // the Stop button aborts it
+      const send = (e: ProgressEvent) => {
+        if (closed) return; // browser went away: keep working, just stop sending
+        try {
+          controller.enqueue(enc.encode(JSON.stringify(e) + "\n"));
+        } catch {
+          closed = true;
+        }
+      };
+      const emit = track(ctrl, send);
+      try {
+        const result = await runSearch(params, deps, emit, ctrl.signal);
+        emit({ type: "done", search: result.search, leads: result.leads });
+      } catch (e) {
+        // e.g. the store couldn't save the new search; without this the browser waits forever
+        emit({ type: "log", level: "error", message: e instanceof Error ? e.message : "Search failed" });
+      } finally {
+        emit.end();
+        if (!closed) controller.close();
+      }
     },
   });
   return new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" } });

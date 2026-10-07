@@ -1,4 +1,5 @@
-import type { RawPlace } from "../types";
+import type { OrderLink, RawPlace } from "../types";
+import { liveBuild } from "../security";
 
 /**
  * Google Maps via the open-source gosom/google-maps-scraper, running in Docker on your own computer.
@@ -15,7 +16,7 @@ import type { RawPlace } from "../types";
 export function gmapsScraperUrl(env: Record<string, string | undefined> = process.env): string | undefined {
   const url = (env.GMAPS_SCRAPER_URL || "").trim();
   if (!url) return undefined;
-  if (env.NODE_ENV === "production" || env.VERCEL || env.RENDER) return undefined;
+  if (liveBuild(env)) return undefined;
   return url.replace(/\/+$/, "");
 }
 
@@ -53,6 +54,49 @@ const num = (v?: string) => {
   return Number.isFinite(n) && v !== "" ? n : undefined;
 };
 
+/** The scraper puts nested data in JSON cells. Returns undefined for empty or broken cells. */
+function json<T>(cell?: string): T | undefined {
+  if (!cell || !/^[[{"]/.test(cell.trim())) return undefined;
+  try {
+    return JSON.parse(cell) as T;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Owner cell: {"id":…,"name":"Dr Mehta","link":…} or a plain name. Skips "Owner" placeholders. */
+export function ownerName(cell?: string): string | undefined {
+  const o = json<{ name?: string }>(cell);
+  const n = (o ? o.name : cell)?.trim();
+  return n && n.length >= 3 && n.length <= 80 && !/^(owner|null|undefined)$/i.test(n) && !/^[[{]/.test(n) ? n : undefined;
+}
+
+/** order_online / reservations cells: [{"link": "...", "source": "zomato.com"}, …] */
+export function orderLinks(...cells: Array<string | undefined>): OrderLink[] {
+  const out: OrderLink[] = [];
+  for (const c of cells) {
+    for (const x of json<Array<{ link?: string; source?: string }>>(c) ?? []) {
+      if (!x?.link || !/^https?:\/\//.test(x.link)) continue;
+      let source = (x.source || "").toLowerCase();
+      try {
+        source ||= new URL(x.link).hostname.replace(/^www\./, "");
+      } catch {}
+      if (!out.some((o) => o.url === x.link)) out.push({ source, url: x.link });
+    }
+  }
+  return out.slice(0, 6);
+}
+
+const nonEmpty = <T,>(a: T[]) => (a.length ? a : undefined);
+
+function openHours(cell?: string): Record<string, string> | undefined {
+  const h = json<Record<string, string[] | string>>(cell);
+  if (!h || Array.isArray(h) || typeof h !== "object") return undefined;
+  const out: Record<string, string> = {};
+  for (const [day, v] of Object.entries(h)) out[day] = Array.isArray(v) ? v.join(", ") : String(v);
+  return Object.keys(out).length ? out : undefined;
+}
+
 export function rowToRaw(r: Record<string, string>, category: string, city: string): RawPlace | null {
   const name = r.title?.trim();
   if (!name) return null;
@@ -78,6 +122,12 @@ export function rowToRaw(r: Record<string, string>, category: string, city: stri
         ? "CLOSED_TEMPORARILY"
         : undefined,
     mapsUrl: r.link || undefined,
+    owner: ownerName(r.owner),
+    priceRange: r.price_range || undefined,
+    orderLinks: nonEmpty(orderLinks(r.order_online, r.reservations)),
+    photos: json<unknown[]>(r.images)?.length || undefined,
+    openHours: openHours(r.open_hours),
+    about: (r.descriptions || "").slice(0, 400) || undefined,
   };
 }
 
@@ -103,7 +153,12 @@ export interface GmapsDeps {
  * The scraper itself works through its queue one job after another, so queuing all of them at once
  * only made the later ones hit our time limit before they had even started.
  * `max` sets how far the scraper scrolls the results (about 15 per scroll).
+ * Its own email search is off (it opened every business's website, most of each job's time):
+ * the app reads every website for emails anyway.
  */
+/** How long a queued job may wait before we decide the scraper isn't picking jobs up. */
+const PENDING_LIMIT_MIN = 5;
+
 export async function gmapsScrapeBatch(
   opts: { baseUrl: string; city: string; requests: ScrapeRequest[]; max: number; onProgress?: (msg: string) => void },
   deps: GmapsDeps = {},
@@ -131,11 +186,14 @@ export async function gmapsScrapeBatch(
   } catch {}
 
   const out: ScrapeResult[] = [];
-  let down = false;
+  let down = false, stuck = false;
+  const neverStarted = `the scraper never started this job in ${PENDING_LIMIT_MIN} minutes. Open ${opts.baseUrl} to see if it's busy with another job, and run "docker logs lead-autopilot-gmaps --tail 40" to see what it's doing (restart it with "docker compose restart" in app/gmaps-scraper)`;
   for (let i = 0; i < opts.requests.length; i++) {
     const req = opts.requests[i];
     const tag = `Google Maps scraper ${i + 1}/${opts.requests.length} (${req.category})`;
     if (down) { out.push({ category: req.category, places: [], error: notRunning }); continue; }
+    // one job that never starts means the rest won't either: don't queue them just to wait again
+    if (stuck) { out.push({ category: req.category, places: [], error: "skipped: the scraper didn't start the previous job" }); continue; }
 
     // 1. queue the job
     let id: string;
@@ -143,7 +201,7 @@ export async function gmapsScrapeBatch(
       const res = await f(`${opts.baseUrl}/api/v1/jobs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: `lead-autopilot ${req.keyword}`, keywords: [req.keyword], lang: "en", depth, email: true, max_time: maxTimeSec, zoom: 15 }),
+        body: JSON.stringify({ name: `lead-autopilot ${req.keyword}`, keywords: [req.keyword], lang: "en", depth, email: false, max_time: maxTimeSec, zoom: 15 }),
       });
       const j = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
       if (!res.ok || !j.id) throw new Error(j.message || `HTTP ${res.status}`);
@@ -168,7 +226,8 @@ export async function gmapsScrapeBatch(
         const body = (await r.json()) as Record<string, unknown>;
         st = String(body.Status ?? body.status ?? "").toLowerCase() || st;
       } catch {}
-      if (st === "pending" && now() - started > 120_000) break; // scraper is stuck on something else
+      // a job can wait a minute or two for the scraper to pick it up; much longer means it's stuck
+      if (st === "pending" && now() - started > PENDING_LIMIT_MIN * 60_000) break;
       if (now() - lastReport >= 60_000) {
         lastReport = now();
         opts.onProgress?.(`${tag}: still ${st || "waiting"} (${Math.round((now() - started) / 1000)} s)…`);
@@ -178,7 +237,8 @@ export async function gmapsScrapeBatch(
     // 3. download
     if (st === "failed") { out.push({ category: req.category, places: [], error: "the scraper reported the job failed (Google may be blocking it)" }); del(id); continue; }
     if (st !== "ok") {
-      out.push({ category: req.category, places: [], error: st === "pending" ? "the scraper never started this job (open http://localhost:8090 to see what it's busy with)" : `timed out after ${Math.round((now() - started) / 60000)} min` });
+      if (st === "pending") stuck = true;
+      out.push({ category: req.category, places: [], error: st === "pending" ? neverStarted : `timed out after ${Math.round((now() - started) / 60000)} min` });
       del(id);
       continue;
     }

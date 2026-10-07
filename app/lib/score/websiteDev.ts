@@ -1,4 +1,5 @@
 import type { Lead, Signal, Tier } from "../types";
+import { growthSentence, growthSignals } from "./growth";
 
 /**
  * Opportunity score for clients who sell website development.
@@ -20,8 +21,14 @@ export function scoreWebsiteDev(lead: Lead, now = new Date()): { signals: Signal
       else if (a.pageSpeed.score < 50) add("slow", `Slow on mobile (${a.pageSpeed.score}/100)`, 15);
     }
     if (a.https === false) add("no_https", "No HTTPS (browser shows 'Not secure')", 10);
-    if (a.copyrightYear && now.getFullYear() - a.copyrightYear >= 3) add("stale", `Not updated since ${a.copyrightYear}`, 10);
+    const stale = !!a.copyrightYear && now.getFullYear() - a.copyrightYear >= 3;
+    if (stale) add("stale", `Not updated since ${a.copyrightYear}`, 10);
+    // An agency built it and nobody has touched it since: the relationship has likely lapsed.
+    if (a.designedBy) add(stale ? "agency_lapsed" : "agency", `Built by ${a.designedBy}${stale ? ", not maintained" : ""}`, stale ? 5 : 0);
   }
+  const since = a?.foundedYear;
+  if (since && now.getFullYear() - since >= 5) add("established", `Running since ${since}`, 5);
+  if (!lead.chain) s.push(...growthSignals(lead, "website", now));
 
   const ig = lead.social?.instagram;
   const noWorkingSite = !a || a.status !== "ok";
@@ -33,11 +40,18 @@ export function scoreWebsiteDev(lead: Lead, now = new Date()): { signals: Signal
   if (lead.chain) add("chain", `Chain or franchise (${lead.chain.reason})`, -45);
   if ((lead.reviews ?? 0) >= 50 && (lead.rating ?? 0) >= 4) add("busy", `Busy business: ${lead.reviews} reviews, ${lead.rating?.toFixed(1)}★`, 10);
   if (lead.phone || lead.phones.length || a?.whatsapp) add("has_phone", "Has a phone number", 5);
-  if (lead.email || lead.emails.length || a?.emails.length) add("has_email", "Has an email", 5);
+  const best = lead.emailInfo?.[0];
+  if (best) {
+    if (best.deliverable !== false) add("has_email", best.kind === "own_named" || best.kind === "personal" ? "Has a personal email" : "Has an email", 5);
+  } else if (lead.email || lead.emails.length || a?.emails.length) add("has_email", "Has an email", 5);
+  const owner = lead.owner?.name ?? a?.ownerName;
+  if (owner) add("owner_known", `Owner: ${owner}`, 5);
 
   const score = Math.max(0, Math.min(100, s.reduce((t, x) => t + x.points, 0)));
   const tier: Tier = score >= 65 ? "hot" : score >= 40 ? "warm" : "cold";
-  return { signals: s, score, tier, whyNow: whyNow(lead, s) };
+  const growth = lead.chain ? "" : growthSentence(lead, s, "website");
+  const base = whyNow(lead, s);
+  return { signals: s, score, tier, whyNow: growth ? `${base.replace(/ Low priority for a website pitch\.$/, "")} ${growth}` : base };
 }
 
 function socialName(a: NonNullable<Lead["audit"]>): string {
