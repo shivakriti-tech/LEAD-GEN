@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Lead } from "@/lib/types";
-import { phoneKind, PHONE_KIND_LABEL } from "@/lib/util";
+import { phoneKind, PHONE_KIND_LABEL, safeHref } from "@/lib/util";
 import { EMAIL_KIND_LABEL } from "@/lib/enrich/email";
 import { MAILBOX_LABEL } from "@/lib/enrich/mailboxLabel";
 import { canContact, emailLink, linkedinOf, localDate, mapsLink, STEP_LABEL, scoreSummary, shortAddress, statusOf, telLink, whatsappNumber } from "@/lib/outreach";
@@ -212,6 +212,12 @@ export function LeadPanel({
 
         <section className="dsec">
           <h3>Reach them</h3>
+          {l.confidence && (
+            <p className="sub conf" title={l.confidence.reasons.join(" · ")}>
+              <span className={`tag ${l.confidence.level === "high" ? "good" : l.confidence.level === "low" ? "warn" : ""}`}>Contact details: {l.confidence.level} confidence</span>{" "}
+              {l.confidence.reasons.slice(0, 2).join(" · ")}
+            </p>
+          )}
           <div className="reach">
             {l.phones.length ? (
               l.phones.map((p) => (
@@ -240,10 +246,10 @@ export function LeadPanel({
             {!l.emails.length && <div className="sub">No email found.</div>}
             {l.owner && <div className="reach-row"><span>Owner: <b>{l.owner.name}</b></span><span className="sub">from {l.owner.via === "google_maps" ? "Google Maps" : "their website"}</span></div>}
             <div className="links">
-              {l.website && <a href={l.website} target="_blank" rel="noreferrer">{l.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</a>}
-              {l.social?.instagram && <a href={l.social.instagram.url} target="_blank" rel="noreferrer">Instagram @{l.social.instagram.handle}{l.social.instagram.followers != null ? ` · ${l.social.instagram.followers.toLocaleString("en-IN")} followers` : ""}</a>}
-              {l.social?.facebook && <a href={l.social.facebook.url} target="_blank" rel="noreferrer">Facebook</a>}
-              {li && <a href={li.url} target="_blank" rel="noreferrer">{li.kind === "company" ? "LinkedIn page" : "LinkedIn (person)"}</a>}
+              {l.website && safeHref(l.website) && <a href={safeHref(l.website)} target="_blank" rel="noreferrer">{l.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</a>}
+              {l.social?.instagram && safeHref(l.social.instagram.url) && <a href={safeHref(l.social.instagram.url)} target="_blank" rel="noreferrer">Instagram @{l.social.instagram.handle}{l.social.instagram.followers != null ? ` · ${l.social.instagram.followers.toLocaleString("en-IN")} followers` : ""}</a>}
+              {safeHref(l.social?.facebook?.url) && <a href={safeHref(l.social!.facebook!.url)} target="_blank" rel="noreferrer">Facebook</a>}
+              {li && safeHref(li.url) && <a href={safeHref(li.url)} target="_blank" rel="noreferrer">{li.kind === "company" ? "LinkedIn page" : "LinkedIn (person)"}</a>}
               <a href={mapsLink(l)} target="_blank" rel="noreferrer"><IconMap /> Google Maps</a>
             </div>
           </div>
@@ -280,7 +286,7 @@ export function LeadPanel({
               {[l.rating != null && `${l.rating.toFixed(1)}★ from ${l.reviews ?? 0} reviews`, l.priceRange && `price ${l.priceRange}`, l.photos && `${l.photos} photos`].filter(Boolean).join(" · ")}
             </p>
             {l.orderLinks?.length ? (
-              <p className="sub">Takes orders/bookings through {l.orderLinks.map((o, i) => <span key={o.url}>{i ? ", " : ""}<a href={o.url} target="_blank" rel="noreferrer">{o.source}</a></span>)}</p>
+              <p className="sub">Takes orders/bookings through {l.orderLinks.map((o, i) => <span key={o.url}>{i ? ", " : ""}<a href={safeHref(o.url)} target="_blank" rel="noreferrer">{o.source}</a></span>)}</p>
             ) : null}
           </section>
         )}

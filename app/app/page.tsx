@@ -21,6 +21,7 @@ import { SetupPanel } from "./_ui/SetupPanel";
 import { PitchCtx, YourDetails, type PitchPrefs } from "./_ui/pitch";
 import { IconReport, IconBell, IconCalendar, IconCheck, IconChevron, IconDownload, IconEdit, IconHistory, IconHome, IconPlus, IconSearch, IconSettings, IconSend, IconShield, IconUser } from "./_ui/icons";
 import { Popover } from "./_ui/Popover";
+import { hasNicheReason, isNiche, NICHES } from "@/lib/niches";
 
 type LogLine = { level: "info" | "warn" | "error"; message: string };
 type Sort = "score" | "reviews" | "name" | "status";
@@ -482,7 +483,7 @@ export default function LeadFinder() {
     const out = leads.filter(
       (l) =>
         (tier === "all" || (!l.pending && l.tier === tier)) &&
-        (!onlyNoSite || (isLogistics ? l.signals.some((x) => x.key === "exports" || x.key === "imports") : isAgency ? hasAgencyReason(l) : ["none", "social_only", "down"].includes(l.audit?.status ?? ""))) &&
+        (!onlyNoSite || (isLogistics ? l.signals.some((x) => x.key === "exports" || x.key === "imports") : isAgency ? hasAgencyReason(l) : isNiche(params?.sells) ? hasNicheReason(l) : ["none", "social_only", "down"].includes(l.audit?.status ?? ""))) &&
         (!needPhone || l.phone || l.phones.length) &&
         (!needWa || whatsappNumber(l)) &&
         (!needEmail || l.email) &&
@@ -500,7 +501,7 @@ export default function LeadFinder() {
       status: (a, b) => (b.followUp?.updatedAt ?? "").localeCompare(a.followUp?.updatedAt ?? ""),
     };
     return out.sort((a, b) => Number(!!a.pending) - Number(!!b.pending) || cmp[sort](a, b));
-  }, [leads, tier, onlyNoSite, needPhone, needWa, needEmail, notContacted, skipChains, goodRating, status, contactedWeek, q, sort, searchId, pipe?.touched, isLogistics, isAgency]);
+  }, [leads, tier, onlyNoSite, needPhone, needWa, needEmail, notContacted, skipChains, goodRating, status, contactedWeek, q, sort, searchId, pipe?.touched, isLogistics, isAgency, params?.sells]);
 
   const activeFilters = [tier !== "all", onlyNoSite, needPhone, needWa, needEmail, notContacted, skipChains, goodRating, status !== "any", contactedWeek, !!q.trim()].filter(Boolean).length;
   const filtered = activeFilters > 0;
@@ -567,10 +568,11 @@ export default function LeadFinder() {
   const focus = useMemo(() => {
     const hot = leads.filter((l) => !l.pending && l.tier === "hot");
     const todo = hot.filter((l) => statusOf(l) === "new" && !touchedOf(l));
-    const noSite = todo.filter((l) => ["none", "social_only", "down"].includes(l.audit?.status ?? "none")).length;
+    // a niche pitches something else than a website: its reasons are on each lead
+    const noSite = isNiche(params?.sells) ? 0 : todo.filter((l) => ["none", "social_only", "down"].includes(l.audit?.status ?? "none")).length;
     const exporters = todo.filter((l) => l.signals.some((x) => x.key === "exports")).length;
     return { hot: hot.length, todo: todo.length, noSite, exporters };
-  }, [leads, touchedOf]);
+  }, [leads, touchedOf, params?.sells]);
   const baseMe: Sender = prefs.me && Object.keys(prefs.me).length ? prefs.me : prefs.sender ? { name: prefs.sender } : {};
   const pitch: PitchPrefs = {
     lang: prefs.lang,
@@ -630,6 +632,9 @@ export default function LeadFinder() {
           <button className="tn" onClick={() => setSetupOpen(true)}><span className="tn-ic"><IconSettings /></span>Setup</button>
         </nav>
         <div className="top-actions">
+          {config?.feedback && (
+            <a className="btn sm feedback" href={`mailto:${config.feedback}?subject=${encodeURIComponent("Lead Autopilot feedback")}&body=${encodeURIComponent(`What I was doing:\n\nWhat happened:\n\nWhat I expected:\n\n(Screen: ${view ?? "home"}${searchId ? `, search ${searchId}` : ""})`)}`} title="Tell us what works and what doesn't">Feedback</a>
+          )}
           <button className="round" onClick={showFollowUps} aria-label={`Follow-ups due: ${pipe?.due.length ?? 0}`} title="Follow up today">
             <IconBell />
             {(pipe?.due.length ?? 0) > 0 && <span className="badge">{pipe?.due.length ?? 0}</span>}
@@ -684,7 +689,12 @@ export default function LeadFinder() {
           <div>
             {showForm ? (
               <>
-                {form.sells === "agency" ? (
+                {isNiche(form.sells) ? (
+                  <>
+                    <h1>{NICHES[form.sells].heading}</h1>
+                    <p>{NICHES[form.sells].intro}</p>
+                  </>
+                ) : form.sells === "agency" ? (
                   <>
                     <h1>Who needs a store or better systems?</h1>
                     <p>Pick a country, a city and the kinds of business. We find online stores and companies whose website, store or systems are holding them back, say why, and write the first message.</p>
@@ -803,7 +813,7 @@ export default function LeadFinder() {
             <section className="results" aria-label="Leads">
               <div className="filterbar">
                 <div className="chips scroll" role="group" aria-label="Filters">
-                  {([[isLogistics ? "Exports or imports" : isAgency ? "Clear reason to pitch" : "No working website", onlyNoSite, setOnlyNoSite], ["Not messaged yet", notContacted, setNotContacted], ["Has phone", needPhone, setNeedPhone], ["WhatsApp", needWa, setNeedWa], ["Has email", needEmail, setNeedEmail], ["4★ and up", goodRating, setGoodRating], ["No chains", skipChains, setSkipChains]] as const).map(([label, on, set]) => (
+                  {([[isLogistics ? "Exports or imports" : isAgency || isNiche(params?.sells) ? "Clear reason to pitch" : "No working website", onlyNoSite, setOnlyNoSite], ["Not messaged yet", notContacted, setNotContacted], ["Has phone", needPhone, setNeedPhone], ["WhatsApp", needWa, setNeedWa], ["Has email", needEmail, setNeedEmail], ["4★ and up", goodRating, setGoodRating], ["No chains", skipChains, setSkipChains]] as const).map(([label, on, set]) => (
                     <button key={label} className="chip" aria-pressed={on} onClick={() => set(!on)}>
                       {on && <IconCheck />} {label}
                     </button>

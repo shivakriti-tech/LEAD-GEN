@@ -5,6 +5,7 @@ import path from "node:path";
 import type { Lead } from "./types";
 import { canContact } from "./outreach";
 import { touchKeys, type FollowUpPatch } from "./followups";
+import { writeAtomic } from "./store";
 
 /**
  * WhatsApp Business Platform (Meta's Cloud API, direct: no reseller markup).
@@ -94,10 +95,10 @@ export interface WaLog {
   entries: WaLogEntry[];
   lastInbound: Record<string, string>;
 }
-const logFile = () => path.join(process.cwd(), ".data", "outreach", "whatsapp.json");
+const logFile = () => path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", "outreach", "whatsapp.json");
 export async function readWaLog(): Promise<WaLog> {
   try {
-    return JSON.parse(await fs.readFile(logFile(), "utf8")) as WaLog;
+    return JSON.parse(await fs.readFile(/*turbopackIgnore: true*/ logFile(), "utf8")) as WaLog;
   } catch {
     return { entries: [], lastInbound: {} };
   }
@@ -109,7 +110,7 @@ export function updateWaLog<T>(fn: (l: WaLog) => T): Promise<T> {
     const out = fn(l);
     l.entries = l.entries.slice(-2000);
     await fs.mkdir(path.dirname(logFile()), { recursive: true });
-    await fs.writeFile(logFile(), JSON.stringify(l));
+    await writeAtomic(logFile(), JSON.stringify(l));
     return out;
   });
   chain = run.catch(() => {});

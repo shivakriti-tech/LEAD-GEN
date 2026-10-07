@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
-import type { TradeHints, WebsiteAudit, GrowthHints, TechHints } from "../types";
+import type { TradeHints, WebsiteAudit, GrowthHints, TechHints, SiteFacts } from "../types";
 import { mergeTech, techHints } from "./tech";
+import { mergeFacts, siteFacts } from "./facts";
 import { fetchPublic } from "../safeFetch";
 import { domainOf, isMobile, isSocialHost, normalizePhone, phonesInText } from "../util";
 import { currentCountry } from "../marketContext";
@@ -275,8 +276,9 @@ export function parsePage(html: string, pageUrl: string) {
   const trade = tradeHints(text, [...new Set(hosts)], html.slice(0, 300_000));
   const growth = growthHints(text);
   const tech = techHints(html, text, [...new Set(hosts)]);
+  const facts = siteFacts(text, [...new Set(hosts)]);
 
-  return { emails: [...emails], phones: sortedPhones, socials, whatsapp, mobileViewport, copyrightYear, builder, contactLinks: contactLinks.slice(0, 2), careersLink, foundedYear: extractedFoundingYear, designedBy, ownerName, trade, growth, tech };
+  return { emails: [...emails], phones: sortedPhones, socials, whatsapp, mobileViewport, copyrightYear, builder, contactLinks: contactLinks.slice(0, 2), careersLink, foundedYear: extractedFoundingYear, designedBy, ownerName, trade, growth, tech, facts };
 }
 
 /** Load a business website and audit it. Never throws. */
@@ -316,6 +318,7 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
   const trade: TradeHints = { ...first.trade };
   const growth: GrowthHints = { ...first.growth };
   const tech: TechHints = { ...first.tech };
+  const facts: SiteFacts = { ...first.facts };
 
   // look at up to 2 contact/about pages for more contacts; outside India also the careers page
   const more = [...first.contactLinks, ...(currentCountry() !== "IN" && first.careersLink && !first.contactLinks.includes(first.careersLink) ? [first.careersLink] : [])];
@@ -334,6 +337,7 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
       mergeTrade(trade, p.trade);
       for (const [k, v] of Object.entries(p.growth) as Array<[keyof GrowthHints, string]>) growth[k] ??= v;
       mergeTech(tech, p.tech);
+      mergeFacts(facts, p.facts);
     } catch {}
   }
 
@@ -376,6 +380,7 @@ export async function auditWebsite(website?: string): Promise<WebsiteAudit> {
     trade: Object.keys(trade).length ? trade : undefined,
     growth: Object.keys(growth).length ? growth : undefined,
     tech: Object.keys(tech).length ? tech : undefined,
+    facts: Object.keys(facts).length ? facts : undefined,
   };
 }
 

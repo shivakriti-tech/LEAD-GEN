@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { Lead } from "./types";
+import { writeAtomic } from "./store";
 
 /**
  * The saved lead directory: businesses already found and checked, per city, area and business type.
@@ -41,12 +42,12 @@ export function forDirectory(l: Lead, now = new Date()): Lead {
   return { ...facts, checkedAt: l.checkedAt ?? now.toISOString() };
 }
 
-export function localDirectory(root = () => path.join(process.cwd(), ".data", "directory")): Directory {
+export function localDirectory(root = () => path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", "directory")): Directory {
   const file = (city: string, area: string | undefined, category: string) => path.join(root(), slug(city), slug(area), `${slug(category)}.json`);
   return {
     async get(city, area, category) {
       try {
-        const e = JSON.parse(await fs.readFile(file(city, area, category), "utf8")) as DirectoryEntry;
+        const e = JSON.parse(await fs.readFile(/*turbopackIgnore: true*/ file(city, area, category), "utf8")) as DirectoryEntry;
         return Date.now() - Date.parse(e.savedAt) < DIRECTORY_MAX_AGE && e.leads.length ? e : undefined;
       } catch {
         return undefined;
@@ -55,17 +56,17 @@ export function localDirectory(root = () => path.join(process.cwd(), ".data", "d
     async put(entry) {
       const f = file(entry.city, entry.area, entry.category);
       await fs.mkdir(path.dirname(f), { recursive: true });
-      await fs.writeFile(f, JSON.stringify(entry));
+      await writeAtomic(f, JSON.stringify(entry));
     },
     async list(city) {
       const out: Array<Omit<DirectoryEntry, "leads"> & { count: number }> = [];
       const base = root();
-      const cities = city ? [slug(city)] : await fs.readdir(base).catch(() => [] as string[]);
+      const cities = city ? [slug(city)] : await fs.readdir(/*turbopackIgnore: true*/ base).catch(() => [] as string[]);
       for (const c of cities) {
-        for (const a of await fs.readdir(path.join(base, c)).catch(() => [] as string[])) {
-          for (const f of await fs.readdir(path.join(base, c, a)).catch(() => [] as string[])) {
+        for (const a of await fs.readdir(/*turbopackIgnore: true*/ path.join(/*turbopackIgnore: true*/ base, c)).catch(() => [] as string[])) {
+          for (const f of await fs.readdir(/*turbopackIgnore: true*/ path.join(/*turbopackIgnore: true*/ base, c, a)).catch(() => [] as string[])) {
             try {
-              const e = JSON.parse(await fs.readFile(path.join(base, c, a, f), "utf8")) as DirectoryEntry;
+              const e = JSON.parse(await fs.readFile(/*turbopackIgnore: true*/ path.join(/*turbopackIgnore: true*/ base, c, a, f), "utf8")) as DirectoryEntry;
               out.push({ city: e.city, area: e.area, category: e.category, savedAt: e.savedAt, count: e.leads.length });
             } catch {}
           }

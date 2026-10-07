@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ALL_SERVICES } from "./score/logistics";
-import type { LogisticsService } from "./types";
+import { NICHE_KEYS } from "./niches";
+import type { LogisticsService, Offer } from "./types";
 
 /**
  * The Business Brain: everything the app knows about one client (the business you find leads for).
@@ -29,7 +30,7 @@ export const BrainSchema = z.object({
   phone: text(40).optional(),
   email: text(160).optional(),
   /** Which kind of leads to find for them. */
-  offer: z.enum(["website_development", "logistics"]),
+  offer: z.enum(["website_development", "logistics", ...NICHE_KEYS] as [Exclude<Offer, "agency">, ...Array<Exclude<Offer, "agency">>]),
   /** One line: what they do. */
   summary: text(400).optional(),
   services: z.array(ServiceSchema).max(60).default([]),

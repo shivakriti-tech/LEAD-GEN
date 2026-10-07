@@ -79,11 +79,11 @@ export interface QueueStore {
   write(d: QueueData): Promise<void>;
 }
 
-export function localQueueStore(file = () => path.join(process.cwd(), ".data", "outreach", "email.json")): QueueStore {
+export function localQueueStore(file = () => path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", "outreach", "email.json")): QueueStore {
   return {
     async read() {
       try {
-        return JSON.parse(await fs.readFile(file(), "utf8")) as QueueData;
+        return JSON.parse(await fs.readFile(/*turbopackIgnore: true*/ file(), "utf8")) as QueueData;
       } catch {
         return { items: [], mailboxes: {} };
       }

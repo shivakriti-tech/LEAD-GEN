@@ -37,7 +37,11 @@ With no keys at all it already works: leads come from OpenStreetMap (free) and e
 | `OPENAI_API_KEY` | GPT through OpenAI or any OpenAI-compatible gateway (`OPENAI_BASE_URL`, `OPENAI_MODEL`, default `gpt-4o`; `OPENAI_TIMEOUT_MS` to give up sooner). Tried **first**: if it fails, times out or gives a bad answer, Gemini then Claude take over (website reading and inbox replies) | your provider |
 | `GEMINI_API_KEY` | **Free.** Google Gemini reads a client's website when you add them under *Clients* and drafts their profile (services, prices, rules). Used first when set. `GEMINI_MODEL` to pick a model (default `gemini-2.5-flash`; if Google retires it, the newest Flash model is used). Google may use free-tier requests to improve its products: the app only sends the client's public web pages | https://aistudio.google.com → Get API key |
 | `ANTHROPIC_API_KEY` | Claude reads a client's website when you add them under *Clients* and drafts their profile (services, prices, rules). About ₹10–20 per client (one Claude Opus 5.5 call). Without it a basic reader drafts it | https://console.anthropic.com → API keys |
-| `APP_PASSWORD` | Password-protects the whole app (the browser asks; any user name). **Set it before putting the app online**: saved searches hold phone numbers and emails, and every search spends your API quota | Any long password |
+| `APP_PASSWORD` | Password-protects the whole app (the browser asks; any user name). **Required online**: a live build refuses to open without one (or with one shorter than 12 characters), because saved searches hold phone numbers and emails and every search spends your API quota. Ten wrong tries lock that address out for 15 minutes | Any long password |
+| `FEEDBACK_EMAIL` | A **Feedback** button in the header that emails you what the user was doing. For beta testers (docs/BETA.md) | Your address |
+| `LEARN_FROM_RESULTS` | `off` stops scores learning from your replies (see *Scoring*) | – |
+| `MAX_RUNNING_SEARCHES` | Searches one server runs at once (default 3) | – |
+| `TRUST_PROXY_HOPS`, `APP_OPEN`, `APP_ALLOWED_HOSTS` | Hosting details: proxies in front of the app (default 1); `APP_OPEN=yes` to run online with no password (not recommended); extra host names for a password-less app | See DEPLOY.md |
 
 Restart `npm run dev` after changing `.env.local`.
 
@@ -79,6 +83,24 @@ For your own agency's services abroad: **online stores** that need a store or an
 - Each lead says why and what it needs, e.g. "Trucking & haulage in Houston with 6 locations: no shipment tracking or customer login on the site and hiring for manual office work (dispatcher). Likely needs a new website, a CRM / ERP and AI automation."
 - **Messages** are in English and name the reason, what you build and your proof, with a small ask (a store review with three quick wins, or a 20-minute call). Follow-ups stay on the same topic. Emails go out in office hours where the lead is; emails to the US and Canada need your postal address under *Your details*.
 - Search engines look for online brands anywhere in the country (not only sites that name the city), and skip marketplaces, big retailers and directories.
+
+## More niches: marketing, solar, CA/GST, staffing, insurance
+
+Under **More niches** in *New search*, five more kinds of leads, for you or a client who sells:
+
+| Niche | Who it finds | What makes a lead strong (each quoted from what we saw) |
+|---|---|---|
+| **Digital marketing & SEO** | Clinics, salons, restaurants, gyms, coaching, real estate, car service, jewellers, venues, travel… | Few or no Google reviews, a rating under 4★, no website, no analytics or ad tags on the site, no or quiet Instagram, no online booking. Already strong on Google (150+ reviews, 4.4★+) counts against. |
+| **Rooftop solar** | Factories, cold storage, warehouses, hospitals, schools and colleges, hotels | Cold storage or heavy power use, factory in an industrial estate, big roof, open 24 hours, exports to Europe or the US (buyers ask for green power), ISO 14001, staff size. Already on solar counts against. |
+| **CA, GST & compliance** | Wholesalers, distributors, manufacturers, exporters, importers, online sellers, retail, restaurants, IT firms, clinics | New business (first-year filings), exports (LUT, GST refunds), sells online (marketplace TCS), trader, supplies across India, several locations, hiring (payroll, PF, ESI). |
+| **Hiring & staffing** | Factories, warehouses, hospitals, hotels, restaurants, retail, IT firms, schools | Hiring now (quoted from the careers page), expanding, office roles open, new business, shift work, staff size, several locations. |
+| **Business insurance** | Exporters, importers, factories, chemical units, warehouses, cold storage, hospitals, schools, hotels, IT firms | Ships goods abroad (marine cargo), factory or stock held (fire & property), chemicals, hospital (liability), growing team (group health). |
+
+- Each niche has its own business types (new ones: hospital, school & college, cold storage, warehouse, IT company), message (English or Hinglish, Friendly or Short, with follow-ups and a LinkedIn note), email subject, report and CSV "Likely needs".
+- Businesses in the same line of work (marketing agencies, solar installers, CA firms, staffing agencies, insurers) are marked as competitors and score 0.
+- A client can be any of these: under **Clients**, *Leads to find for them* lists every niche, and reading their website suggests the right one (a solar installer's site → Rooftop solar).
+- New facts read from every website: analytics and ad tags (Google Analytics, Tag Manager, Meta Pixel, Google Ads), online booking (text or Practo/Calendly/Fresha… links), certificates (ISO 9001/14001/45001/22000, GMP, FSSAI, HACCP, BIS, FDA, CE, NABH, NABL), staff size, already on solar, power-hungry work, hazardous goods.
+- Website searches have 16 more business types too: vet, diagnostic lab, pharmacy, optician, preschool, dance/music/art classes, driving school, banquet venue, photographer, travel agent, car & bike service, car & bike dealer, architect, jeweller, electronics & mobile shop, hardware & paints.
 
 ## AI conversation agent (Outreach → Inbox)
 
@@ -328,7 +350,11 @@ Facebook: Page search through the official API needs Meta's "Page Public Metadat
 | **Why now:** hiring (website shows openings, "we're hiring", walk-in interviews; a plain Careers link doesn't count) | 5 |
 | **Why now:** low Google rating (under 3.8★ with 15+ reviews): a pitch angle | 5 |
 
-Hot ≥ 65 · Warm 40–64 · Cold < 40. Tune it in `lib/score/websiteDev.ts`; the why-now signals are in `lib/score/growth.ts`.
+Hot ≥ 65 · Warm 40–64 · Cold < 40. Tune it in `lib/score/websiteDev.ts`; the why-now signals are in `lib/score/growth.ts`; the niches' scoring in `lib/niches.ts`.
+
+**Learning from your replies.** Once 30 leads of one kind (website, logistics, a niche…) have been messaged, each reason's reply rate is compared with your average, and new leads move by up to ±15 points, with the evidence on the lead: "Your results: leads with no website replied 2.1× as often (9 of 30)". A reason needs 8 messaged leads of its own, rates are pulled towards your average so a lucky streak doesn't swing scores, and competitors are never lifted. `LEARN_FROM_RESULTS=off` turns it off (`lib/learn.ts`).
+
+**Contact confidence** (high / medium / low, in the lead panel under *Reach them* and in the CSV) says how sure we are the contact details are right, separately from how good the lead is: the phone matches the map listing and the website, the mailbox was verified, the email is on the business's own domain, the website was matched by name and phone, it's in several sources, Google says it's open, and it was checked recently (`lib/confidence.ts`).
 
 **Why-now signals** come with their evidence (the words on the website, the year, the domain date), are added to the "why now" line and shown as a tag (Expanding, New business, Hiring, Low rating). For a logistics client they count too: new business +10 (no fixed logistics partner yet), expanding +15 (more freight soon), hiring +5; a low rating doesn't count there. A domain registered this year doesn't count as "new" when the business is years old (founded year or an old © year on its site). Domain dates come from public RDAP records (free, no key; `DOMAIN_AGE=off` to skip).
 
@@ -349,8 +375,13 @@ lib/cache.ts                 disk cache for repeat searches
 lib/directory.ts             saved lead directory (per city/area/type); lib/prefill.ts + scripts/prefill.ts fill it ahead of time
 lib/outreach.ts              first messages (English/Hinglish), Call/WhatsApp/Email links, follow-up statuses
 lib/bench.ts, bench/         Vadodara lead-quality benchmark (npm run bench)
+lib/niches.ts                the niches: who each sells to, scoring with evidence, message parts
+lib/confidence.ts, learn.ts  contact confidence; learning score nudges from your replies
+lib/enrich/facts.ts          facts from websites: booking, certificates, staff size, solar, power use
 lib/safeFetch.ts             blocks private/internal addresses when checking websites in a live build
-proxy.ts                     password protection (APP_PASSWORD)
+lib/security.ts, proxy.ts    password, lockout, cross-site and rate limits, request size, security headers
+Dockerfile, DEPLOY.md        putting it online (Render blueprint in ../render.yaml, Railway, any VPS)
+docs/                        ACCURACY-ROADMAP.md (research and what to build next), BETA.md (customer beta)
 lib/categories.ts            business types and their search terms
 supabase/schema.sql          database tables
 searxng/                     free self-hosted web search (docker compose up -d)
@@ -366,12 +397,21 @@ tests/                       npm test
 - Apollo data is only fetched with the client's own key and not reused for other clients.
 - Instagram and Facebook: only search-result links and Meta's official API. No logins, no scraping of profile pages.
 - Live builds never load private or internal addresses (localhost, 192.168.x, cloud metadata…) when checking a business website, even through a redirect.
-- A live app must have `APP_PASSWORD` set. Keys stay on the server; the browser only learns which sources are switched on.
+- A live app must have `APP_PASSWORD` set (12+ characters); it won't open without one. Keys stay on the server; the browser only learns which sources are switched on.
+- Every request passes `lib/security.ts`: ten wrong passwords lock that address out for 15 minutes; changes must come from the app's own pages (another website can't make your browser start searches or send emails); searches, client-site reading, reports and sends are rate limited per address; requests over 1 MB (4 MB for a bulk email queue) are refused; responses carry a content security policy, no framing, no MIME sniffing and no referrer. Without a password (your own computer) the app only answers at localhost or an IP address, so a web page can't reach it through its own domain name.
+- Only Meta's webhook (signature checked, 1 MB max), the unsubscribe link (signed token) and `/api/health` work without the password.
+- Links from outside data (websites, Instagram, order links) only become clickable when they're http(s).
+- The AI inbox treats incoming messages as data, never as instructions; it only sends a reply by itself when it's a short, polite close with no links, addresses or numbers.
+- Saved files are written whole or not at all, and changes to one search are made one after another, so two quick status changes never undo each other.
+
+## Put it online
+
+See **DEPLOY.md**: Render (one-click blueprint), Railway, or any server with Docker; and **docs/BETA.md** for giving it to customers for feedback.
 
 ## Checks
 
 ```
-npm test          # 262 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 386 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

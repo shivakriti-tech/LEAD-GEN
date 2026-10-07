@@ -19,9 +19,9 @@ let cached: string | undefined;
 async function secret(): Promise<string> {
   if (process.env.UNSUBSCRIBE_SECRET?.trim()) return process.env.UNSUBSCRIBE_SECRET.trim();
   if (cached) return cached;
-  const file = path.join(process.cwd(), ".data", "unsubscribe-secret");
+  const file = path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", "unsubscribe-secret");
   try {
-    cached = (await fs.readFile(file, "utf8")).trim();
+    cached = (await fs.readFile(/*turbopackIgnore: true*/ file, "utf8")).trim();
   } catch {
     cached = randomBytes(32).toString("hex");
     await fs.mkdir(path.dirname(file), { recursive: true });

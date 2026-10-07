@@ -10,6 +10,7 @@ import type { Mailbox } from "../mail/mailboxes";
 import { applyInbox, mutate, signature, type LeadAccess, type QueueStore, type SendDeps } from "../mail/queue";
 import { emailHtml } from "../mail/html";
 import { runAgent, type AgentResult, type Msg } from "./agent";
+import { writeAtomic } from "../store";
 
 /**
  * The inbox: every reply from a lead, what it means, and the drafted answer waiting for you.
@@ -47,18 +48,18 @@ export interface InboxStore {
   write(d: InboxData): Promise<void>;
 }
 
-export function localInboxStore(file = () => path.join(process.cwd(), ".data", "outreach", "inbox.json")): InboxStore {
+export function localInboxStore(file = () => path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", "outreach", "inbox.json")): InboxStore {
   return {
     async read() {
       try {
-        return JSON.parse(await fs.readFile(file(), "utf8")) as InboxData;
+        return JSON.parse(await fs.readFile(/*turbopackIgnore: true*/ file(), "utf8")) as InboxData;
       } catch {
         return { conversations: [] };
       }
     },
     async write(d) {
       await fs.mkdir(path.dirname(file()), { recursive: true });
-      await fs.writeFile(file(), JSON.stringify(d));
+      await writeAtomic(file(), JSON.stringify(d));
     },
   };
 }
@@ -101,6 +102,12 @@ export function patchFor(r: AgentResult, now = new Date()): FollowUpPatch | unde
 
 /** Intents the agent may answer by itself when AGENT_AUTO_SEND=safe: polite closes, never sales talk. */
 export const SAFE_AUTO = new Set(["not_now", "not_interested", "wrong_person", "referral"]);
+
+/**
+ * A polite close the agent may send by itself: short, no links, no email addresses or numbers. A
+ * reply that was talked into more than that (a message telling the AI what to write) waits for you.
+ */
+export const autoSafe = (reply: string) => reply.length <= 600 && !/https?:\/\/|www\.|@|\d{3,}/i.test(reply);
 
 export interface ReplyDeps {
   inbox: InboxStore;
@@ -172,7 +179,7 @@ export async function handleEmailReply(deps: ReplyDeps, r: { mailbox: string; ad
   await updateInbox(deps.inbox, (d) => {
     d.conversations = [...d.conversations.filter((c) => c.id !== conv.id), conv];
   });
-  if (!closed && !result.handoff && /^safe$/i.test(env.AGENT_AUTO_SEND ?? "") && SAFE_AUTO.has(result.intent) && result.reply) await sendEmailReply(deps, conv.id, result.reply, "agent");
+  if (!closed && !result.handoff && /^safe$/i.test(env.AGENT_AUTO_SEND ?? "") && SAFE_AUTO.has(result.intent) && result.reply && autoSafe(result.reply)) await sendEmailReply(deps, conv.id, result.reply, "agent");
   return conv;
 }
 

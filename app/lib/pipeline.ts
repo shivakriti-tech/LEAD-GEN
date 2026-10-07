@@ -8,6 +8,9 @@ import { pageSpeedMobile } from "./enrich/pagespeed";
 import { scoreWebsiteDev } from "./score/websiteDev";
 import { scoreLogistics } from "./score/logistics";
 import { scoreAgency } from "./score/agency";
+import { isNiche, scoreNiche } from "./niches";
+import { contactConfidence } from "./confidence";
+import { learnFromStore, withLearned, type Learned } from "./learn";
 import { apolloEnrichDomain } from "./sources/apollo";
 import { googleTextSearch } from "./sources/googlePlaces";
 import { geocodeBBox, osmSearch, type BBox } from "./sources/osm";
@@ -24,7 +27,7 @@ import { cappedVerifier, verifierFromEnv, type EmailVerifier, type MailboxCheck,
 import { domainAcceptsMail } from "./enrich/mx";
 import type { WebsiteAudit } from "./types";
 import type { Store } from "./store";
-import type { Lead, ProgressEvent, RawPlace, SearchParams, SearchRecord } from "./types";
+import type { Lead, Offer, ProgressEvent, RawPlace, SearchParams, SearchRecord } from "./types";
 import { domainOf, isSocialHost, mapLimit, normalizePhone, simplifyName, uid, phonesInText } from "./util";
 
 export interface Deps {
@@ -56,6 +59,8 @@ export interface Deps {
   cacheStats?: CacheStats;
   /** Saved businesses from earlier searches and the prefill. Leave out to always search live. */
   directory?: Directory;
+  /** Reply rates per reason from your earlier searches of this kind (lib/learn.ts). Leave out to score as written. */
+  learned?: (offer: Offer) => Promise<Learned | undefined>;
   /** Pause (ms) between showing saved businesses that don't need a recheck, so results arrive at a readable pace. */
   revealMs?: number;
   /** While sources are still searching, show what's been found at most this often (ms). */
@@ -109,16 +114,25 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
   };
   emit({ type: "start", searchId: search.id });
   /** Websites: how badly they need a new site. Logistics: how much freight they'd bring the client. */
-  const score = (l: Lead) => {
+  const rate = (l: Lead) => {
     if (params.sells === "agency") {
       const r = scoreAgency(l, params.agency?.services, deps.now?.());
+      return { ...r, pitchFor: { ...r.pitchFor, client: params.client?.name || undefined } };
+    }
+    if (isNiche(params.sells)) {
+      const r = scoreNiche(l, params.sells, deps.now?.());
       return { ...r, pitchFor: { ...r.pitchFor, client: params.client?.name || undefined } };
     }
     if (params.sells !== "logistics") return scoreWebsiteDev(l, deps.now?.());
     const r = scoreLogistics(l, params.client?.services, deps.now?.());
     return { ...r, pitchFor: { ...r.pitchFor, client: params.client?.name || undefined } };
   };
+  /** What your own replies say about these reasons (nothing until enough leads were messaged). */
+  let learned: Learned | undefined;
+  /** The score (nudged by your results), and how sure we are of the contact details. */
+  const score = (l: Lead) => ({ ...withLearned(rate(l), params.sells, learned), confidence: contactConfidence(l, deps.now?.()) });
   await deps.store.saveSearch(search);
+  learned = await deps.learned?.(params.sells).catch(() => undefined);
 
   try {
     const place = params.area ? `${params.area}, ${params.city}` : params.city;
@@ -826,6 +840,7 @@ export function defaultDeps(store: Store): Deps {
     cacheStats,
     // LEAD_DIRECTORY=off: every search runs fully live and nothing is saved for later searches
     directory: /^(off|0|false|no)$/i.test(process.env.LEAD_DIRECTORY || "") ? undefined : localDirectory(),
+    learned: (offer) => learnFromStore(store, offer),
     keys: {
       google: process.env.GOOGLE_PLACES_API_KEY || undefined,
       pageSpeed: process.env.PAGESPEED_API_KEY || undefined,

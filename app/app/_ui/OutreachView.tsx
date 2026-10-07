@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { localDate, STEP_LABEL } from "@/lib/outreach";
+import { safeHref } from "@/lib/util";
 import { IconCheck, IconClose, IconCopy, IconLink, IconMail, IconPlus, IconUser, IconWhatsApp } from "./icons";
 
 /**
@@ -363,7 +364,7 @@ function LinkedInTab() {
                   <div className="row between"><b>{t.leadName}</b><span className="tag">{t.kind === "connect" ? "Connect" : "Find the owner, then connect"}</span></div>
                   <p className="li-note">{t.note}</p>
                   <div className="row gap">
-                    <a className="btn sm" href={t.url} target="_blank" rel="noreferrer"><IconLink /> Open LinkedIn</a>
+                    <a className="btn sm" href={safeHref(t.url)} target="_blank" rel="noreferrer"><IconLink /> Open LinkedIn</a>
                     <button className="btn sm" onClick={() => navigator.clipboard?.writeText(t.note).then(() => { setCopied(t.id); setTimeout(() => setCopied(""), 1500); }, () => {})}>{copied === t.id ? <IconCheck /> : <IconCopy />} {copied === t.id ? "Copied" : "Copy note"}</button>
                     <span className="grow" />
                     <button className="btn sm primary" onClick={() => mark(t.id, "done")}><IconCheck /> Done</button>

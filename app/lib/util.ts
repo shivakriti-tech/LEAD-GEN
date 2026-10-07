@@ -134,3 +134,14 @@ export function simplifyName(name: string): string {
 
 export const uid = () =>
   (globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
+
+/** Only http(s) links from outside data become clickable (no javascript:, data:, file:). */
+export function safeHref(u?: string): string | undefined {
+  if (!u) return undefined;
+  try {
+    const x = new URL(u);
+    return x.protocol === "http:" || x.protocol === "https:" ? x.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}

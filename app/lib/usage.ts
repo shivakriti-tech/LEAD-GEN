@@ -45,11 +45,11 @@ function book(load: () => Record<string, Entry>, save: (d: Record<string, Entry>
   };
 }
 
-export function fileUsage(file = path.join(process.cwd(), ".data", "usage.json"), now = () => new Date()): UsageBook {
+export function fileUsage(file = path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", "usage.json"), now = () => new Date()): UsageBook {
   return book(
     () => {
       try {
-        return JSON.parse(readFileSync(file, "utf8"));
+        return JSON.parse(readFileSync(/*turbopackIgnore: true*/ file, "utf8"));
       } catch {
         return {};
       }
