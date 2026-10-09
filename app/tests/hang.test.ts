@@ -58,4 +58,28 @@ describe("searches never hang", () => {
     expect(leads.map((l) => l.name)).toEqual(["Bright Smile Dental"]);
     expect(events.some((e) => e.type === "log" && /failed for Dentist: no answer after/.test(e.message))).toBe(true);
   });
+
+  it("stops at once even while a source and a website check never answer", async () => {
+    const ctrl = new AbortController();
+    const deps: Deps = {
+      keys: {}, store: store(), stopGraceMs: 50,
+      google: async () => ({ requests: 0, places: [] }),
+      osm: async () => [{ source: "osm", sourceId: "n/1", name: "Bright Smile Dental", category: "Dentist", city: "Vadodara", website: "https://brightsmile.example" }],
+      geocode: async () => ({ box: { south: 0, west: 0, north: 1, east: 1 }, via: "t" }),
+      discover: async () => ({ tried: [] }),
+      audit: () => { setTimeout(() => ctrl.abort(), 50); return new Promise(() => {}); },
+      pageSpeed: async () => ({ score: 0 }), apollo: async () => null,
+      social: async () => [], web: () => new Promise(() => {}), gmaps: async () => [],
+      igLookup: async () => null, fbSearch: async () => [], checkCandidate: async () => ({ ok: false, evidence: "" }),
+      webSearch: async () => [],
+    };
+    const t0 = Date.now();
+    const { search, leads } = await runSearch(
+      { sells: "website_development", categories: ["dentist"], city: "Vadodara", perCategory: 10, sources: { google: false, osm: true, apollo: false, instagram: false, facebook: false, web: true, gmaps: false }, pageSpeed: false, verifyWebsites: true, webSearch: false },
+      deps, () => {}, ctrl.signal,
+    );
+    expect(Date.now() - t0).toBeLessThan(2000);
+    expect(search.status).toBe("stopped");
+    expect(leads.map((l) => l.name)).toEqual(["Bright Smile Dental"]);
+  });
 });

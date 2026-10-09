@@ -31,12 +31,18 @@ export interface ClientStore {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** A database call that never answers mustn't hang a search (or its Stop): give up after 30s. */
+const dbFetch: typeof fetch = (input, init) => {
+  const timeout = AbortSignal.timeout(30_000);
+  return fetch(input, { ...init, signal: init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout });
+};
+
 let db: SupabaseClient | null | undefined;
 /** The Supabase client when SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set, otherwise null (use .data). */
 export function supabase(): SupabaseClient | null {
   if (db !== undefined) return db;
   const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  return (db = url && key ? createClient(url, key, { auth: { persistSession: false } }) : null);
+  return (db = url && key ? createClient(url, key, { auth: { persistSession: false }, global: { fetch: dbFetch } }) : null);
 }
 
 let cached: Store | null = null;

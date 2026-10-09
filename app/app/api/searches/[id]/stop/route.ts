@@ -1,5 +1,5 @@
 import { getStore } from "@/lib/store";
-import { live, settle } from "@/lib/live";
+import { live, resuming, settle } from "@/lib/live";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,8 +12,13 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     running.ctrl.abort();
     return Response.json({ stopping: true });
   }
-  // not running on this server (cut off earlier): just mark it stopped
+  // not running on this server (cut off earlier, or waiting to resume after a restart): mark it stopped
   const hit = await getStore().getSearch(id);
   if (!hit) return Response.json({ error: "Search not found" }, { status: 404 });
+  if (resuming.delete(id) || hit.search.status === "running") {
+    const search = { ...hit.search, status: "stopped" as const, error: `Stopped by you after checking ${hit.leads.filter((l) => !l.pending).length} of ${hit.leads.length} businesses` };
+    await getStore().saveSearch(search);
+    return Response.json({ search });
+  }
   return Response.json({ search: await settle(hit.search, getStore()) });
 }

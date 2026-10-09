@@ -303,9 +303,19 @@ export default function LeadFinder() {
   async function stopSearch() {
     if (!searchId) return;
     setStopping(true);
-    const r = await fetch(`/api/searches/${searchId}/stop`, { method: "POST" }).catch(() => null);
-    const d = await r?.json().catch(() => null);
-    if (d?.search) {
+    // retried: the server may be busy or restarting
+    let d: { search?: SearchRecord; stopping?: boolean } | null = null;
+    for (let i = 0; i < 4 && !d; i++) {
+      if (i) await new Promise((r) => setTimeout(r, 3000));
+      const r = await fetch(`/api/searches/${searchId}/stop`, { method: "POST" }).catch(() => null);
+      d = r?.ok ? await r.json().catch(() => null) : null;
+    }
+    if (!d) {
+      setStopping(false);
+      setError("Couldn't reach the server to stop the search. Try Stop again in a moment.");
+      return;
+    }
+    if (d.search) {
       setSearch(d.search);
       setStopping(false);
       loadHistory();

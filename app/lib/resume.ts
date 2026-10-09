@@ -29,6 +29,7 @@ export async function resumeInterrupted(): Promise<number> {
   if (todo.length) console.log(`[resume] continuing ${todo.length} search${todo.length > 1 ? "es" : ""} cut off by the restart`);
   void (async () => {
     for (const s of todo) {
+      if (!resuming.has(s.id)) continue; // stopped while waiting its turn
       try {
         const hit = await store.getSearch(s.id);
         if (!hit) continue;
