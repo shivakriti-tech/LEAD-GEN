@@ -5,6 +5,8 @@ export function installGuards() {
   if (g.__guards) return;
   g.__guards = true;
   process.on("uncaughtException", (e) => console.error("[uncaughtException]", e));
+  // Render sends SIGTERM for a deploy or a normal restart. A restart with no SIGTERM line before it means the app was killed (usually out of memory).
+  for (const sig of ["SIGTERM", "SIGINT"] as const) process.on(sig, () => { console.log(`[shutdown] received ${sig}`); process.exit(0); });
   process.on("unhandledRejection", (e) => console.error("[unhandledRejection]", e));
 }
 

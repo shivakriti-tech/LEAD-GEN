@@ -78,11 +78,15 @@ export async function POST(req: Request) {
         }
       };
       const emit = track(ctrl, send);
+      const t0 = Date.now();
+      console.log(`[search] start ${params.city} · ${params.categories.length} types · ${live.size} running`);
       try {
         const result = await runSearch(params, deps, emit, ctrl.signal);
+        console.log(`[search] done ${params.city} in ${Math.round((Date.now() - t0) / 1000)}s · ${result.leads.length} leads · ${result.search.status}`);
         emit({ type: "done", search: result.search, leads: result.leads });
       } catch (e) {
         // e.g. the store couldn't save the new search; without this the browser waits forever
+        console.error(`[search] failed ${params.city} after ${Math.round((Date.now() - t0) / 1000)}s`, e);
         emit({ type: "log", level: "error", message: e instanceof Error ? e.message : "Search failed" });
       } finally {
         emit.end();
