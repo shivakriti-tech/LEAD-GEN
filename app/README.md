@@ -211,6 +211,11 @@ In a search, tick leads and press **Email** or **LinkedIn** in the bar at the bo
   MAILBOX_2=smtps://asha%40getshree.in:your-app-password@smtp.gmail.com:465?name=Asha
   ```
   `%40` is @, `%20` a space. Use an app password. Optional: `start=2026-10-01` (when you started using it), `max=40` (most per day), `imap=imap.host` (if the inbox server isn't guessed right).
+- **On Render's free plan (or with Brevo, SendGrid, …):** Render's free plan blocks the usual mail ports (25, 465, 587), so Gmail and Zoho can't send from there. Send through a service on port 2525 instead, and name the From address, where replies go and the inbox the app reads them from:
+  ```
+  MAILBOX_1=smtp://LOGIN%40smtp-brevo.com:SMTP-KEY@smtp-relay.brevo.com:2525?from=divy%40yourdomain.in&name=Divy&replyTo=you%40gmail.com&imap=imap.gmail.com&imapUser=you%40gmail.com&imapPass=GMAIL-APP-PASSWORD
+  ```
+  The From domain must be verified in Brevo (Senders & domains). Reading the reply inbox (port 993) isn't blocked. Without `imap=…` the app sends but can't see replies, bounces or "unsubscribe" answers.
 - **Use a separate sending domain** (e.g. getshreelogistics.in), not the client's main one. Outreach → Email checks each domain's MX, SPF, DKIM and DMARC records and says exactly what to add. It warns if a mailbox uses a client's main domain.
 - **Warm-up:** a new mailbox sends 5 emails on day one, 3 more each day, up to 40. There are 3–7 minutes between emails from one mailbox, only Monday–Saturday 10:00–18:30 IST, spread over your mailboxes. (A warm-up service that trades real replies helps a new domain too; this only paces your own sending.)
 - **Inbox protection (built in):**

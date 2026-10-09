@@ -106,6 +106,7 @@ export default function LeadFinder() {
   const [stopping, setStopping] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [history, setHistory] = useState<SearchRecord[]>([]);
+  const [historyError, setHistoryError] = useState("");
   const [error, setError] = useState("");
 
   const [tier, setTier] = useState<Tier | "all">("all");
@@ -173,14 +174,21 @@ export default function LeadFinder() {
     fetch(`/api/home?today=${localDate()}&tz=${new Date().getTimezoneOffset()}`).then((r) => r.json()).then((d) => d.days && setHome(d)).catch(() => {});
   }
 
-  function loadHistory(first = false) {
+  /** Recent searches. A failed load keeps the list already shown and tries again (the server may be busy or restarting). */
+  function loadHistory(first = false, attempt = 0) {
     fetch("/api/searches")
-      .then((r) => r.json())
-      .then((d) => {
-        setHistory(d.searches ?? []);
-        if (first) setView((v) => v ?? (d.searches?.length ? "home" : "leads"));
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || !Array.isArray(d.searches)) throw new Error(d.error || `HTTP ${r.status}`);
+        setHistory(d.searches);
+        setHistoryError("");
+        if (first) setView((v) => v ?? (d.searches.length ? "home" : "leads"));
       })
-      .catch(() => first && setView((v) => v ?? "leads"));
+      .catch((e) => {
+        setHistoryError(e instanceof Error ? e.message : "couldn't reach the server");
+        if (first) setView((v) => v ?? "leads");
+        if (attempt < 5) setTimeout(() => loadHistory(false, attempt + 1), 3000 * (attempt + 1));
+      });
   }
 
   // keep the address bar in step, so a reload comes back to the same place
@@ -646,7 +654,13 @@ export default function LeadFinder() {
 
   const recentList = (
     <div className="history">
-      {history.length === 0 && <span className="sub side-empty">No searches yet</span>}
+      {history.length === 0 && !historyError && <span className="sub side-empty">No searches yet</span>}
+      {historyError && (
+        <span className="sub side-empty">
+          Couldn&apos;t load your searches ({historyError}).{" "}
+          <button className="linkish" onClick={(e) => { e.stopPropagation(); loadHistory(); }}>Try again</button>
+        </span>
+      )}
       {history.slice(0, 12).map((h) => (
         <div key={h.id} className={`history-row ${h.id === searchId ? "current" : ""}`}>
           <button onClick={() => openSearch(h.id)}>
@@ -674,7 +688,7 @@ export default function LeadFinder() {
           <button className="tn" aria-current={view === "leads" ? "page" : undefined} onClick={() => setView("leads")}><span className="tn-ic"><IconSearch /></span>Find leads</button>
           <Popover
             label="Recent searches"
-            button={(open) => <button className="tn" aria-expanded={open}><span className="tn-ic"><IconHistory /></span>Searches<IconChevron /></button>}
+            button={(open) => <button className="tn" aria-expanded={open} onClick={() => !open && loadHistory()}><span className="tn-ic"><IconHistory /></span>Searches<IconChevron /></button>}
           >
             {(close) => (
               <div className="pop-list" onClick={close}>
@@ -1039,7 +1053,7 @@ export default function LeadFinder() {
         <button aria-current={view === "leads" ? "page" : undefined} onClick={() => setView("leads")}><IconSearch /><span>Find leads</span></button>
         <button aria-current={view === "outreach" ? "page" : undefined} onClick={() => setView("outreach")}><IconSend /><span>Outreach</span></button>
         <button aria-current={view === "pipeline" ? "page" : undefined} onClick={() => setView("pipeline")}><IconTrophy /><span>Pipeline</span></button>
-        <button onClick={() => setRecentOpen(true)}><IconHistory /><span>Searches</span></button>
+        <button onClick={() => { setRecentOpen(true); loadHistory(); }}><IconHistory /><span>Searches</span></button>
         <button aria-current={view === "clients" ? "page" : undefined} onClick={() => setView("clients")}><IconUser /><span>Clients</span></button>
       </nav>
       {recentOpen && (

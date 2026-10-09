@@ -23,35 +23,51 @@ interface MailState { transports: Map<string, Transporter>; timer?: ReturnType<t
 const g = globalThis as unknown as { __mail?: MailState };
 const state: MailState = (g.__mail ??= { transports: new Map(), busy: false });
 
-export function transportFor(m: Mailbox): Transporter {
+/**
+ * The SMTP connection for a mailbox, always over IPv4: nodemailer picks a random address among the
+ * server's IPv4 and IPv6 ones, and hosts without IPv6 (Render) fail with ENETUNREACH on the IPv6 ones.
+ */
+export async function transportFor(m: Mailbox): Promise<Transporter> {
   let t = state.transports.get(m.email);
   if (!t) {
-    t = nodemailer.createTransport({ host: m.smtp.host, port: m.smtp.port, secure: m.smtp.secure, auth: { user: m.smtp.user, pass: m.smtp.pass }, family: 4, connectionTimeout: 20_000, greetingTimeout: 20_000, socketTimeout: 60_000 } as SMTPTransport.Options & { family: 4 });
+    const ips = await dns.promises.resolve4(m.smtp.host).catch(() => [] as string[]);
+    const host = ips.length ? ips[Math.floor(Math.random() * ips.length)] : m.smtp.host;
+    t = nodemailer.createTransport({ host, servername: m.smtp.host, port: m.smtp.port, secure: m.smtp.secure, auth: { user: m.smtp.user, pass: m.smtp.pass }, connectionTimeout: 20_000, greetingTimeout: 20_000, socketTimeout: 60_000 } as SMTPTransport.Options);
     state.transports.set(m.email, t);
   }
   return t;
 }
 
+/** After a failed connection, the next try resolves the server again (and may get another address). */
+const forget = (m: Mailbox) => state.transports.delete(m.email);
+
 /** Signs in to the mailbox's SMTP server without sending anything. */
 export async function verifyMailbox(m: Mailbox): Promise<{ ok: boolean; error?: string }> {
   try {
-    await transportFor(m).verify();
+    await (await transportFor(m)).verify();
     return { ok: true };
   } catch (e) {
+    forget(m);
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
 
 export const smtpSend: SendDeps["send"] = async (m, mail) => {
   // one-click unsubscribe headers come with the mail; no "X-Mailer: nodemailer" (a script marker)
-  const info = await transportFor(m).sendMail({ ...mail, xMailer: false });
-  return { messageId: info.messageId };
+  const t = await transportFor(m);
+  try {
+    const info = await t.sendMail({ ...mail, ...(m.replyTo ? { replyTo: m.replyTo } : {}), xMailer: false });
+    return { messageId: info.messageId };
+  } catch (e) {
+    forget(m);
+    throw e;
+  }
 };
 
 /** Any mail from this address in the inbox since the first email? */
 export const imapReplied: NonNullable<SendDeps["replied"]> = async (m, from, since) => {
   if (!m.imap) return undefined;
-  const client = new ImapFlow({ host: m.imap.host, port: m.imap.port, secure: true, auth: { user: m.smtp.user, pass: m.smtp.pass }, logger: false });
+  const client = new ImapFlow({ host: m.imap.host, port: m.imap.port, secure: true, auth: { user: m.imap.user ?? m.smtp.user, pass: m.imap.pass ?? m.smtp.pass }, logger: false });
   client.on("error", () => {}); // a dropped connection must not crash the server (the calls below handle failure)
   try {
     await client.connect();
@@ -76,7 +92,7 @@ export const imapReplied: NonNullable<SendDeps["replied"]> = async (m, from, sin
 export interface InboxReply { address: string; subject: string; text: string; messageId?: string; references?: string[]; at: string }
 export async function imapScan(m: Mailbox, since: Date): Promise<{ events: InboxEvent[]; replies: InboxReply[] } | undefined> {
   if (!m.imap) return undefined;
-  const client = new ImapFlow({ host: m.imap.host, port: m.imap.port, secure: true, auth: { user: m.smtp.user, pass: m.smtp.pass }, logger: false });
+  const client = new ImapFlow({ host: m.imap.host, port: m.imap.port, secure: true, auth: { user: m.imap.user ?? m.smtp.user, pass: m.imap.pass ?? m.smtp.pass }, logger: false });
   client.on("error", () => {}); // a dropped connection must not crash the server (the calls below handle failure)
   const out: InboxEvent[] = [];
   const replies: InboxReply[] = [];
@@ -97,10 +113,10 @@ export async function imapScan(m: Mailbox, since: Date): Promise<{ events: Inbox
           if (a) out.push({ kind: "complaint", address: a });
         } else if (isBounceMail(from, subject)) {
           const a = bouncedAddress(body);
-          if (a && a !== m.email) out.push({ kind: "bounce", address: a });
+          if (a && a !== m.email && a !== m.replyTo) out.push({ kind: "bounce", address: a });
         } else if (from && isUnsubscribeReply(subject, cleanReply(body).slice(0, 2000))) {
           out.push({ kind: "unsubscribe", address: from.split(" ")[0] });
-        } else if (from && from.split(" ")[0].toLowerCase() !== m.email) {
+        } else if (from && from.split(" ")[0].toLowerCase() !== m.email && from.split(" ")[0].toLowerCase() !== m.replyTo) {
           const text = cleanReply(body);
           const refs = parsed?.references;
           if (text) replies.push({ address: from.split(" ")[0].toLowerCase(), subject, text, messageId: parsed?.messageId ?? msg.envelope?.messageId, references: Array.isArray(refs) ? refs : refs ? [refs] : undefined, at: new Date(msg.envelope?.date ?? Date.now()).toISOString() });

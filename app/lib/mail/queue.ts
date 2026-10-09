@@ -314,7 +314,7 @@ export async function tick(deps: SendDeps): Promise<{ did: "sent" | "skipped" | 
     const fromName = item.sender.name ? `${item.sender.name}${item.sender.company ? `, ${item.sender.company}` : ""}` : mbox.name;
     let messageId: string;
     try {
-      messageId = (await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: item.to, subject, text, html: emailHtml(text, item.sender, { subject }), inReplyTo: item.inReplyTo, references: item.references, headers: await unsubscribeHeaders(item.to, mbox.email) })).messageId;
+      messageId = (await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: item.to, subject, text, html: emailHtml(text, item.sender, { subject }), inReplyTo: item.inReplyTo, references: item.references, headers: await unsubscribeHeaders(item.to, mbox.replyTo ?? mbox.email) })).messageId;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       const auth = /auth|login|credentials|535|534|password/i.test(msg) && !isBlock(msg);
