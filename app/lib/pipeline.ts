@@ -77,6 +77,10 @@ export interface Deps {
   previewMs?: number;
   /** Longest one source may take for one business type before the search moves on (default 5 minutes). */
   jobTimeoutMs?: number;
+  /** Longest checking one business may take (default 2 minutes); past it, what was found so far is kept. */
+  leadTimeoutMs?: number;
+  /** After Stop, how long work already in flight may still finish and be kept (default 5s). */
+  stopGraceMs?: number;
   keys: { gmapsScraper?: string; google?: string; pageSpeed?: string; apollo?: string; brave?: string; metaToken?: string; igUserId?: string; fbPageSearch?: boolean; phoneSearch?: "auto" | "on" | "off" };
   store: Store;
   now?: () => Date;
@@ -125,6 +129,16 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
   /** Resuming with saved businesses: skip the sources and only check the ones still pending. */
   const resume = resumeFrom?.leads.length ? resumeFrom : undefined;
   const stopped = () => !!signal?.aborted;
+  /** Resolves when Stop is pressed: work in flight is left behind instead of waited for. */
+  const onStop = new Promise<"stopped">((r) => (signal?.aborted ? r("stopped") : signal?.addEventListener("abort", () => r("stopped"), { once: true })));
+  /** A few seconds after Stop: checks almost done by then are still kept. */
+  const graceMs = deps.stopGraceMs ?? 5000;
+  const afterStop = onStop.then(() => new Promise<"stopped">((r) => setTimeout(() => r("stopped"), graceMs).unref?.()));
+  /** `p`, unless Stop was pressed a few seconds before it ends ("stopped") or it takes longer than `ms` ("timeout"). */
+  const within = <T,>(p: Promise<T>, ms: number): Promise<T | "stopped" | "timeout"> => {
+    let t: ReturnType<typeof setTimeout> | undefined;
+    return Promise.race([p, afterStop, new Promise<"timeout">((r) => { t = setTimeout(() => r("timeout"), ms); })]).finally(() => clearTimeout(t));
+  };
   const log = (message: string, level: "info" | "warn" | "error" = "info") => emit({ type: "log", level, message });
   const search: SearchRecord = {
     id: resumeFrom?.search.id ?? uid(),
@@ -187,6 +201,8 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     // Time budget: a search should be done in about 4 minutes (LEAD_TIME_BUDGET). Past it, businesses
     // still waiting get a quick check (listed website, likely web addresses) instead of web searches.
     const t0 = Date.now();
+    const jobMs = deps.jobTimeoutMs ?? 5 * 60_000;
+    const leadMs = deps.leadTimeoutMs ?? 2 * 60_000;
     const budgetMs = deps.timeBudgetMs ?? 240_000;
     const overTime = () => Date.now() - t0 >= budgetMs;
     const siteSearch = params.verifyWebsites && params.webSearch ? webSearch : undefined;
@@ -238,7 +254,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     let warmOff = deps.warmUp === false;
     const warmOne = limited(async (l: Lead) => {
       if (warmOff || stopped() || overTime()) return;
-      await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: siteSearch, numberSearch: siteSearch ? numberSearch : undefined, state }, qdeps).catch(() => {});
+      await within(qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: siteSearch, numberSearch: siteSearch ? numberSearch : undefined, state }, qdeps), leadMs).catch(() => {});
     }, deps.concurrency ?? 16);
     const warmJobs: Promise<void>[] = [];
     const warm = () => {
@@ -302,7 +318,6 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     const total = jobs.length + (useGmaps ? 1 : 0);
     emit({ type: "stage", stage: "search", done, total });
 
-    const jobMs = deps.jobTimeoutMs ?? 5 * 60_000;
     const runJob = async (j: (typeof jobs)[number]) => {
       if (stopped()) return;
       // A job that hangs (a site or server that never answers) mustn't hold up the whole search:
@@ -310,10 +325,6 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
       let late = false;
       const add = (ps: RawPlace[]) => { if (!late) raw.push(...ps); };
       const say = (m: string) => { if (!late) log(m); };
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const deadline = new Promise<never>((_, reject) => {
-        timer = setTimeout(() => { late = true; reject(new Error(`no answer after ${Math.round(jobMs / 60_000) || 1} min, moved on`)); }, jobMs);
-      });
       const work = async () => {
         if (j.src === "google") {
           const r = await deps.google({ apiKey: deps.keys.google!, query: `${j.c.google} in ${place}`, category: j.c.label, city: params.city, max: params.perCategory });
@@ -340,12 +351,15 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
         }
       };
       try {
-        await Promise.race([work(), deadline]);
+        const r = await within(work(), jobMs);
+        if (r === "stopped" || r === "timeout") {
+          late = true;
+          failedJobs.add(`${j.src}:${j.c.key}`);
+          if (r === "timeout") log(`${SOURCE_LABEL[j.src]} failed for ${j.c.label}: no answer after ${Math.round(jobMs / 60_000) || 1} min, moved on`, "warn");
+        }
       } catch (e) {
         failedJobs.add(`${j.src}:${j.c.key}`);
         log(`${SOURCE_LABEL[j.src]} failed for ${j.c.label}: ${msg(e)}`, "warn");
-      } finally {
-        clearTimeout(timer);
       }
       emit({ type: "stage", stage: "search", done: ++done, total });
       preview();
@@ -381,7 +395,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
           emit({ type: "stage", stage: "search", done: ++done, total });
         })();
     /** Resolves when the scraper is done, or at once when the search is stopped. */
-    const untilScraperDone = () => Promise.race([gmapsP, new Promise<void>((r) => (signal?.aborted ? r() : signal?.addEventListener("abort", () => r(), { once: true })))]);
+    const untilScraperDone = () => Promise.race([gmapsP, onStop]);
 
     // All sources at once, each at a pace its server accepts. Map searches all start together: they're
     // sent to the map servers as one query (see osmSearch).
@@ -539,7 +553,9 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
           quickLogged = true;
           log(`Over ${Math.round(budgetMs / 60_000)} minutes: the businesses still waiting get a quick check (their listed website and likely web addresses, no web search) so results are ready now.`, "warn");
         }
-        await qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: quick ? undefined : siteSearch, numberSearch: quick || !siteSearch ? undefined : numberSearch, state, verifyEmail }, qdeps);
+        const r = await within(qualifyLead(l, { area: params.area, verify: params.verifyWebsites, search: quick ? undefined : siteSearch, numberSearch: quick || !siteSearch ? undefined : numberSearch, state, verifyEmail }, qdeps), leadMs);
+        if (r === "stopped") { stopNow(); return; } // stays "not checked"
+        if (r === "timeout") l.websiteCheck?.tried.push(`check took over ${Math.round(leadMs / 60_000) || 1} min: kept what was found`);
         if (quick && !l.audit?.status?.match(/^(ok|social_only)$/)) l.websiteCheck?.tried.push("quick check (time limit): no web search");
         startSpeed(l);
       } catch (e) {
@@ -608,7 +624,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     }
     if (recheck) log(`Rechecked ${recheck} saved business${recheck === 1 ? "" : "es"} last checked over a week ago: ${changed ? `${changed} changed (marked in the list)` : "no changes"}.`);
     await progress.flush();
-    await Promise.all(warmJobs);
+    await within(Promise.all(warmJobs), leadMs);
     const found = leads.filter((l) => l.websiteCheck?.via === "domain_guess" || l.websiteCheck?.via === "web_search").length;
     if (verifyStats.checked) log(`Mailbox check (your email verification service): ${verifyStats.checked} checked, ${verifyStats.valid} verified, ${verifyStats.invalid} don't exist (skipped for the next address), ${verifyStats.catchAll} accept any address.${verifyStats.skipped ? ` ${verifyStats.skipped} not checked (limit of ${deps.emailVerifyCap ?? 50} a search; EMAIL_VERIFY_MAX to change).` : ""}`);
     if (verifyStats.stopped) log(`Email check stopped: ${verifyStats.stopped}`, "warn");
@@ -626,7 +642,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
       emit({ type: "stage", stage: "social", done: 0, total: cap.length });
       await mapLimit(cap, 3, async (l) => {
         const ig = l.social!.instagram!;
-        if (!stop) {
+        if (!stop && !stopped()) {
           try {
             const p = await deps.igLookup({ token: deps.keys.metaToken!, igUserId: deps.keys.igUserId!, handle: ig.handle });
             if (!p) ig.checked = "not_business";
@@ -676,7 +692,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
       speedShown = true;
       speedStage();
     }
-    await Promise.all(speedJobs);
+    await within(Promise.all(speedJobs), leadMs);
     if (speedStarted.size) {
       log(`Mobile speed checked for ${speedOk} of ${speedStarted.size} websites${deps.keys.pageSpeed ? " (using your PageSpeed key)" : " (no key: Google allows only a few checks without one)"}${speedSkipped ? `; ${speedSkipped} skipped to finish on time` : ""}.`, speedOk ? "info" : "warn");
       for (const [m, n] of speedErrs) log(`${n} speed check${n > 1 ? "s" : ""} failed: ${m}`, "warn");
@@ -684,6 +700,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     if (params.sources.apollo && deps.keys.apollo && !stopped()) {
       const targets = leads.filter((l) => l.website && !isSocialHost(domainOf(l.website)));
       await mapLimit(targets, 3, async (l) => {
+        if (stopped()) return;
         try {
           const o = await deps.apollo(deps.keys.apollo!, domainOf(l.website)!);
           if (o) {
