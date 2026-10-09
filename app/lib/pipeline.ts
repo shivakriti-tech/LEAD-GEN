@@ -60,6 +60,8 @@ export interface Deps {
   revealMs?: number;
   /** While sources are still searching, show what's been found at most this often (ms). */
   previewMs?: number;
+  /** Longest one source may take for one business type before the search moves on (default 5 minutes). */
+  jobTimeoutMs?: number;
   keys: { gmapsScraper?: string; google?: string; pageSpeed?: string; apollo?: string; brave?: string; metaToken?: string; igUserId?: string; fbPageSearch?: boolean; phoneSearch?: "auto" | "on" | "off" };
   store: Store;
   now?: () => Date;
@@ -231,36 +233,50 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     const total = jobs.length + (useGmaps ? 1 : 0);
     emit({ type: "stage", stage: "search", done, total });
 
+    const jobMs = deps.jobTimeoutMs ?? 5 * 60_000;
     const runJob = async (j: (typeof jobs)[number]) => {
       if (stopped()) return;
-      try {
+      // A job that hangs (a site or server that never answers) mustn't hold up the whole search:
+      // past the deadline it counts as failed, and anything it finds later is ignored.
+      let late = false;
+      const add = (ps: RawPlace[]) => { if (!late) raw.push(...ps); };
+      const say = (m: string) => { if (!late) log(m); };
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const deadline = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => { late = true; reject(new Error(`no answer after ${Math.round(jobMs / 60_000) || 1} min, moved on`)); }, jobMs);
+      });
+      const work = async () => {
         if (j.src === "google") {
           const r = await deps.google({ apiKey: deps.keys.google!, query: `${j.c.google} in ${place}`, category: j.c.label, city: params.city, max: params.perCategory });
           googleRequests += r.requests;
-          raw.push(...r.places);
-          log(`Google Maps: ${r.places.length} × ${j.c.label} in ${place}`);
+          add(r.places);
+          say(`Google Maps: ${r.places.length} × ${j.c.label} in ${place}`);
         } else if (j.src === "osm") {
           const r = await deps.osm({ place, box: osmBox, filters: j.c.osm, category: j.c.label, city: params.city, max: params.perCategory });
-          raw.push(...r);
-          log(`OpenStreetMap: ${r.length} × ${j.c.label} in ${place}`);
+          add(r);
+          say(`OpenStreetMap: ${r.length} × ${j.c.label} in ${place}`);
         } else if (j.src === "web") {
           const r = await deps.web({ term: j.c.google, place, city: params.city, area: params.area, category: j.c.label, max: Math.min(params.perCategory, 10), scope: j.c.track === "store" ? "country" : "local" }, { search: webSearch! });
-          raw.push(...r.places);
+          add(r.places);
           const why = [...new Set(r.rejected.map((x) => x.why))].map((w) => `${r.rejected.filter((x) => x.why === w).length} ${w}`).join(", ");
-          log(`Search engines: ${r.places.length} × ${j.c.label} with their own website in ${place}${why ? ` (skipped: ${why})` : ""}`);
+          say(`Search engines: ${r.places.length} × ${j.c.label} with their own website in ${place}${why ? ` (skipped: ${why})` : ""}`);
         } else if (j.src === "facebook" && fbApi) {
           const pages = await deps.fbSearch({ token: deps.keys.metaToken!, query: `${j.c.google} ${place}`, max: params.perCategory });
-          for (const p of pages)
-            raw.push({ source: "facebook", sourceId: p.id, name: p.name, category: j.c.label, city: params.city, address: [p.street, p.city].filter(Boolean).join(", ") || undefined, lat: p.lat, lng: p.lng, phone: p.phone, website: p.website || p.link });
-          log(`Facebook Pages: ${pages.length} × ${j.c.label} in ${place}`);
+          add(pages.map((p) => ({ source: "facebook", sourceId: p.id, name: p.name, category: j.c.label, city: params.city, address: [p.street, p.city].filter(Boolean).join(", ") || undefined, lat: p.lat, lng: p.lng, phone: p.phone, website: p.website || p.link } satisfies RawPlace)));
+          say(`Facebook Pages: ${pages.length} × ${j.c.label} in ${place}`);
         } else {
           const r = await deps.social({ platform: j.src, businessTerm: j.c.google, place, category: j.c.label, city: params.city, max: Math.min(params.perCategory, 10), search: webSearch! });
-          raw.push(...r);
-          log(`${j.src === "instagram" ? "Instagram" : "Facebook"} (web search): ${r.length} × ${j.c.label} profiles in ${place}`);
+          add(r);
+          say(`${j.src === "instagram" ? "Instagram" : "Facebook"} (web search): ${r.length} × ${j.c.label} profiles in ${place}`);
         }
+      };
+      try {
+        await Promise.race([work(), deadline]);
       } catch (e) {
         failedJobs.add(`${j.src}:${j.c.key}`);
         log(`${SOURCE_LABEL[j.src]} failed for ${j.c.label}: ${msg(e)}`, "warn");
+      } finally {
+        clearTimeout(timer);
       }
       emit({ type: "stage", stage: "search", done: ++done, total });
       preview();

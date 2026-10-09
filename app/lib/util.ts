@@ -9,17 +9,14 @@ export const USER_AGENT = `LeadAutopilot/0.1 (lead research tool; contact: ${cra
 
 /** fetch with a hard timeout. Never throws on HTTP errors, only on network/timeout. */
 export async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 10_000): Promise<Response> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), ms);
-  try {
-    return await fetch(url, {
-      ...init,
-      signal: ctrl.signal,
-      headers: { "User-Agent": USER_AGENT, ...(init.headers || {}) },
-    });
-  } finally {
-    clearTimeout(t);
-  }
+  // The limit also covers reading the body: a server that sends headers and then stalls
+  // would otherwise hang `res.text()` forever.
+  const timeout = AbortSignal.timeout(ms);
+  return fetch(url, {
+    ...init,
+    signal: init.signal ? AbortSignal.any([init.signal, timeout]) : timeout,
+    headers: { "User-Agent": USER_AGENT, ...(init.headers || {}) },
+  });
 }
 
 /** Run `fn` over items with at most `limit` in flight. Keeps input order. */
