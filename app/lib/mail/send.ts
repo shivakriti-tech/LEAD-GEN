@@ -1,4 +1,5 @@
 import dns from "node:dns";
+import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import nodemailer, { type Transporter } from "nodemailer";
 import { ImapFlow } from "imapflow";
 import { getStore } from "../store";
@@ -25,7 +26,7 @@ const state: MailState = (g.__mail ??= { transports: new Map(), busy: false });
 export function transportFor(m: Mailbox): Transporter {
   let t = state.transports.get(m.email);
   if (!t) {
-    t = nodemailer.createTransport({ host: m.smtp.host, port: m.smtp.port, secure: m.smtp.secure, auth: { user: m.smtp.user, pass: m.smtp.pass }, family: 4, connectionTimeout: 20_000, greetingTimeout: 20_000, socketTimeout: 60_000 });
+    t = nodemailer.createTransport({ host: m.smtp.host, port: m.smtp.port, secure: m.smtp.secure, auth: { user: m.smtp.user, pass: m.smtp.pass }, family: 4, connectionTimeout: 20_000, greetingTimeout: 20_000, socketTimeout: 60_000 } as SMTPTransport.Options & { family: 4 });
     state.transports.set(m.email, t);
   }
   return t;
