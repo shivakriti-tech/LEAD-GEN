@@ -51,7 +51,7 @@ export interface Deps {
   apollo: typeof apolloEnrichDomain;
   /** Does this email domain accept mail? Leave out to skip the check (tests). */
   mx?: typeof domainAcceptsMail;
-  /** Businesses checked at the same time (LEAD_CONCURRENCY, default 16). */
+  /** Businesses checked at the same time (LEAD_CONCURRENCY, default 8). */
   concurrency?: number;
   /** After this long (LEAD_TIME_BUDGET seconds, default 240) businesses still waiting get a quick check. */
   timeBudgetMs?: number;
@@ -147,7 +147,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
   try {
     const place = params.area ? `${params.area}, ${params.city}` : params.city;
     const rawSearch = deps.makeWebSearch ? deps.makeWebSearch((m) => log(m, "warn")) : deps.webSearch;
-    // Businesses are checked many at a time (LEAD_CONCURRENCY, default 16); web searches still go out
+    // Businesses are checked many at a time (LEAD_CONCURRENCY, default 8); web searches still go out
     // at most SEARCH_CONCURRENCY at once (default 3: free engines block anything faster).
     const webSearch = rawSearch ? limited(rawSearch, deps.searchConcurrency ?? 3) : undefined;
     // Phone numbers: only to providers that match exact numbers ("auto"), to any provider ("on"), or never.
@@ -958,7 +958,7 @@ export function defaultDeps(store: Store): Deps {
     // DOMAIN_AGE=off skips the registration-date lookup
     domainAge: /^(off|0|false|no)$/i.test(process.env.DOMAIN_AGE || "") ? undefined : withDomainCache(domainRegisteredOn),
     emailVerifyCap: Math.max(0, Number(process.env.EMAIL_VERIFY_MAX) || 50),
-    concurrency: envCount(process.env.LEAD_CONCURRENCY, 16, 64),
+    concurrency: envCount(process.env.LEAD_CONCURRENCY, 8, 64),
     timeBudgetMs: envCount(process.env.LEAD_TIME_BUDGET, 240, 3600) * 1000,
     searchConcurrency: envCount(process.env.SEARCH_CONCURRENCY, 3, 20),
     speedConcurrency: process.env.PAGESPEED_CONCURRENCY ? envCount(process.env.PAGESPEED_CONCURRENCY, 6, 20) : undefined,
