@@ -6,6 +6,7 @@ import { CATEGORIES, categoriesFor } from "@/lib/categories";
 import type { CategoryStat } from "@/lib/followups";
 import { DEFAULT_SERVICES, SERVICE_CHIP, SERVICE_ORDER } from "@/lib/score/logistics";
 import { AGENCY_CHIP, ALL_AGENCY } from "@/lib/score/agency";
+import { NICHES, NICHE_KEYS, isNiche } from "@/lib/niches";
 import { MARKETS, marketOf, type CountryCode } from "@/lib/markets";
 import type { AgencyService, KeepOnly, LogisticsService, Offer, SearchParams, SearchRecord } from "@/lib/types";
 import { IconCheck, IconSettings } from "./icons";
@@ -34,7 +35,12 @@ export interface FormState {
   /** Your agency's services (agency searches). */
   agency?: AgencyService[];
 }
-export const DEFAULT_CATS: Record<Offer, string[]> = { website_development: ["dentist", "salon", "cafe"], logistics: ["manufacturer", "exporter", "wholesaler"], agency: ["store_fashion", "store_beauty", "co_freight", "co_trucking"] };
+export const DEFAULT_CATS: Record<Offer, string[]> = {
+  website_development: ["dentist", "salon", "cafe"],
+  logistics: ["manufacturer", "exporter", "wholesaler"],
+  agency: ["store_fashion", "store_beauty", "co_freight", "co_trucking"],
+  ...(Object.fromEntries(NICHE_KEYS.map((k) => [k, NICHES[k].defaults])) as Record<(typeof NICHE_KEYS)[number], string[]>),
+};
 export const DEFAULT_KEEP: KeepOnly = { skipChains: true, needPhone: false, notContacted: true, goodRating: false };
 export const DEFAULT_FORM: FormState = {
   cats: ["dentist", "salon", "cafe"],
@@ -57,6 +63,8 @@ export const DEFAULT_FORM: FormState = {
 const REGIONS = [...new Set(Object.values(MARKETS).map((m) => m.group))].map((g) => ({ g, list: Object.values(MARKETS).filter((m) => m.group === g) }));
 
 export type Config = {
+  /** Where the Feedback button sends email (FEEDBACK_EMAIL), for beta testers. */
+  feedback?: string | null;
   google: boolean;
   pageSpeedKey: boolean;
   apollo: boolean;
@@ -127,6 +135,27 @@ const HINT: Record<string, string> = {
   co_construction: "Bids, projects and subcontractors",
   co_wholesale: "Dealer orders and price lists",
   co_equipment: "Rentals, service and parts",
+  vet: "Pet owners compare clinics online",
+  diagnostic: "Tests, prices and home collection",
+  pharmacy: "Delivery and stock questions",
+  optician: "Frames, eye tests and offers",
+  preschool: "Parents shortlist online",
+  classes: "Batches, fees and demo classes",
+  driving: "Packages and slot booking",
+  venue: "Photos and packages win the booking",
+  photographer: "Their portfolio is everything",
+  travel: "Packages without portal commission",
+  car_service: "Pickup booking and price lists",
+  car_dealer: "Stock lists and test drives",
+  architect: "Projects sell the next project",
+  jeweller: "High value: trust and designs",
+  electronics: "People compare prices first",
+  hardware: "Contractors and bulk orders",
+  hospital: "Runs 24×7, big bills and big teams",
+  school: "Big roofs, many staff",
+  cold_storage: "Power runs day and night",
+  warehouse: "Big roofs and stock to protect",
+  it_company: "Hiring, payroll and compliance",
 };
 
 const KEEP: Array<{ key: keyof KeepOnly; label: string; why: string }> = [
@@ -135,6 +164,12 @@ const KEEP: Array<{ key: keyof KeepOnly; label: string; why: string }> = [
   { key: "needPhone", label: "Only businesses with a phone number", why: "So you can WhatsApp or call them." },
   { key: "goodRating", label: "Only 4★ and above", why: "Busy, well-rated businesses can pay. Unrated ones stay." },
 ];
+
+/** Business types grouped (Clinics, Food, Retail…) in the order each group first appears. */
+function byGroup<T extends { group: string }>(xs: T[]): T[] {
+  const order = [...new Set(xs.map((x) => x.group))];
+  return [...xs].sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group));
+}
 
 /** Which sources can run right now, and a one-line reason when one can't. */
 export function sourceInfo(config: Config | null) {
@@ -284,6 +319,15 @@ export function SearchForm({
               <span className="sub">Online stores and mid-size companies abroad that need a store, website, CRM / ERP or automation.</span>
             </button>
           </div>
+          <span className="lbl niche-lbl">More niches</span>
+          <div className="offers niches" role="radiogroup" aria-label="More niches">
+            {NICHE_KEYS.map((k) => (
+              <button key={k} type="button" role="radio" aria-checked={sells === k} className={`offer ${sells === k ? "on" : ""}`} onClick={() => setOffer(k)}>
+                <b>{NICHES[k].label}</b>
+                <span className="sub">{NICHES[k].blurb}.</span>
+              </button>
+            ))}
+          </div>
           {sells === "agency" && (
             <div className="client-box">
               <div className="field">
@@ -357,13 +401,13 @@ export function SearchForm({
 
         <section className="step">
           <h2 className="step-title">What kind of business?</h2>
-          <p className="step-hint">Pick up to 8 ({form.cats.length} picked). {sells === "logistics" ? "Factories and exporters ship the most." : sells === "agency" ? "Online stores need a store or an upgrade; companies need systems: a CRM / ERP, portals and automation." : "Businesses that take bookings or walk-ins pitch best."}</p>
+          <p className="step-hint">Pick up to 8 ({form.cats.length} picked). {isNiche(sells) ? NICHES[sells].typesHint : sells === "logistics" ? "Factories and exporters ship the most." : sells === "agency" ? "Online stores need a store or an upgrade; companies need systems: a CRM / ERP, portals and automation." : "Businesses that take bookings or walk-ins pitch best."}</p>
           <div className="cats">
-            {categoriesFor(sells).map((c, i, all) => {
+            {byGroup(categoriesFor(sells)).map((c, i, all) => {
               const onC = form.cats.includes(c.key);
               const st = statFor(stats, form.city, c.label);
               const good = st && st.s.total >= 5 && st.s.hot / st.s.total >= 0.4;
-              const head = sells === "agency" && all[i - 1]?.group !== c.group ? <h3 className="cat-group" key={`g-${c.group}`}>{c.group}</h3> : null;
+              const head = all.length > 12 && all[i - 1]?.group !== c.group ? <h3 className="cat-group" key={`g-${c.group}`}>{c.group}</h3> : null;
               return (
                 <Fragment key={c.key}>
                 {head}
@@ -452,7 +496,7 @@ export function SearchForm({
         <span className="k">Your search</span>
         <b className="big">{headline}</b>
         <dl>
-          <div><dt>For</dt><dd>{form.clientId && client.name.trim() ? client.name.trim() : sells === "logistics" ? client.name.trim() || "Logistics client" : sells === "agency" ? "Your agency" : "Your website service"}</dd></div>
+          <div><dt>For</dt><dd>{form.clientId && client.name.trim() ? client.name.trim() : sells === "logistics" ? client.name.trim() || "Logistics client" : sells === "agency" ? "Your agency" : isNiche(sells) ? NICHES[sells].label : "Your website service"}</dd></div>
           <div><dt>Area</dt><dd>{form.city.trim() ? `${cap(form.area.trim() ? `${form.area.trim()}, ${form.city.trim()}` : `All of ${form.city.trim()}`)}${country !== "IN" ? `, ${market.name}` : ""}` : "Not set"}</dd></div>
           <div><dt>Types</dt><dd>{picked.length ? `${picked.length} picked` : "None yet"}</dd></div>
           <div><dt>Filters on</dt><dd>{filtersOn}</dd></div>

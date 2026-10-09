@@ -99,7 +99,7 @@ describe("DNS first", () => {
       },
     });
     expect(r.website).toBe("https://teapost.in/");
-    expect(loaded).toEqual(["https://teapost.in"]);
+    expect(loaded.sort()).toEqual(["http://teapost.in", "https://teapost.in"]); // only the address that exists, https and http at once
   });
 });
 

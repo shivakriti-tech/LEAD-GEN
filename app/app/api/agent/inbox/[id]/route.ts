@@ -1,4 +1,4 @@
-import { localInboxStore, sendEmailReply, updateInbox } from "@/lib/agent/inbox";
+import { inboxStore, sendEmailReply, updateInbox } from "@/lib/agent/inbox";
 import { runAgent } from "@/lib/agent/agent";
 import { replyDeps } from "@/lib/mail/send";
 import { checkContent } from "@/lib/mail/guard";
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   const body = (await req.json().catch(() => ({}))) as { action?: string; text?: string };
-  const store = localInboxStore();
+  const store = inboxStore();
   const conv = (await store.read()).conversations.find((c) => c.id === id);
   if (!conv) return Response.json({ error: "Conversation not found" }, { status: 404 });
   const text = String(body.text ?? "").trim().slice(0, 4000);

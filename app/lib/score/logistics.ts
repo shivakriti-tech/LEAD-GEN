@@ -45,7 +45,7 @@ const FACTORY = /manufactur|textile|garment|chemical|plastic|pharma|engineering|
 const TRADE = /wholesal|distributor|stockist|trader|dealer/i;
 /** Transporters, couriers and forwarders: competitors of the client, not leads. */
 const LOGISTICS_CO = /\b(logistic|logistics|transport|transports|transporter|courier|cargo|freight|movers|packers|shipping|roadways|roadlines|carriers?|forwarder|forwarding|clearing agent|express parcel)\b/i;
-const INDUSTRIAL = /\b(GIDC|MIDC|RIICO|SIDCO|KIADB|industrial (estate|area|park|zone|hub)|\bSEZ\b|udyog nagar|phase[- ]?(I{1,3}|\d)\b|plot no)/i;
+export const INDUSTRIAL = /\b(GIDC|MIDC|RIICO|SIDCO|KIADB|industrial (estate|area|park|zone|hub)|\bSEZ\b|udyog nagar|phase[- ]?(I{1,3}|\d)\b|plot no)/i;
 
 export function scoreLogistics(lead: Lead, services: LogisticsService[] = ALL_SERVICES, now = new Date()): { signals: Signal[]; score: number; tier: Tier; whyNow: string; pitchFor: NonNullable<Lead["pitchFor"]> } {
   const offers = new Set(services.length ? services : ALL_SERVICES);

@@ -1,4 +1,4 @@
-import { localQueueStore, mutate } from "@/lib/mail/queue";
+import { queueStore, mutate } from "@/lib/mail/queue";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   const b = (await req.json().catch(() => null)) as { ids?: unknown } | null;
   const ids = new Set(Array.isArray(b?.ids) ? (b!.ids as unknown[]).filter((x): x is string => typeof x === "string") : []);
   if (!ids.size) return Response.json({ error: "Send { ids }" }, { status: 400 });
-  const cancelled = await mutate(localQueueStore(), (d) => {
+  const cancelled = await mutate(queueStore(), (d) => {
     let n = 0;
     for (const i of d.items) if (ids.has(i.id) && i.status === "queued") Object.assign(i, { status: "cancelled", reason: "Cancelled by you" }), n++;
     return n;

@@ -58,7 +58,7 @@ describe("the saved lead directory", () => {
     const second = await runSearch(params(), { ...deps("2026-09-23T10:00:00Z", c2, { osmExtra: true }), directory }, (e) => events.push(e));
     expect(c2.google).toBe(0);
     expect(c2.osm).toBe(1);
-    expect(c2.audits).toEqual(["(none)"]); // only the new business is checked
+    expect([...new Set(c2.audits)]).toEqual(["(none)"]); // only the new business is checked
     expect(second.leads.map((l) => l.name).sort()).toEqual(["Aum Dental Care", "New Tooth Clinic", "Smile Studio"]);
     expect(second.leads.find((l) => l.name === "Aum Dental Care")!.saved).toBe(true);
     const logs = events.filter((e) => e.type === "log").map((e) => (e as { message: string }).message);

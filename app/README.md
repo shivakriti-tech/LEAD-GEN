@@ -30,14 +30,18 @@ With no keys at all it already works: leads come from OpenStreetMap (free) and e
 | `META_ACCESS_TOKEN`, `IG_BUSINESS_ACCOUNT_ID` | Instagram followers, last post and bio website for each business profile, through Meta's official API | See **Instagram setup** below |
 | `FB_PAGE_SEARCH` | Official Facebook Page search (address, phone, website). Leave `off` until Meta approves your app | Needs Meta App Review + business verification for "Page Public Metadata Access" |
 | `APOLLO_API_KEY` | Company size and LinkedIn page. Only the client's own key | Apollo → Settings → API. You can also paste it in the app for one search. |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Save searches in a real database instead of the `.data` folder | supabase.com → new project → SQL Editor → run `supabase/schema.sql` → Project Settings → API |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Save everything (searches, clients, lead directory, email queue, inbox, LinkedIn and WhatsApp logs, handoffs, credits) in a real database instead of the `.data` folder. Needed when hosting. Copy what you already have with `npm run to-supabase` | supabase.com → new project → SQL Editor → run `supabase/schema.sql` → Project Settings → API |
 | `CRAWLER_CONTACT` | Your email in the crawler's User-Agent (OpenStreetMap asks for one) | Any address you check |
 | `PDF_BROWSER` | Only if the *Report* PDF says no Chrome or Edge was found: the full path to Chrome, Edge or Chromium | e.g. `C:\Program Files\Google\Chrome\Application\chrome.exe` |
 | `EMAIL_VERIFY`, `EMAIL_VERIFY_KEY` | Checks the best email on each lead at mailbox level (does it exist, or does the domain accept any address). `zerobounce` (100 free checks a month) or `millionverifier` (cheapest for bulk). Up to 50 checks a search (`EMAIL_VERIFY_MAX` to change), answers remembered 30 days. Without it, every email's domain is still checked for a mail server | https://www.zerobounce.net or https://www.millionverifier.com → API key |
 | `OPENAI_API_KEY` | GPT through OpenAI or any OpenAI-compatible gateway (`OPENAI_BASE_URL`, `OPENAI_MODEL`, default `gpt-4o`; `OPENAI_TIMEOUT_MS` to give up sooner). Tried **first**: if it fails, times out or gives a bad answer, Gemini then Claude take over (website reading and inbox replies) | your provider |
 | `GEMINI_API_KEY` | **Free.** Google Gemini reads a client's website when you add them under *Clients* and drafts their profile (services, prices, rules). Used first when set. `GEMINI_MODEL` to pick a model (default `gemini-2.5-flash`; if Google retires it, the newest Flash model is used). Google may use free-tier requests to improve its products: the app only sends the client's public web pages | https://aistudio.google.com → Get API key |
 | `ANTHROPIC_API_KEY` | Claude reads a client's website when you add them under *Clients* and drafts their profile (services, prices, rules). About ₹10–20 per client (one Claude Opus 5.5 call). Without it a basic reader drafts it | https://console.anthropic.com → API keys |
-| `APP_PASSWORD` | Password-protects the whole app (the browser asks; any user name). **Set it before putting the app online**: saved searches hold phone numbers and emails, and every search spends your API quota | Any long password |
+| `APP_PASSWORD` | Password-protects the whole app (the browser asks; any user name). **Required online**: a live build refuses to open without one (or with one shorter than 12 characters), because saved searches hold phone numbers and emails and every search spends your API quota. Ten wrong tries lock that address out for 15 minutes | Any long password |
+| `FEEDBACK_EMAIL` | A **Feedback** button in the header that emails you what the user was doing. For beta testers (docs/BETA.md) | Your address |
+| `LEARN_FROM_RESULTS` | `off` stops scores learning from your replies (see *Scoring*) | – |
+| `MAX_RUNNING_SEARCHES` | Searches one server runs at once (default 3) | – |
+| `TRUST_PROXY_HOPS`, `APP_OPEN`, `APP_ALLOWED_HOSTS` | Hosting details: proxies in front of the app (default 1); `APP_OPEN=yes` to run online with no password (not recommended); extra host names for a password-less app | See DEPLOY.md |
 
 Restart `npm run dev` after changing `.env.local`.
 
@@ -80,6 +84,24 @@ For your own agency's services abroad: **online stores** that need a store or an
 - **Messages** are in English and name the reason, what you build and your proof, with a small ask (a store review with three quick wins, or a 20-minute call). Follow-ups stay on the same topic. Emails go out in office hours where the lead is; emails to the US and Canada need your postal address under *Your details*.
 - Search engines look for online brands anywhere in the country (not only sites that name the city), and skip marketplaces, big retailers and directories.
 
+## More niches: marketing, solar, CA/GST, staffing, insurance
+
+Under **More niches** in *New search*, five more kinds of leads, for you or a client who sells:
+
+| Niche | Who it finds | What makes a lead strong (each quoted from what we saw) |
+|---|---|---|
+| **Digital marketing & SEO** | Clinics, salons, restaurants, gyms, coaching, real estate, car service, jewellers, venues, travel… | Few or no Google reviews, a rating under 4★, no website, no analytics or ad tags on the site, no or quiet Instagram, no online booking. Already strong on Google (150+ reviews, 4.4★+) counts against. |
+| **Rooftop solar** | Factories, cold storage, warehouses, hospitals, schools and colleges, hotels | Cold storage or heavy power use, factory in an industrial estate, big roof, open 24 hours, exports to Europe or the US (buyers ask for green power), ISO 14001, staff size. Already on solar counts against. |
+| **CA, GST & compliance** | Wholesalers, distributors, manufacturers, exporters, importers, online sellers, retail, restaurants, IT firms, clinics | New business (first-year filings), exports (LUT, GST refunds), sells online (marketplace TCS), trader, supplies across India, several locations, hiring (payroll, PF, ESI). |
+| **Hiring & staffing** | Factories, warehouses, hospitals, hotels, restaurants, retail, IT firms, schools | Hiring now (quoted from the careers page), expanding, office roles open, new business, shift work, staff size, several locations. |
+| **Business insurance** | Exporters, importers, factories, chemical units, warehouses, cold storage, hospitals, schools, hotels, IT firms | Ships goods abroad (marine cargo), factory or stock held (fire & property), chemicals, hospital (liability), growing team (group health). |
+
+- Each niche has its own business types (new ones: hospital, school & college, cold storage, warehouse, IT company), message (English or Hinglish, Friendly or Short, with follow-ups and a LinkedIn note), email subject, report and CSV "Likely needs".
+- Businesses in the same line of work (marketing agencies, solar installers, CA firms, staffing agencies, insurers) are marked as competitors and score 0.
+- A client can be any of these: under **Clients**, *Leads to find for them* lists every niche, and reading their website suggests the right one (a solar installer's site → Rooftop solar).
+- New facts read from every website: analytics and ad tags (Google Analytics, Tag Manager, Meta Pixel, Google Ads), online booking (text or Practo/Calendly/Fresha… links), certificates (ISO 9001/14001/45001/22000, GMP, FSSAI, HACCP, BIS, FDA, CE, NABH, NABL), staff size, already on solar, power-hungry work, hazardous goods.
+- Website searches have 16 more business types too: vet, diagnostic lab, pharmacy, optician, preschool, dance/music/art classes, driving school, banquet venue, photographer, travel agent, car & bike service, car & bike dealer, architect, jeweller, electronics & mobile shop, hardware & paints.
+
 ## AI conversation agent (Outreach → Inbox)
 
 Replies to your emails (and WhatsApp messages from leads) are read for you, and an answer is drafted in your client's voice.
@@ -107,6 +129,34 @@ Replies to your emails (and WhatsApp messages from leads) are read for you, and 
   - `GEMINI_API_KEY`: free, for written answers. Without it, ready replies are used.
   - `AGENT_AI=off`: rules only.
   - `AGENT_AUTO_SEND=safe`: lets the agent itself send only polite closes (not now, not interested, wrong person, referral). Never sales replies.
+
+## Pipeline: handoff and mini CRM
+
+**Pipeline** (top menu) puts everyone who replied, from every search, on one board: *Replied: your turn*, *Meeting*, *With a client*, *Won*, *Lost*. Change a lead's status or next date right on its card. Won leads take a deal value, and the total shows at the top.
+
+- **Hand off to client:** on a replied or meeting card, pick the client and add a note. The client gets the lead with:
+  - why it's a lead and what it likely needs,
+  - the contact details,
+  - what the lead said (from the Inbox),
+  - your note.
+
+  Tick *Email it* to send it from your first mailbox to the email in the client's profile, or copy the text to WhatsApp.
+- **The client reports back (closed loop):** the message has a private link (set `APP_BASE_URL` so it works outside your computer). On that page the client picks *Contacted*, *Meeting booked*, *Won* (with the deal value), *Lost* or *Not a real lead*. Their answer moves your lead, so you see real outcomes per search and business type. The link is signed, so it needs no password and only opens that one lead. You can also set the outcome yourself on the card.
+- **One lead, one client:** a business already handed to a client can't go to another, even if it was found in a different search. The app matches it by phone number and Google listing.
+- **Exclusive areas:** give a client a city + business type (e.g. Houston · Trucking & haulage). Leads there can then only go to them.
+
+## Credits and billing
+
+Each client has a credit balance (**Clients → Credits**).
+
+- **Price per lead:** every handoff costs the client's *credits per lead*, 1 by default. Without enough credits the handoff is refused, unless you allow going below zero.
+- **Refunds:** a lead the client marks *Not a real lead* within 7 days is refunded automatically. After 7 days, or once it went to a meeting, only you can refund it.
+- **Top-ups:** record a payment you received (bank transfer, UPI, Stripe, Razorpay…) with its credits and amount. Each top-up gets a receipt number (R-2026-0001…). Payments aren't collected in the app yet.
+- **Pricing:** price per credit, currency and tax (e.g. GST 18%) are used on the statement.
+- **Statement:** *This month's statement* opens a page you can print or save as PDF. It shows the opening balance, every top-up, lead and refund, the leads delivered, their value plus tax, the payments received and the closing balance.
+- **Low balance:** a client shows *low* when fewer than 3 leads' worth of credits are left.
+
+Handoffs and credits are saved in `.data/handoffs.json` and `.data/billing.json`. Back these files up: they hold what clients owe.
 
 ## Saved lead directory (faster searches)
 
@@ -171,7 +221,7 @@ In a search, tick leads and press **Email** or **LinkedIn** in the bar at the bo
   - *Domain records:* a mailbox doesn't send until its domain has MX, SPF and DMARC (Gmail and Yahoo require them for bulk senders). To skip this check, set `MAIL_REQUIRE_DNS=off`.
   - Outreach → Email shows each mailbox's sent / bounced numbers for the week and why it's paused.
 - **Follow-ups:** first message, then a follow-up after 3 days, then a last short one after 4 more. Follow-ups come from the same mailbox as a reply in the same email thread. Before each one, the app checks that mailbox's inbox: if the lead replied, the follow-up is cancelled and the lead is marked Replied. Every email ends with your name, company (and postal address when set) and one line: "If this isn't relevant, just reply "no" and I won't email again."
-- **Looks typed, not designed (Primary inbox, not Promotions):** each email is plain text plus the same text as HTML. By default the HTML is Gmail-style (one `<div>` with line breaks). `EMAIL_STYLE=formal` gives a clean business-letter look instead: one font, paragraphs, your name in bold, the opt-out line small and grey. Either way there are no backgrounds, banners, buttons, tables or images, which are what Gmail files under Promotions. Subjects are short and lower-case ("maple & oak store"). The first email has no link: your link goes in follow-ups and replies. No X-Mailer header.
+- **Written like a business email (Primary inbox, not Promotions):** each email is plain text plus the same text as HTML. The text is laid out as a letter: greeting on its own line, short paragraphs, the question on its own, then "Best regards," with your name and company (a sign-off already in the message, like "– Riya", is removed so you're never signed twice). The HTML part is a complete HTML document (an HTML part without `<html>` is itself a spam-filter signal) in a clean business-letter style: one font, paragraphs, your name in bold, the opt-out line small and grey. `EMAIL_STYLE=plain` gives a Gmail-style typed look instead. Either way there are no backgrounds, banners, buttons, tables or images, which are what Gmail files under Promotions. Subjects are short and lower-case ("maple & oak store"). The first email has no link: your link goes in follow-ups and replies. No X-Mailer header. AI-drafted replies follow the same rules: greeting, 1–2 short paragraphs, no hype words, exclamation marks, emojis or "Dear Sir/Madam".
 - **One-click unsubscribe:** every cold email carries `List-Unsubscribe` (Gmail shows its own "Unsubscribe" button). Set `APP_BASE_URL=https://your-app-address` (reachable from the internet) to add a signed one-click link (`List-Unsubscribe-Post`); without it the header has a mailto, which the inbox scan reads. People who can leave easily unsubscribe instead of pressing "Report spam".
 - **Free mailbox check before sending:** `EMAIL_VERIFY=smtp` (no key) asks each company's mail server whether the address exists, then hangs up before sending anything. It needs outgoing port 25, which many home and office connections block; if it's blocked, the check switches itself off for that search. Gmail- and Outlook-hosted addresses always say "yes", so they show as "can't confirm". ZeroBounce is the more reliable choice.
 
@@ -296,7 +346,14 @@ Facebook: Page search through the official API needs Meta's "Page Public Metadat
 
 ## Speed
 
-- All sources are searched at the same time, and results appear on screen before the website checks finish.
+- All sources are searched at the same time, and **each business is checked the moment its source returns it**, not after every source has finished. The full check afterwards reuses that work, so nothing is checked twice.
+- **Time budget (about 4 minutes, `LEAD_TIME_BUDGET` in seconds):** after it, businesses still waiting get a quick check (their listed website and likely web addresses, no web searches), and speed tests that haven't started are skipped, so a search finishes on time. Live builds stop a search at 5 minutes anyway.
+- OpenStreetMap: all business types go to the map servers as **one** query, and the public servers are raced (if one hasn't answered in 4 seconds, the next is asked too; the first answer wins). Map results are saved for a day.
+- While it runs you see a clock, an estimate ("about 2 min left"), a progress bar, and progress in the browser tab's title. **Notify me when it's done** sends a desktop notification, so you can work in another tab.
+- 16 businesses are checked at the same time (`LEAD_CONCURRENCY`). Each one's likely web addresses, top search results and contact pages load in parallel, not one after another.
+- Every page load has a hard time limit that includes downloading the page, so a slow site can't hold a check for minutes.
+- Mobile speed tests start as soon as each website is checked and run alongside the rest (6 at once with a PageSpeed key, `PAGESPEED_CONCURRENCY`), instead of all at the end. Saved businesses tested in the last week aren't tested again.
+- Web searches go out 3 at a time (`SEARCH_CONCURRENCY`): free engines block faster use. With Serper, Tavily or Google, 6–8 is fine and makes searches with many businesses without a listed website much faster.
 - Guessed web addresses are checked with a DNS lookup first. Most don't exist, and DNS says so in milliseconds instead of waiting for a page timeout.
 - Web searches, website checks and websites found are saved in `.data/cache` and reused for up to 7 days (failed checks: 1 day). Searching the same city again is much faster. `LEAD_CACHE=off` in `.env.local` turns this off.
 
@@ -328,7 +385,11 @@ Facebook: Page search through the official API needs Meta's "Page Public Metadat
 | **Why now:** hiring (website shows openings, "we're hiring", walk-in interviews; a plain Careers link doesn't count) | 5 |
 | **Why now:** low Google rating (under 3.8★ with 15+ reviews): a pitch angle | 5 |
 
-Hot ≥ 65 · Warm 40–64 · Cold < 40. Tune it in `lib/score/websiteDev.ts`; the why-now signals are in `lib/score/growth.ts`.
+Hot ≥ 65 · Warm 40–64 · Cold < 40. Tune it in `lib/score/websiteDev.ts`; the why-now signals are in `lib/score/growth.ts`; the niches' scoring in `lib/niches.ts`.
+
+**Learning from your replies.** Once 30 leads of one kind (website, logistics, a niche…) have been messaged, each reason's reply rate is compared with your average, and new leads move by up to ±15 points, with the evidence on the lead: "Your results: leads with no website replied 2.1× as often (9 of 30)". A reason needs 8 messaged leads of its own, rates are pulled towards your average so a lucky streak doesn't swing scores, and competitors are never lifted. `LEARN_FROM_RESULTS=off` turns it off (`lib/learn.ts`).
+
+**Contact confidence** (high / medium / low, in the lead panel under *Reach them* and in the CSV) says how sure we are the contact details are right, separately from how good the lead is: the phone matches the map listing and the website, the mailbox was verified, the email is on the business's own domain, the website was matched by name and phone, it's in several sources, Google says it's open, and it was checked recently (`lib/confidence.ts`).
 
 **Why-now signals** come with their evidence (the words on the website, the year, the domain date), are added to the "why now" line and shown as a tag (Expanding, New business, Hiring, Low rating). For a logistics client they count too: new business +10 (no fixed logistics partner yet), expanding +15 (more freight soon), hiring +5; a low rating doesn't count there. A domain registered this year doesn't count as "new" when the business is years old (founded year or an old © year on its site). Domain dates come from public RDAP records (free, no key; `DOMAIN_AGE=off` to skip).
 
@@ -349,10 +410,15 @@ lib/cache.ts                 disk cache for repeat searches
 lib/directory.ts             saved lead directory (per city/area/type); lib/prefill.ts + scripts/prefill.ts fill it ahead of time
 lib/outreach.ts              first messages (English/Hinglish), Call/WhatsApp/Email links, follow-up statuses
 lib/bench.ts, bench/         Vadodara lead-quality benchmark (npm run bench)
+lib/niches.ts                the niches: who each sells to, scoring with evidence, message parts
+lib/confidence.ts, learn.ts  contact confidence; learning score nudges from your replies
+lib/enrich/facts.ts          facts from websites: booking, certificates, staff size, solar, power use
 lib/safeFetch.ts             blocks private/internal addresses when checking websites in a live build
-proxy.ts                     password protection (APP_PASSWORD)
+lib/security.ts, proxy.ts    password, lockout, cross-site and rate limits, request size, security headers
+Dockerfile, DEPLOY.md        putting it online (Render blueprint in ../render.yaml, Railway, any VPS)
+docs/                        ACCURACY-ROADMAP.md (research and what to build next), BETA.md (customer beta)
 lib/categories.ts            business types and their search terms
-supabase/schema.sql          database tables
+supabase/schema.sql          database tables (re-run after updates: it only adds what's missing)
 searxng/                     free self-hosted web search (docker compose up -d)
 gmaps-scraper/               Google Maps scraper for local testing only (docker compose up -d)
 tests/                       npm test
@@ -366,12 +432,21 @@ tests/                       npm test
 - Apollo data is only fetched with the client's own key and not reused for other clients.
 - Instagram and Facebook: only search-result links and Meta's official API. No logins, no scraping of profile pages.
 - Live builds never load private or internal addresses (localhost, 192.168.x, cloud metadata…) when checking a business website, even through a redirect.
-- A live app must have `APP_PASSWORD` set. Keys stay on the server; the browser only learns which sources are switched on.
+- A live app must have `APP_PASSWORD` set (12+ characters); it won't open without one. Keys stay on the server; the browser only learns which sources are switched on.
+- Every request passes `lib/security.ts`: ten wrong passwords lock that address out for 15 minutes; changes must come from the app's own pages (another website can't make your browser start searches or send emails); searches, client-site reading, reports and sends are rate limited per address; requests over 1 MB (4 MB for a bulk email queue) are refused; responses carry a content security policy, no framing, no MIME sniffing and no referrer. Without a password (your own computer) the app only answers at localhost or an IP address, so a web page can't reach it through its own domain name.
+- Only Meta's webhook (signature checked, 1 MB max), the unsubscribe link (signed token) and `/api/health` work without the password.
+- Links from outside data (websites, Instagram, order links) only become clickable when they're http(s).
+- The AI inbox treats incoming messages as data, never as instructions; it only sends a reply by itself when it's a short, polite close with no links, addresses or numbers.
+- Saved files are written whole or not at all, and changes to one search are made one after another, so two quick status changes never undo each other.
+
+## Put it online
+
+See **DEPLOY.md**: Render (one-click blueprint), Railway, or any server with Docker; and **docs/BETA.md** for giving it to customers for feedback.
 
 ## Checks
 
 ```
-npm test          # 262 tests: parsing, merging, scoring, full pipeline with mocked sources
+npm test          # 408 tests: parsing, merging, scoring, full pipeline with mocked sources
 npm run typecheck
 npm run build
 ```

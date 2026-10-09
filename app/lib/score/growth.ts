@@ -1,11 +1,11 @@
-import type { Lead, Signal } from "../types";
+import type { Lead, NicheKey, Signal } from "../types";
 
 /**
  * "Why now" signals: the business is new, hiring, expanding, or has a low rating. Each comes with
  * the evidence (the words on its website, the year, the domain date) so a client can see why.
  */
 
-export type Offer = "website" | "logistics" | "agency";
+export type Offer = "website" | "logistics" | "agency" | NicheKey;
 
 const POINTS: Record<Offer, Record<string, number>> = {
   // a new or expanding business needs a (better) website now; a low rating is a pitch angle
@@ -14,6 +14,12 @@ const POINTS: Record<Offer, Record<string, number>> = {
   logistics: { new_business: 10, expanding: 15, hiring: 5 },
   // growing companies outgrow spreadsheets; hiring = more manual work to automate
   agency: { new_business: 10, expanding: 15, hiring: 10, low_rating: 5 },
+  // the niches (lib/niches.ts) score a low rating themselves where it matters (marketing)
+  marketing: { new_business: 15, expanding: 10, hiring: 5 },
+  solar: { new_business: 10, expanding: 15, hiring: 5 },
+  accounting: { new_business: 20, expanding: 10, hiring: 15 },
+  staffing: { new_business: 15, expanding: 20, hiring: 35 },
+  insurance: { new_business: 15, expanding: 15, hiring: 10 },
 };
 
 const MONTH = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-IN", { month: "short", year: "numeric", timeZone: "UTC" });

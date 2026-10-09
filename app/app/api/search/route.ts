@@ -1,11 +1,15 @@
 import { isCountry, type CountryCode } from "@/lib/markets";
 import { defaultDeps, runSearch } from "@/lib/pipeline";
 import { getStore } from "@/lib/store";
-import type { AgencyService, LogisticsService, ProgressEvent, SearchParams } from "@/lib/types";
+import type { AgencyService, LogisticsService, Offer, ProgressEvent, SearchParams } from "@/lib/types";
+import { isNiche } from "@/lib/niches";
 import { categoriesFor } from "@/lib/categories";
 import { ALL_SERVICES } from "@/lib/score/logistics";
 import { ALL_AGENCY } from "@/lib/score/agency";
-import { track } from "@/lib/live";
+import { live, track } from "@/lib/live";
+
+/** Searches this server runs at once (each one checks many websites); more wait with a clear message. */
+const maxRunning = () => Math.max(1, Number(process.env.MAX_RUNNING_SEARCHES) || 3);
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,7 +23,7 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ error: "Send the search as JSON." }, { status: 400 });
   }
-  const sells = body.sells === "logistics" || body.sells === "agency" ? body.sells : "website_development";
+  const sells: Offer = body.sells === "logistics" || body.sells === "agency" || isNiche(body.sells) ? body.sells : "website_development";
   const valid = new Set(categoriesFor(sells).map((c) => c.key));
   const clientId = typeof body.clientId === "string" && /^[0-9a-f-]{36}$/i.test(body.clientId) ? body.clientId : undefined;
   const services = (Array.isArray(body.client?.services) ? body.client!.services : []).filter((x): x is LogisticsService => (ALL_SERVICES as string[]).includes(x));
@@ -54,10 +58,11 @@ export async function POST(req: Request) {
   };
   if (!params.city) return Response.json({ error: "Enter a city." }, { status: 400 });
   if (!params.categories.length) return Response.json({ error: "Pick at least one business type." }, { status: 400 });
+  if (live.size >= maxRunning()) return Response.json({ error: `${live.size} searches are already running. Wait for one to finish (or stop it), then try again.` }, { status: 429 });
 
   const deps = defaultDeps(getStore());
   // The client's own Apollo key, used for this search only and never saved.
-  if (body.apolloKey) deps.keys.apollo = String(body.apolloKey).trim();
+  if (typeof body.apolloKey === "string" && body.apolloKey.trim()) deps.keys.apollo = body.apolloKey.trim().slice(0, 200);
 
   const enc = new TextEncoder();
   const stream = new ReadableStream({
@@ -73,13 +78,28 @@ export async function POST(req: Request) {
         }
       };
       const emit = track(ctrl, send);
+      // A blank line every 20s: keeps proxies from dropping a quiet connection, and lets the
+      // browser notice a dead one (it switches to refreshing the saved search).
+      const beat = setInterval(() => {
+        if (closed) return;
+        try {
+          controller.enqueue(enc.encode("\n"));
+        } catch {
+          closed = true;
+        }
+      }, 20_000);
+      const t0 = Date.now();
+      console.log(`[search] start ${params.city} · ${params.categories.length} types · ${live.size} running`);
       try {
         const result = await runSearch(params, deps, emit, ctrl.signal);
+        console.log(`[search] done ${params.city} in ${Math.round((Date.now() - t0) / 1000)}s · ${result.leads.length} leads · ${result.search.status}`);
         emit({ type: "done", search: result.search, leads: result.leads });
       } catch (e) {
         // e.g. the store couldn't save the new search; without this the browser waits forever
+        console.error(`[search] failed ${params.city} after ${Math.round((Date.now() - t0) / 1000)}s`, e);
         emit({ type: "log", level: "error", message: e instanceof Error ? e.message : "Search failed" });
       } finally {
+        clearInterval(beat);
         emit.end();
         if (!closed) controller.close();
       }

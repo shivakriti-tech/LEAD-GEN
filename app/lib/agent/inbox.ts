@@ -1,5 +1,5 @@
-import { promises as fs } from "node:fs";
 import path from "node:path";
+import { fileDoc, savedDoc } from "../saved";
 import { randomUUID } from "node:crypto";
 import type { ClientBrain } from "../brain";
 import type { FollowUpPatch } from "../followups";
@@ -9,11 +9,12 @@ import { checkContent } from "../mail/guard";
 import type { Mailbox } from "../mail/mailboxes";
 import { applyInbox, mutate, signature, type LeadAccess, type QueueStore, type SendDeps } from "../mail/queue";
 import { emailHtml } from "../mail/html";
+import { emailLetter } from "../mail/letter";
 import { runAgent, type AgentResult, type Msg } from "./agent";
 
 /**
  * The inbox: every reply from a lead, what it means, and the drafted answer waiting for you.
- * Saved in .data/outreach/inbox.json.
+ * Saved in Supabase (app_state) or .data/outreach/inbox.json.
  */
 
 export type ConvStatus = "drafted" | "handoff" | "sent" | "closed";
@@ -47,20 +48,13 @@ export interface InboxStore {
   write(d: InboxData): Promise<void>;
 }
 
-export function localInboxStore(file = () => path.join(process.cwd(), ".data", "outreach", "inbox.json")): InboxStore {
-  return {
-    async read() {
-      try {
-        return JSON.parse(await fs.readFile(file(), "utf8")) as InboxData;
-      } catch {
-        return { conversations: [] };
-      }
-    },
-    async write(d) {
-      await fs.mkdir(path.dirname(file()), { recursive: true });
-      await fs.writeFile(file(), JSON.stringify(d));
-    },
-  };
+const emptyInbox = (): InboxData => ({ conversations: [] });
+/** The app's inbox: Supabase when it's set up, otherwise .data/outreach/inbox.json. */
+export function inboxStore(): InboxStore {
+  return savedDoc("outreach/inbox", emptyInbox);
+}
+export function localInboxStore(file = () => path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", "outreach", "inbox.json")): InboxStore {
+  return fileDoc(file, emptyInbox);
 }
 export function memoryInboxStore(init: InboxData = { conversations: [] }): InboxStore & { data: InboxData } {
   const s = { data: init, read: async () => s.data, write: async (d: InboxData) => void (s.data = d) };
@@ -101,6 +95,12 @@ export function patchFor(r: AgentResult, now = new Date()): FollowUpPatch | unde
 
 /** Intents the agent may answer by itself when AGENT_AUTO_SEND=safe: polite closes, never sales talk. */
 export const SAFE_AUTO = new Set(["not_now", "not_interested", "wrong_person", "referral"]);
+
+/**
+ * A polite close the agent may send by itself: short, no links, no email addresses or numbers. A
+ * reply that was talked into more than that (a message telling the AI what to write) waits for you.
+ */
+export const autoSafe = (reply: string) => reply.length <= 600 && !/https?:\/\/|www\.|@|\d{3,}/i.test(reply);
 
 export interface ReplyDeps {
   inbox: InboxStore;
@@ -172,7 +172,7 @@ export async function handleEmailReply(deps: ReplyDeps, r: { mailbox: string; ad
   await updateInbox(deps.inbox, (d) => {
     d.conversations = [...d.conversations.filter((c) => c.id !== conv.id), conv];
   });
-  if (!closed && !result.handoff && /^safe$/i.test(env.AGENT_AUTO_SEND ?? "") && SAFE_AUTO.has(result.intent) && result.reply) await sendEmailReply(deps, conv.id, result.reply, "agent");
+  if (!closed && !result.handoff && /^safe$/i.test(env.AGENT_AUTO_SEND ?? "") && SAFE_AUTO.has(result.intent) && result.reply && autoSafe(result.reply)) await sendEmailReply(deps, conv.id, result.reply, "agent");
   return conv;
 }
 
@@ -183,14 +183,15 @@ export async function sendEmailReply(deps: Pick<ReplyDeps, "inbox" | "mailboxes"
   if (!conv || conv.channel !== "email") return { ok: false, error: "Conversation not found" };
   const mbox = deps.mailboxes.find((m) => m.email === conv.mailbox);
   if (!mbox) return { ok: false, error: `The mailbox ${conv.mailbox} isn't set up any more` };
-  const body = text.trim();
+  const sender = conv.sender ?? {};
+  // laid out as an email, with any sign-off removed: the signature (closing, name, company) follows
+  const body = emailLetter(text, sender);
   if (!body) return { ok: false, error: "Write a reply first" };
   const spam = checkContent(`Re: ${conv.subject ?? ""}`, body).block[0];
   if (spam) return { ok: false, error: `Spam check: ${spam}` };
-  const sender = conv.sender ?? {};
   const fromName = sender.name ? `${sender.name}${sender.company ? `, ${sender.company}` : ""}` : mbox.name;
   try {
-    const { messageId } = await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: conv.address, subject: `Re: ${conv.subject ?? ""}`.trim(), text: body + signature(sender), html: emailHtml(body + signature(sender), sender), inReplyTo: conv.lastMessageId, references: [...(conv.references ?? []), ...(conv.lastMessageId ? [conv.lastMessageId] : [])] });
+    const { messageId } = await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: conv.address, subject: `Re: ${conv.subject ?? ""}`.trim(), text: body + signature(sender), html: emailHtml(body + signature(sender), sender, { subject: `Re: ${conv.subject ?? ""}`.trim() }), inReplyTo: conv.lastMessageId, references: [...(conv.references ?? []), ...(conv.lastMessageId ? [conv.lastMessageId] : [])] });
     await updateInbox(deps.inbox, (d) => {
       const c = d.conversations.find((x) => x.id === convId);
       if (!c) return;

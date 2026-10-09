@@ -17,6 +17,10 @@ export interface LiveSearch {
 const g = globalThis as unknown as { __leadLive?: Map<string, LiveSearch> };
 export const live: Map<string, LiveSearch> = (g.__leadLive ??= new Map());
 
+/** Searches waiting for their turn to resume after a restart, so they aren't marked stopped meanwhile. */
+const gr = globalThis as unknown as { __leadResuming?: Set<string> };
+export const resuming: Set<string> = (gr.__leadResuming ??= new Set());
+
 /** Wraps a search's event stream: records its log and progress while it runs. */
 export function track(ctrl: AbortController, emit: (e: ProgressEvent) => void): ((e: ProgressEvent) => void) & { end: () => void } {
   let entry: LiveSearch | undefined;
@@ -43,7 +47,7 @@ export function track(ctrl: AbortController, emit: (e: ProgressEvent) => void): 
  * or restarted). Mark it stopped so it doesn't look like it's still going.
  */
 export async function settle(s: SearchRecord, store: Store): Promise<SearchRecord> {
-  if (s.status !== "running" || live.has(s.id)) return s;
+  if (s.status !== "running" || live.has(s.id) || resuming.has(s.id)) return s;
   const fixed: SearchRecord = { ...s, status: "stopped", error: s.error ?? "Stopped partway (the app was closed or restarted during the search)" };
   await store.saveSearch(fixed).catch(() => {});
   return fixed;

@@ -1,5 +1,6 @@
 import type { AgencyService, FollowUpStatus as AnyStatus, Lead, LogisticsService } from "./types";
 import { growthChip } from "./score/growth";
+import { NICHES, nicheChips, nicheSaw } from "./niches";
 import { domainOf, isMobile } from "./util";
 
 /**
@@ -116,6 +117,7 @@ export const mapsLink = (l: Lead) =>
 export function issueChips(l: Lead): Array<{ label: string; kind: "bad" | "warn" | "good" | "plain" }> {
   if (l.pitchFor?.kind === "logistics") return fitChips(l);
   if (l.pitchFor?.kind === "agency") return agencyChips(l);
+  if (l.pitchFor?.kind === "niche") return nicheChips(l);
   const s = l.audit?.status;
   const out: Array<{ label: string; kind: "bad" | "warn" | "good" | "plain" }> = [];
   if (!l.pending) {
@@ -209,7 +211,13 @@ function family(category: string): string {
   if (/interior/.test(c)) return "interior";
   if (/\bca\b|tax|account|lawyer|advocate/.test(c)) return "pro";
   if (/hotel|homestay|guest/.test(c)) return "hotel";
-  if (/furniture|retail|shop|store|cloth|boutique/.test(c)) return "shop";
+  if (/vet|pet/.test(c)) return "clinic";
+  if (/diagnostic|lab|pharmacy|chemist|optician/.test(c)) return "health";
+  if (/banquet|wedding|venue/.test(c)) return "venue";
+  if (/photograph|architect/.test(c)) return "interior";
+  if (/travel|tour/.test(c)) return "travel";
+  if (/car|bike|garage/.test(c)) return "auto";
+  if (/furniture|retail|shop|store|cloth|boutique|jewel|electronics|hardware/.test(c)) return "shop";
   return "other";
 }
 
@@ -225,6 +233,10 @@ const BENEFIT: Record<Lang, Record<string, string>> = {
     pro: "A simple site with your services and a contact form builds trust before the first call.",
     hotel: "A site with rooms, photos and direct booking saves you the booking-site commission.",
     shop: "A site with your range and prices brings in people who compare online first.",
+    health: "A site with your tests or products, prices and home collection or delivery brings in people who search before they step out.",
+    venue: "A site with photos, capacity, packages and an enquiry form gets you bookings from couples and planners who shortlist online.",
+    travel: "A site with your packages, prices and an enquiry form gets you bookings without the big portals' commission.",
+    auto: "A site with your services, prices and a pickup booking form brings in car owners searching nearby.",
     other: "A simple site with your services and a contact button brings in customers from Google.",
   },
   hi: {
@@ -238,6 +250,10 @@ const BENEFIT: Record<Lang, Record<string, string>> = {
     pro: "Services aur contact form wali simple website se pehli call se pehle hi bharosa banta hai.",
     hotel: "Rooms, photos aur direct booking wali website se booking sites ka commission bachta hai.",
     shop: "Range aur prices wali website se online compare karne wale customers aate hain.",
+    health: "Tests ya products, prices aur home collection/delivery wali website se search karne wale log aap tak aate hain.",
+    venue: "Photos, capacity, packages aur enquiry form wali website se online shortlist karne wale log booking karte hain.",
+    travel: "Packages, prices aur enquiry form wali website se bina portal commission ke bookings aati hain.",
+    auto: "Services, prices aur pickup booking form wali website se paas mein search karne wale car owners aate hain.",
     other: "Services aur contact button wali simple website se Google se naye customers aate hain.",
   },
 };
@@ -267,6 +283,7 @@ function caseOf(l: Lead): Case {
 export function firstMessage(l: Lead, lang: Lang, sender?: string | Sender, tone: Exclude<Tone, "follow"> = "friendly"): string {
   if (l.pitchFor?.kind === "logistics") return logisticsMessage(l, lang, asSender(sender), tone);
   if (l.pitchFor?.kind === "agency") return agencyMessage(l, asSender(sender), tone);
+  if (l.pitchFor?.kind === "niche") return nicheMessage(l, lang, asSender(sender), tone);
   const me = asSender(sender);
   const name = me.name?.trim() || (lang === "hi" ? "[aapka naam]" : "[your name]");
   const work = me.work?.trim() || "web developer";
@@ -372,6 +389,7 @@ export function subjectLine(l: Pick<Lead, "name" | "pitchFor">): string {
   const n = l.name.trim();
   if (l.pitchFor?.kind === "logistics") return `${n} shipments`;
   if (l.pitchFor?.kind === "agency") return l.pitchFor.track === "store" ? `${n} store` : `question about ${n}`;
+  if (l.pitchFor?.kind === "niche") return NICHES[l.pitchFor.niche].subject(n);
   return `${n} website`;
 }
 
@@ -379,6 +397,12 @@ export function subjectLine(l: Pick<Lead, "name" | "pitchFor">): string {
 export function followUpMessage(l: Lead, lang: Lang, sender?: string | Sender): string {
   const from = asSender(sender).name?.trim() || (lang === "hi" ? "[aapka naam]" : "[your name]");
   if (l.pitchFor?.kind === "agency") return `Hi ${greetName(l, "en")}, following up on my note about ${agencyTopic(l)} for ${l.name}. Happy to send a short written plan with costs, no call needed. – ${from}`;
+  if (l.pitchFor?.kind === "niche") {
+    const t = NICHES[l.pitchFor.niche].topic;
+    return lang === "hi"
+      ? `Namaste ${greetName(l, "hi")}, ${l.name} ke liye ${t.hi} ke baare mein humara pichla message follow up kar rahe hain. Aap kahein toh ek chhota likha hua plan bhej doon, call ki zarurat nahi. – ${from}`
+      : `Hi ${greetName(l, "en")}, just following up on my note about ${t.en} for ${l.name}. Happy to send a short written plan, no call needed. – ${from}`;
+  }
   if (l.pitchFor?.kind === "logistics")
     return lang === "hi"
       ? `Namaste ${greetName(l, "hi")}, ${l.name} ki shipping ke baare mein humara pichla message follow up kar rahe hain. Aapke regular routes ke rates bhej sakte hain. – ${from}`
@@ -428,7 +452,7 @@ export function lastFollowUp(l: Lead, lang: Lang, sender?: string | Sender): str
   const me = asSender(sender);
   const from = [me.name?.trim() || (lang === "hi" ? "[aapka naam]" : "[your name]"), me.company?.trim()].filter(Boolean).join(", ");
   if (l.pitchFor?.kind === "agency") return `Hi ${greetName(l, "en")}, one last note about ${agencyTopic(l)} for ${l.name}: if now isn't the right time, no problem at all. If it's useful later, just reply here. – ${from}`;
-  const topic = l.pitchFor?.kind === "logistics" ? (lang === "hi" ? "shipping" : "shipping") : lang === "hi" ? "website" : "a website";
+  const topic = l.pitchFor?.kind === "logistics" ? "shipping" : l.pitchFor?.kind === "niche" ? NICHES[l.pitchFor.niche].topic[lang] : lang === "hi" ? "website" : "a website";
   return lang === "hi"
     ? `Namaste ${greetName(l, "hi")}, ${l.name} ke ${topic} ke baare mein ye humara aakhri message hai. Abhi zarurat na ho toh koi baat nahi. Kabhi zarurat ho toh bas yahin reply kar dijiye. – ${from}`
     : `Hi ${greetName(l, "en")}, one last note about ${topic} for ${l.name}: if now isn't the right time, no problem at all. If it's useful later, just reply here. – ${from}`;
@@ -573,4 +597,23 @@ function agencyMessage(l: Lead, me: Sender, tone: Exclude<Tone, "follow">): stri
   if (tone === "short") return `Hi ${greet}, ${name}${company ? ` from ${company}` : ""} here. ${seen} We build ${needText}.${sentence(me.proof)} Worth a quick chat?${link ? ` ${link}` : ""}`;
   const who = company ? `I'm ${name} from ${company}` : `I'm ${name}`;
   return `Hi ${greet}, ${seen} ${who}: we build ${needText} for ${store ? "product brands" : "companies like yours"}: ${what}.${sentence(me.proof)}${sentence(me.usp)}${sentence(me.priceLine)} ${ask}${link ? ` ${link}` : ""}`;
+}
+
+/* ---------- niche leads (lib/niches.ts) ---------- */
+
+function nicheMessage(l: Lead, lang: Lang, me: Sender, tone: Exclude<Tone, "follow">): string {
+  if (l.pitchFor?.kind !== "niche") return "";
+  const n = NICHES[l.pitchFor.niche];
+  const hi = lang === "hi";
+  const name = me.name?.trim() || (hi ? "[aapka naam]" : "[your name]");
+  const company = l.pitchFor.client?.trim() || me.company?.trim();
+  const greet = greetName(l, lang);
+  const saw = nicheSaw(l, lang);
+  const offer = n.offer(l.pitchFor.needs)[lang];
+  const ask = n.ask[lang];
+  const link = me.link?.trim();
+  const who = company ? (hi ? `${company} se` : `from ${company}`) : me.work?.trim() ? (hi ? `, ${me.work.trim()}` : `, ${me.work.trim()}`) : "";
+  const intro = hi ? `Namaste ${greet}, main ${name}${who ? (who.startsWith(",") ? who : ` ${who}`) : ""}.` : `Hi ${greet}, I'm ${name}${who ? (who.startsWith(",") ? who : ` ${who}`) : ""}${!company && me.city?.trim() ? ` in ${me.city.trim()}` : ""}.`;
+  if (tone === "short") return `${intro} ${saw} ${ask}`;
+  return `${intro} ${saw} ${offer}${sentence(me.usp)}${sentence(me.proof)}${sentence(me.priceLine)} ${ask}${link ? ` ${link}` : ""}`;
 }

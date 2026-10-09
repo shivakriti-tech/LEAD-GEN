@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -30,40 +31,75 @@ export interface ClientStore {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+let db: SupabaseClient | null | undefined;
+/** The Supabase client when SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set, otherwise null (use .data). */
+export function supabase(): SupabaseClient | null {
+  if (db !== undefined) return db;
+  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  return (db = url && key ? createClient(url, key, { auth: { persistSession: false } }) : null);
+}
+
 let cached: Store | null = null;
 export function getStore(): Store {
   if (cached) return cached;
-  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  cached = url && key ? supabaseStore(createClient(url, key, { auth: { persistSession: false } })) : localStore();
+  const db = supabase();
+  cached = db ? supabaseStore(db) : localStore();
   return cached;
 }
 
-function localStore(): Store {
-  const dir = path.join(process.cwd(), ".data", "searches");
+/** Writes a file whole or not at all: a crash mid-write leaves the old file, never half of one. */
+export async function writeAtomic(file: string, data: string): Promise<void> {
+  const tmp = `${file}.${randomBytes(4).toString("hex")}.tmp`;
+  await fs.writeFile(/*turbopackIgnore: true*/ tmp, data);
+  try {
+    await fs.rename(/*turbopackIgnore: true*/ tmp, file);
+  } catch (e) {
+    await fs.unlink(/*turbopackIgnore: true*/ tmp).catch(() => {});
+    throw e;
+  }
+}
+
+/**
+ * Runs changes to the same file one after another. Without this, two status changes made at the
+ * same moment both read the file, and the second write silently undoes the first.
+ */
+const queues = new Map<string, Promise<unknown>>();
+export function oneAtATime<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const run = (queues.get(key) ?? Promise.resolve()).then(fn, fn);
+  const tail = run.catch(() => {});
+  queues.set(key, tail);
+  void tail.then(() => queues.get(key) === tail && queues.delete(key));
+  return run;
+}
+
+export function localStore(dir = path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", "searches")): Store {
   const file = (id: string) => path.join(dir, `${id.replace(/[^a-z0-9-]/gi, "")}.json`);
   async function read(id: string): Promise<{ search: SearchRecord; leads: Lead[] } | null> {
     try {
-      return JSON.parse(await fs.readFile(file(id), "utf8"));
+      return JSON.parse(await fs.readFile(/*turbopackIgnore: true*/ file(id), "utf8"));
     } catch {
       return null;
     }
   }
+  const write = (id: string, d: { search: SearchRecord; leads: Lead[] }) => writeAtomic(file(id), JSON.stringify(d));
   return {
     kind: "local",
-    async saveSearch(s) {
-      await fs.mkdir(dir, { recursive: true });
-      const cur = await read(s.id);
-      await fs.writeFile(file(s.id), JSON.stringify({ search: s, leads: cur?.leads ?? [] }));
-    },
-    async saveLeads(id, leads) {
-      await fs.mkdir(dir, { recursive: true });
-      const cur = await read(id);
-      if (!cur) throw new Error("Search not found");
-      await fs.writeFile(file(id), JSON.stringify({ search: cur.search, leads }));
-    },
+    saveSearch: (s) =>
+      oneAtATime(file(s.id), async () => {
+        await fs.mkdir(/*turbopackIgnore: true*/ dir, { recursive: true });
+        const cur = await read(s.id);
+        await write(s.id, { search: s, leads: cur?.leads ?? [] });
+      }),
+    saveLeads: (id, leads) =>
+      oneAtATime(file(id), async () => {
+        await fs.mkdir(/*turbopackIgnore: true*/ dir, { recursive: true });
+        const cur = await read(id);
+        if (!cur) throw new Error("Search not found");
+        await write(id, { search: cur.search, leads });
+      }),
     async listSearches() {
       try {
-        const names = await fs.readdir(dir);
+        const names = await fs.readdir(/*turbopackIgnore: true*/ dir);
         const all = await Promise.all(names.filter((n) => n.endsWith(".json")).map((n) => read(n.slice(0, -5))));
         return all.filter(Boolean).map((x) => x!.search).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       } catch {
@@ -71,24 +107,26 @@ function localStore(): Store {
       }
     },
     getSearch: read,
-    async updateFollowUps(searchId, updates) {
-      const cur = await read(searchId);
-      if (!cur) return [];
-      const byId = new Map(updates.map((u) => [u.id, u.followUp]));
-      const changed = cur.leads.filter((l) => byId.has(l.id));
-      for (const l of changed) l.followUp = byId.get(l.id);
-      if (changed.length) await fs.writeFile(file(searchId), JSON.stringify(cur));
-      return changed;
-    },
-    async deleteLeads(searchId, ids) {
-      const cur = await read(searchId);
-      if (!cur) return 0;
-      const drop = new Set(ids);
-      const before = cur.leads.length;
-      cur.leads = cur.leads.filter((l) => !drop.has(l.id));
-      if (cur.leads.length !== before) await fs.writeFile(file(searchId), JSON.stringify(cur));
-      return before - cur.leads.length;
-    },
+    updateFollowUps: (searchId, updates) =>
+      oneAtATime(file(searchId), async () => {
+        const cur = await read(searchId);
+        if (!cur) return [];
+        const byId = new Map(updates.map((u) => [u.id, u.followUp]));
+        const changed = cur.leads.filter((l) => byId.has(l.id));
+        for (const l of changed) l.followUp = byId.get(l.id);
+        if (changed.length) await write(searchId, cur);
+        return changed;
+      }),
+    deleteLeads: (searchId, ids) =>
+      oneAtATime(file(searchId), async () => {
+        const cur = await read(searchId);
+        if (!cur) return 0;
+        const drop = new Set(ids);
+        const before = cur.leads.length;
+        cur.leads = cur.leads.filter((l) => !drop.has(l.id));
+        if (cur.leads.length !== before) await write(searchId, cur);
+        return before - cur.leads.length;
+      }),
   };
 }
 
@@ -170,11 +208,11 @@ function supabaseStore(db: SupabaseClient): Store {
 }
 
 function localClients(): ClientStore {
-  const clientDir = path.join(process.cwd(), ".data", "clients");
+  const clientDir = path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", "clients");
   const getClient = async (id: string): Promise<ClientBrain | null> => {
     if (!UUID.test(id)) return null;
     try {
-      return JSON.parse(await fs.readFile(path.join(clientDir, `${id}.json`), "utf8")) as ClientBrain;
+      return JSON.parse(await fs.readFile(/*turbopackIgnore: true*/ path.join(clientDir, `${id}.json`), "utf8")) as ClientBrain;
     } catch {
       return null;
     }
@@ -182,18 +220,18 @@ function localClients(): ClientStore {
   return {
     getClient,
     async listClients() {
-      const names = await fs.readdir(clientDir).catch(() => [] as string[]);
+      const names = await fs.readdir(/*turbopackIgnore: true*/ clientDir).catch(() => [] as string[]);
       const all = await Promise.all(names.filter((n) => n.endsWith(".json")).map((n) => getClient(n.slice(0, -5))));
       return all.filter((c): c is ClientBrain => !!c).sort((a, b) => a.name.localeCompare(b.name));
     },
     async saveClient(c) {
       if (!UUID.test(c.id)) throw new Error("Bad client id");
-      await fs.mkdir(clientDir, { recursive: true });
-      await fs.writeFile(path.join(clientDir, `${c.id}.json`), JSON.stringify(c, null, 1));
+      await fs.mkdir(/*turbopackIgnore: true*/ clientDir, { recursive: true });
+      await writeAtomic(path.join(clientDir, `${c.id}.json`), JSON.stringify(c, null, 1));
     },
     async deleteClient(id) {
       if (!UUID.test(id)) return false;
-      return fs.unlink(path.join(clientDir, `${id}.json`)).then(() => true, () => false);
+      return fs.unlink(/*turbopackIgnore: true*/ path.join(clientDir, `${id}.json`)).then(() => true, () => false);
     },
   };
 }
@@ -227,7 +265,7 @@ function supabaseClients(db: SupabaseClient): ClientStore {
 let cachedClients: ClientStore | null = null;
 export function getClientStore(): ClientStore {
   if (cachedClients) return cachedClients;
-  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  cachedClients = url && key ? supabaseClients(createClient(url, key, { auth: { persistSession: false } })) : localClients();
+  const db = supabase();
+  cachedClients = db ? supabaseClients(db) : localClients();
   return cachedClients;
 }

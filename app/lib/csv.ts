@@ -21,6 +21,7 @@ const COLS: Array<[string, (l: Lead) => unknown]> = [
   ["Email", (l) => l.email],
   ["Email type", (l) => (l.emailInfo?.[0] && l.email ? EMAIL_KIND_LABEL[l.emailInfo[0].kind] : undefined)],
   ["Email check", (l) => { const i = l.email ? l.emailInfo?.find((x) => x.email === l.email) : undefined; return !i ? undefined : i.mailbox && i.mailbox !== "unknown" ? MAILBOX_LABEL[i.mailbox] : i.deliverable ? "domain accepts mail" : "not checked"; }],
+  ["Contact confidence", (l) => l.confidence && `${l.confidence.level} (${l.confidence.score})`],
   ["Owner", (l) => l.owner?.name],
   ["Website", (l) => l.website],
   ["Website status", (l) => l.audit?.status],

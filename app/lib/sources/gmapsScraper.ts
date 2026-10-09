@@ -1,4 +1,5 @@
 import type { OrderLink, RawPlace } from "../types";
+import { liveBuild } from "../security";
 
 /**
  * Google Maps via the open-source gosom/google-maps-scraper, running in Docker on your own computer.
@@ -15,7 +16,7 @@ import type { OrderLink, RawPlace } from "../types";
 export function gmapsScraperUrl(env: Record<string, string | undefined> = process.env): string | undefined {
   const url = (env.GMAPS_SCRAPER_URL || "").trim();
   if (!url) return undefined;
-  if (env.NODE_ENV === "production" || env.VERCEL || env.RENDER) return undefined;
+  if (liveBuild(env)) return undefined;
   return url.replace(/\/+$/, "");
 }
 

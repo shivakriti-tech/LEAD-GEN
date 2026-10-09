@@ -1,11 +1,13 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Lead } from "./types";
+import { supabase, writeAtomic } from "./store";
 
 /**
  * The saved lead directory: businesses already found and checked, per city, area and business type.
  * Filled by searches and by `npm run prefill`, so a later search starts from checked data and only
- * has to recheck what's old and look for what's new. Stored as JSON files in .data/directory.
+ * has to recheck what's old and look for what's new. Stored in Supabase, or as JSON files in .data/directory.
  *
  * Only public business facts are kept here. Your statuses, notes and scores stay with each search.
  */
@@ -41,12 +43,12 @@ export function forDirectory(l: Lead, now = new Date()): Lead {
   return { ...facts, checkedAt: l.checkedAt ?? now.toISOString() };
 }
 
-export function localDirectory(root = () => path.join(process.cwd(), ".data", "directory")): Directory {
+export function localDirectory(root = () => path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", "directory")): Directory {
   const file = (city: string, area: string | undefined, category: string) => path.join(root(), slug(city), slug(area), `${slug(category)}.json`);
   return {
     async get(city, area, category) {
       try {
-        const e = JSON.parse(await fs.readFile(file(city, area, category), "utf8")) as DirectoryEntry;
+        const e = JSON.parse(await fs.readFile(/*turbopackIgnore: true*/ file(city, area, category), "utf8")) as DirectoryEntry;
         return Date.now() - Date.parse(e.savedAt) < DIRECTORY_MAX_AGE && e.leads.length ? e : undefined;
       } catch {
         return undefined;
@@ -55,17 +57,17 @@ export function localDirectory(root = () => path.join(process.cwd(), ".data", "d
     async put(entry) {
       const f = file(entry.city, entry.area, entry.category);
       await fs.mkdir(path.dirname(f), { recursive: true });
-      await fs.writeFile(f, JSON.stringify(entry));
+      await writeAtomic(f, JSON.stringify(entry));
     },
     async list(city) {
       const out: Array<Omit<DirectoryEntry, "leads"> & { count: number }> = [];
       const base = root();
-      const cities = city ? [slug(city)] : await fs.readdir(base).catch(() => [] as string[]);
+      const cities = city ? [slug(city)] : await fs.readdir(/*turbopackIgnore: true*/ base).catch(() => [] as string[]);
       for (const c of cities) {
-        for (const a of await fs.readdir(path.join(base, c)).catch(() => [] as string[])) {
-          for (const f of await fs.readdir(path.join(base, c, a)).catch(() => [] as string[])) {
+        for (const a of await fs.readdir(/*turbopackIgnore: true*/ path.join(/*turbopackIgnore: true*/ base, c)).catch(() => [] as string[])) {
+          for (const f of await fs.readdir(/*turbopackIgnore: true*/ path.join(/*turbopackIgnore: true*/ base, c, a)).catch(() => [] as string[])) {
             try {
-              const e = JSON.parse(await fs.readFile(path.join(base, c, a, f), "utf8")) as DirectoryEntry;
+              const e = JSON.parse(await fs.readFile(/*turbopackIgnore: true*/ path.join(/*turbopackIgnore: true*/ base, c, a, f), "utf8")) as DirectoryEntry;
               out.push({ city: e.city, area: e.area, category: e.category, savedAt: e.savedAt, count: e.leads.length });
             } catch {}
           }
@@ -74,6 +76,38 @@ export function localDirectory(root = () => path.join(process.cwd(), ".data", "d
       return out.sort((x, y) => y.savedAt.localeCompare(x.savedAt));
     },
   };
+}
+
+/** One row per city/area/business type in Supabase's `directory` table. */
+export function supabaseDirectory(db: SupabaseClient): Directory {
+  const key = (c: string, a: string | undefined, cat: string) => `${slug(c)}/${slug(a)}/${slug(cat)}`;
+  return {
+    async get(city, area, category) {
+      const { data, error } = await db.from("directory").select("data").eq("key", key(city, area, category)).maybeSingle();
+      if (error) throw new Error(`Supabase: ${error.message}`);
+      const e = (data as { data: DirectoryEntry } | null)?.data;
+      return e && Date.now() - Date.parse(e.savedAt) < DIRECTORY_MAX_AGE && e.leads.length ? e : undefined;
+    },
+    async put(e) {
+      const { error } = await db.from("directory").upsert({
+        key: key(e.city, e.area, e.category), city: e.city, area: e.area ?? null, category: e.category, saved_at: e.savedAt, count: e.leads.length, data: e,
+      });
+      if (error) throw new Error(`Supabase: ${error.message}`);
+    },
+    async list(city) {
+      let q = db.from("directory").select("key, city, area, category, saved_at, count").order("saved_at", { ascending: false }).limit(2000);
+      if (city) q = q.like("key", `${slug(city)}/%`);
+      const { data, error } = await q;
+      if (error) throw new Error(`Supabase: ${error.message}`);
+      return (data ?? []).map((r: any) => ({ city: r.city, area: r.area ?? undefined, category: r.category, savedAt: new Date(r.saved_at).toISOString(), count: r.count }));
+    },
+  };
+}
+
+/** The app's directory: Supabase when it's set up, otherwise .data/directory. */
+export function getDirectory(): Directory {
+  const db = supabase();
+  return db ? supabaseDirectory(db) : localDirectory();
 }
 
 /** For tests and the prefill script's dry runs: a directory that lives in memory. */

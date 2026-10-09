@@ -2,6 +2,7 @@ import type { AgencyService, Lead, Signal, Tier } from "../types";
 import { CATEGORIES } from "../categories";
 import { SERVICE_LABEL } from "./logistics";
 import { growthSentence, growthSignals } from "./growth";
+import { nicheNeedLabels } from "../niches";
 
 /**
  * Score for your own agency (international): how likely this business needs what you build now.
@@ -151,5 +152,6 @@ export const hasAgencyReason = (l: Pick<Lead, "signals">) => l.signals.some((x) 
 /** What a lead likely needs, in words, for either kind of search (reports, CSV). */
 export function needLabels(p: Lead["pitchFor"]): string[] {
   if (!p) return [];
+  if (p.kind === "niche") return nicheNeedLabels(p);
   return p.kind === "agency" ? p.needs.map((n) => AGENCY_LABEL[n]) : p.needs.map((n) => SERVICE_LABEL[n]);
 }

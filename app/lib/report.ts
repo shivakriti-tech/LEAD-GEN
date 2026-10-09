@@ -4,6 +4,7 @@ import { issueChips, linkedinOf } from "./outreach";
 import { SERVICE_LABEL } from "./score/logistics";
 import { AGENCY_CHIP, needLabels } from "./score/agency";
 import { marketOf } from "./markets";
+import { isNiche, NICHES } from "./niches";
 
 /**
  * A one-page report of a search's best leads, to send to your client: a summary, then each
@@ -31,9 +32,13 @@ export function leadsReport(opts: { search: SearchRecord; leads: Lead[]; by?: st
   const types = p.categories.map((k) => categoryByKey(k)?.label ?? k).join(", ");
   const has = (k: string) => usable.filter((l) => l.signals.some((s) => s.key === k)).length;
   const client = p.client?.name?.trim();
-  const title = logistics ? (client ? `Leads for ${client}` : "Businesses that ship goods") : agency ? (client ? `Leads for ${client}` : "Businesses to build for") : "Businesses that need a website";
+  const niche = isNiche(p.sells) ? NICHES[p.sells] : undefined;
+  const title = client && (logistics || agency || niche) ? `Leads for ${client}` : logistics ? "Businesses that ship goods" : agency ? "Businesses to build for" : niche ? `Leads for ${niche.label.toLowerCase()}` : "Businesses that need a website";
   const needing = (...xs: string[]) => usable.filter((l) => l.pitchFor?.kind === "agency" && l.pitchFor.needs.some((n) => xs.includes(n))).length;
-  const kpis: Array<[number, string]> = agency
+  const nicheNeeds = niche ? Object.entries(niche.needs).map(([k, v]) => [usable.filter((l) => l.pitchFor?.kind === "niche" && l.pitchFor.needs.includes(k)).length, `Need ${v.chip.toLowerCase()}`] as [number, string]).sort((a, b) => b[0] - a[0]).slice(0, 2) : [];
+  const kpis: Array<[number, string]> = niche
+    ? [[usable.length, "Businesses checked"], [usable.filter((l) => l.tier === "hot").length, "Strong leads"], ...nicheNeeds]
+    : agency
     ? [[usable.length, "Businesses checked"], [usable.filter((l) => l.tier === "hot").length, "Strong leads"], [needing("ecommerce"), "Need a store"], [needing("crm_erp", "ai_automation"), "Need CRM / ERP or automation"]]
     : logistics
     ? [[usable.length, "Businesses checked"], [usable.filter((l) => l.tier === "hot").length, "Strong leads"], [has("exports"), "Exporters"], [has("industrial"), "In industrial areas"]]
@@ -197,8 +202,8 @@ ${section("Strong leads", "Best fit. Contact these first.", strong)}
 ${section(all ? "Other leads" : "Possible leads", all ? "Everything else we checked, best first." : "Good fit, worth a call after the strong ones.", rest)}
 ${shown.length ? "" : `<p class="muted">No leads to show yet.</p>`}
 <footer class="foot">
-  <p><b>Score</b> is out of 100: ${logistics || agency ? "60" : "65"} and above is a strong lead, ${logistics || agency ? "30 to 59" : "40 to 64"} a possible one. ${logistics ? "It is higher for factories and exporters in industrial areas that supply across India, counting only the services offered." : agency ? "It is higher for brands without a store of their own or on an outdated one, and for companies with an old website, no customer portal and manual office work, counting only the services offered." : "It is higher for busy, well-rated businesses with no website or a weak one."}</p>
-  <p>${all ? "All leads" : "Strong and possible leads"}, best first (${shown.length} of ${usable.length}${logistics ? "; transport and courier companies left out" : agency ? "; web and software companies left out" : ""}). Contacts come from public business listings (Google Maps, OpenStreetMap) and the businesses' own websites, checked on ${esc(when)}.</p>
+  <p><b>Score</b> is out of 100: ${niche ? niche.tiers[0] : logistics || agency ? "60" : "65"} and above is a strong lead, ${niche ? `${niche.tiers[1]} to ${niche.tiers[0] - 1}` : logistics || agency ? "30 to 59" : "40 to 64"} a possible one. ${niche ? `It is higher the more clearly a business needs ${Object.values(niche.needs).map((x) => x.label).slice(0, 2).join(" or ")} now, from what its website, map listing and reviews show.` : logistics ? "It is higher for factories and exporters in industrial areas that supply across India, counting only the services offered." : agency ? "It is higher for brands without a store of their own or on an outdated one, and for companies with an old website, no customer portal and manual office work, counting only the services offered." : "It is higher for busy, well-rated businesses with no website or a weak one."}</p>
+  <p>${all ? "All leads" : "Strong and possible leads"}, best first (${shown.length} of ${usable.length}${logistics ? "; transport and courier companies left out" : agency ? "; web and software companies left out" : niche ? "; competitors in the same line of work left out" : ""}). Contacts come from public business listings (Google Maps, OpenStreetMap) and the businesses' own websites, checked on ${esc(when)}.</p>
 </footer>
 </div></body></html>`;
 }

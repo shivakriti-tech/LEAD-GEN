@@ -102,6 +102,8 @@ export interface WebsiteAudit {
   tech?: TechHints;
   /** When the website's domain was registered (from public RDAP records), YYYY-MM-DD. */
   domainSince?: string;
+  /** Plain facts on the site that several niches use: solar already, heavy power use, booking, certificates, staff size. */
+  facts?: SiteFacts;
   ownerName?: string; // schema.org founder/owner on the site
 }
 
@@ -128,6 +130,23 @@ export interface TechHints {
   manualRoles?: string[];
   /** "12 locations", "offices in 5 countries". */
   locations?: number;
+  /** Analytics and ad tags on the site: Google Analytics, Google Tag Manager, Meta Pixel, Google Ads. */
+  marketing?: string[];
+}
+
+export interface SiteFacts {
+  /** The site says it already runs on solar: the words that showed it. */
+  solar?: string;
+  /** Power-hungry work named on the site ("cold storage", "foundry", "24x7 production"). */
+  heavyPower?: string;
+  /** Online booking or appointments on the site. */
+  booking?: boolean;
+  /** Certificates that come with audits and paperwork: ISO 9001, ISO 14001, GMP, FSSAI… */
+  certs?: string[];
+  /** Staff size the site states ("250+ employees"). */
+  employees?: number;
+  /** Handles chemicals, solvents or other hazardous goods. */
+  hazardous?: boolean;
 }
 
 export interface GrowthHints {
@@ -157,8 +176,10 @@ export interface TradeHints {
 export type LogisticsService = "customs" | "documentation" | "dgft" | "icegate" | "sea" | "freight" | "imports" | "forwarding" | "courier" | "warehousing";
 /** Your own agency's services (international track): what a lead may need built. */
 export type AgencyService = "website" | "ecommerce" | "crm_erp" | "ai_automation";
+/** More niches: services you (or a client) sell to businesses, each with its own scoring and messages (lib/niches.ts). */
+export type NicheKey = "marketing" | "solar" | "accounting" | "staffing" | "insurance";
 /** What you're finding leads for. */
-export type Offer = "website_development" | "logistics" | "agency";
+export type Offer = "website_development" | "logistics" | "agency" | NicheKey;
 
 export interface Signal {
   key: string;
@@ -230,7 +251,12 @@ export interface Lead {
   /** What changed since it was last checked, e.g. "Now has a website". */
   changes?: string[];
   /** Set when the search was for a logistics client: what this business likely needs. */
-  pitchFor?: { kind: "logistics"; client?: string; needs: LogisticsService[] } | { kind: "agency"; client?: string; needs: AgencyService[]; track: "store" | "company" };
+  pitchFor?:
+    | { kind: "logistics"; client?: string; needs: LogisticsService[] }
+    | { kind: "agency"; client?: string; needs: AgencyService[]; track: "store" | "company" }
+    | { kind: "niche"; niche: NicheKey; client?: string; needs: string[] };
+  /** How sure we are that the contact details are right and current (lib/confidence.ts). */
+  confidence?: { level: "high" | "medium" | "low"; score: number; reasons: string[] };
 }
 
 export interface SearchParams {

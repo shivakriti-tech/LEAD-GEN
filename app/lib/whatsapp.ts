@@ -1,7 +1,6 @@
 import { isMobile } from "./util";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
-import { promises as fs } from "node:fs";
-import path from "node:path";
+import { savedDoc } from "./saved";
 import type { Lead } from "./types";
 import { canContact } from "./outreach";
 import { touchKeys, type FollowUpPatch } from "./followups";
@@ -94,13 +93,9 @@ export interface WaLog {
   entries: WaLogEntry[];
   lastInbound: Record<string, string>;
 }
-const logFile = () => path.join(process.cwd(), ".data", "outreach", "whatsapp.json");
+const logDoc = () => savedDoc<WaLog>("outreach/whatsapp", () => ({ entries: [], lastInbound: {} }));
 export async function readWaLog(): Promise<WaLog> {
-  try {
-    return JSON.parse(await fs.readFile(logFile(), "utf8")) as WaLog;
-  } catch {
-    return { entries: [], lastInbound: {} };
-  }
+  return logDoc().read();
 }
 let chain: Promise<unknown> = Promise.resolve();
 export function updateWaLog<T>(fn: (l: WaLog) => T): Promise<T> {
@@ -108,8 +103,7 @@ export function updateWaLog<T>(fn: (l: WaLog) => T): Promise<T> {
     const l = await readWaLog();
     const out = fn(l);
     l.entries = l.entries.slice(-2000);
-    await fs.mkdir(path.dirname(logFile()), { recursive: true });
-    await fs.writeFile(logFile(), JSON.stringify(l));
+    await logDoc().write(l);
     return out;
   });
   chain = run.catch(() => {});

@@ -1,16 +1,21 @@
+import dns from "node:dns";
+import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import nodemailer, { type Transporter } from "nodemailer";
 import { ImapFlow } from "imapflow";
 import { getStore } from "../store";
 import { mergeFollowUp } from "../followups";
 import { live } from "../live";
 import { mailboxesFromEnv, type Mailbox } from "./mailboxes";
-import { applyInbox, localQueueStore, mutate, tick, type InboxEvent, type LeadAccess, type SendDeps } from "./queue";
+import { applyInbox, queueStore, mutate, tick, type InboxEvent, type LeadAccess, type SendDeps } from "./queue";
 import { bouncedAddress, isBounceMail, isUnsubscribeReply } from "./guard";
 import { checkDomain } from "./dnsHealth";
 import { simpleParser } from "mailparser";
 import { cleanReply } from "../agent/intent";
-import { handleEmailReply, localInboxStore } from "../agent/inbox";
+import { handleEmailReply, inboxStore } from "../agent/inbox";
 import { getClientStore } from "../store";
+
+// Hosts without an IPv6 route fail with ENETUNREACH when Gmail resolves to AAAA; prefer IPv4 everywhere.
+dns.setDefaultResultOrder("ipv4first");
 
 /** The real connections for the email queue: SMTP (nodemailer), IMAP reply checks, saved leads. */
 
@@ -21,7 +26,7 @@ const state: MailState = (g.__mail ??= { transports: new Map(), busy: false });
 export function transportFor(m: Mailbox): Transporter {
   let t = state.transports.get(m.email);
   if (!t) {
-    t = nodemailer.createTransport({ host: m.smtp.host, port: m.smtp.port, secure: m.smtp.secure, auth: { user: m.smtp.user, pass: m.smtp.pass }, connectionTimeout: 20_000, greetingTimeout: 20_000, socketTimeout: 60_000 });
+    t = nodemailer.createTransport({ host: m.smtp.host, port: m.smtp.port, secure: m.smtp.secure, auth: { user: m.smtp.user, pass: m.smtp.pass }, family: 4, connectionTimeout: 20_000, greetingTimeout: 20_000, socketTimeout: 60_000 } as SMTPTransport.Options & { family: 4 });
     state.transports.set(m.email, t);
   }
   return t;
@@ -47,6 +52,7 @@ export const smtpSend: SendDeps["send"] = async (m, mail) => {
 export const imapReplied: NonNullable<SendDeps["replied"]> = async (m, from, since) => {
   if (!m.imap) return undefined;
   const client = new ImapFlow({ host: m.imap.host, port: m.imap.port, secure: true, auth: { user: m.smtp.user, pass: m.smtp.pass }, logger: false });
+  client.on("error", () => {}); // a dropped connection must not crash the server (the calls below handle failure)
   try {
     await client.connect();
     const lock = await client.getMailboxLock("INBOX");
@@ -71,6 +77,7 @@ export interface InboxReply { address: string; subject: string; text: string; me
 export async function imapScan(m: Mailbox, since: Date): Promise<{ events: InboxEvent[]; replies: InboxReply[] } | undefined> {
   if (!m.imap) return undefined;
   const client = new ImapFlow({ host: m.imap.host, port: m.imap.port, secure: true, auth: { user: m.smtp.user, pass: m.smtp.pass }, logger: false });
+  client.on("error", () => {}); // a dropped connection must not crash the server (the calls below handle failure)
   const out: InboxEvent[] = [];
   const replies: InboxReply[] = [];
   try {
@@ -141,7 +148,7 @@ export const savedLeads: LeadAccess = {
 };
 
 export function emailDeps(): SendDeps {
-  return { store: localQueueStore(), leads: savedLeads, mailboxes: mailboxesFromEnv().mailboxes, send: smtpSend, replied: imapReplied, domainProblem };
+  return { store: queueStore(), leads: savedLeads, mailboxes: mailboxesFromEnv().mailboxes, send: smtpSend, replied: imapReplied, domainProblem };
 }
 
 /** Run the queue every 30 seconds while the app is running (only when a mailbox is set up). */
@@ -188,7 +195,7 @@ async function scanInboxes(deps: SendDeps): Promise<void> {
 /** What the conversation agent needs: the inbox, the queue, leads, mailboxes and client profiles. */
 export function replyDeps(deps: SendDeps = emailDeps()) {
   return {
-    inbox: localInboxStore(),
+    inbox: inboxStore(),
     queue: deps.store,
     leads: deps.leads,
     mailboxes: deps.mailboxes,

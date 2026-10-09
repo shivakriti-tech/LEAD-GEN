@@ -28,6 +28,14 @@ const TOOLS: Array<[RegExp, string]> = [
   [/yotpo|judge\.me|okendo|stamped\.io|loox\.io/i, "Reviews app"],
 ];
 
+/** Analytics and ad tags: a site without them can't see where customers come from and isn't advertising. */
+const MARKETING: Array<[RegExp, string]> = [
+  [/googletagmanager\.com\/gtag\/js\?id=G-|google-analytics\.com\/(analytics|ga)\.js|gtag\(\s*['"]config['"]\s*,\s*['"](G|UA)-/i, "Google Analytics"],
+  [/googletagmanager\.com\/gtm\.js|\bGTM-[A-Z0-9]{4,}\b/, "Google Tag Manager"],
+  [/connect\.facebook\.net\/[^"']*\/fbevents\.js|fbq\(\s*['"]init['"]/i, "Meta Pixel"],
+  [/gtag\(\s*['"]config['"]\s*,\s*['"]AW-|googleadservices\.com|googleads\.g\.doubleclick\.net/i, "Google Ads"],
+];
+
 const ERP: Array<[RegExp, string]> = [
   [/\bSAP\b(?! ?\/)(?!-)/, "SAP"],
   [/\bOracle (ERP|Fusion|E-?Business|JD ?Edwards)|\bJD ?Edwards\b/i, "Oracle"],
@@ -91,6 +99,8 @@ export function techHints(html: string, text: string, hosts: string[] = []): Tec
 
   const tools = TOOLS.filter(([re]) => re.test(h)).map(([, n]) => n);
   if (tools.length) out.tools = [...new Set(tools)];
+  const marketing = MARKETING.filter(([re]) => re.test(h)).map(([, n]) => n);
+  if (marketing.length) out.marketing = marketing;
   const erp = ERP.filter(([re]) => re.test(t)).map(([, n]) => n);
   if (erp.length) out.erp = [...new Set(erp)];
 

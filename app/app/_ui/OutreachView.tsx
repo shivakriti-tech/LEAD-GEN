@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { localDate, STEP_LABEL } from "@/lib/outreach";
+import { safeHref } from "@/lib/util";
 import { IconCheck, IconClose, IconCopy, IconLink, IconMail, IconPlus, IconUser, IconWhatsApp } from "./icons";
 
 /**
@@ -154,6 +155,12 @@ function EmailTab() {
     await fetch("/api/outreach/email/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [id] }) });
     load();
   };
+  const retryFailed = async () => {
+    const r = await fetch("/api/outreach/email/retry", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then((x) => x.json());
+    setMsg(`${r.requeued} failed email(s) put back in the queue.`);
+    load();
+  };
+  const failedCount = d.items.filter((i) => i.status === "failed" && !i.reason?.startsWith("Bounced")).length;
   const queued = d.items.filter((i) => i.status === "queued").sort((a, b) => a.notBefore.localeCompare(b.notBefore));
   const recent = d.items.filter((i) => i.status !== "queued").slice(0, 40);
 
@@ -218,6 +225,7 @@ function EmailTab() {
 
       <section className="panel bsec">
         <h2>Waiting to send <span className="count">{queued.length}</span></h2>
+        {failedCount > 0 && <p className="sub"><button type="button" className="linkish" onClick={retryFailed}>Retry {failedCount} failed email(s)</button></p>}
         {!queued.length ? (
           <p className="sub">Nothing waiting. In a search, tick leads and press <b>Email</b>.</p>
         ) : (
@@ -363,7 +371,7 @@ function LinkedInTab() {
                   <div className="row between"><b>{t.leadName}</b><span className="tag">{t.kind === "connect" ? "Connect" : "Find the owner, then connect"}</span></div>
                   <p className="li-note">{t.note}</p>
                   <div className="row gap">
-                    <a className="btn sm" href={t.url} target="_blank" rel="noreferrer"><IconLink /> Open LinkedIn</a>
+                    <a className="btn sm" href={safeHref(t.url)} target="_blank" rel="noreferrer"><IconLink /> Open LinkedIn</a>
                     <button className="btn sm" onClick={() => navigator.clipboard?.writeText(t.note).then(() => { setCopied(t.id); setTimeout(() => setCopied(""), 1500); }, () => {})}>{copied === t.id ? <IconCheck /> : <IconCopy />} {copied === t.id ? "Copied" : "Copy note"}</button>
                     <span className="grow" />
                     <button className="btn sm primary" onClick={() => mark(t.id, "done")}><IconCheck /> Done</button>
