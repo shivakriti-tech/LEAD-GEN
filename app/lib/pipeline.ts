@@ -107,21 +107,32 @@ function absorbLate(l: Lead, g: Lead): boolean {
   return newSite;
 }
 
-export function runSearch(params: SearchParams, deps: Deps, emit: (e: ProgressEvent) => void, signal?: AbortSignal): Promise<{ search: SearchRecord; leads: Lead[] }> {
-  // every lookup in this search (map, Google, search engines, phones) uses the search's country
-  return withCountry(params.country, () => runSearchIn(params, deps, emit, signal));
+/** Continue a search the server was restarted in the middle of: same id, and the businesses already checked are kept. */
+export interface ResumeFrom {
+  search: SearchRecord;
+  /** What was saved so far. Empty if the restart came before any business was found: the search then starts over. */
+  leads: Lead[];
 }
 
-async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressEvent) => void, signal?: AbortSignal): Promise<{ search: SearchRecord; leads: Lead[] }> {
+export function runSearch(params: SearchParams, deps: Deps, emit: (e: ProgressEvent) => void, signal?: AbortSignal, resumeFrom?: ResumeFrom): Promise<{ search: SearchRecord; leads: Lead[] }> {
+  // every lookup in this search (map, Google, search engines, phones) uses the search's country
+  return withCountry(params.country, () => runSearchIn(params, deps, emit, signal, resumeFrom));
+}
+
+async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressEvent) => void, signal?: AbortSignal, resumeFrom?: ResumeFrom): Promise<{ search: SearchRecord; leads: Lead[] }> {
+  /** Resuming with saved businesses: skip the sources and only check the ones still pending. */
+  const resume = resumeFrom?.leads.length ? resumeFrom : undefined;
   const stopped = () => !!signal?.aborted;
   const log = (message: string, level: "info" | "warn" | "error" = "info") => emit({ type: "log", level, message });
   const search: SearchRecord = {
-    id: uid(),
-    createdAt: (deps.now?.() ?? new Date()).toISOString(),
+    id: resumeFrom?.search.id ?? uid(),
+    createdAt: resumeFrom?.search.createdAt ?? (deps.now?.() ?? new Date()).toISOString(),
     params,
     status: "running",
-    counts: { found: 0, afterDedupe: 0, hot: 0, warm: 0, cold: 0 },
+    counts: resume ? resume.search.counts : { found: 0, afterDedupe: 0, hot: 0, warm: 0, cold: 0 },
+    error: resumeFrom ? resumeNote((resumeCount(resumeFrom.search.error) ?? 0) + 1) : undefined,
   };
+  if (resumeFrom) log(resume ? `Resuming after a restart: ${resume.leads.filter((l) => l.pending).length} of ${resume.leads.length} businesses still to check.` : "Starting again after a restart (nothing was saved yet).", "warn");
   emit({ type: "start", searchId: search.id });
   /** Websites: how badly they need a new site. Logistics: how much freight they'd bring the client. */
   const rate = (l: Lead) => {
@@ -159,12 +170,12 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
 
     // 0. saved businesses for this area and these types (from earlier searches or the prefill)
     const saved = new Map<string, DirectoryEntry>();
-    if (deps.directory && !params.fresh)
+    if (deps.directory && !params.fresh && !resume)
       for (const c of cats) {
         const e = await deps.directory.get(params.city, params.area, c.key).catch(() => undefined);
         if (e) saved.set(c.key, e);
       }
-    const liveCats = cats.filter((c) => !saved.has(c.key));
+    const liveCats = resume ? [] : cats.filter((c) => !saved.has(c.key));
     if (saved.size) {
       const oldest = Math.min(...[...saved.values()].map((e) => Date.parse(e.savedAt)));
       const days = Math.floor(((deps.now?.() ?? new Date()).getTime() - oldest) / DAY);
@@ -198,7 +209,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     const useGmaps = params.sources.gmaps && !!deps.keys.gmapsScraper;
     if (params.sources.gmaps && !deps.keys.gmapsScraper) log("Google Maps scraper is on but not available (not set up, or this is a live build where it's switched off). Skipping it.", "warn");
     const socialPossible = useGmaps || (params.sources.instagram || params.sources.facebook || params.sources.web) && (!!webSearch || (!!deps.keys.fbPageSearch && !!deps.keys.metaToken));
-    if (!useGoogle && !useOsm && !socialPossible && saved.size < cats.length) throw new Error(params.sources.osm ? "OpenStreetMap couldn't find this place and there is no Google key. Check the city name, or add GOOGLE_PLACES_API_KEY." : "No lead source is available. Turn on OpenStreetMap or add a Google Places key.");
+    if (!resume && !useGoogle && !useOsm && !socialPossible && saved.size < cats.length) throw new Error(params.sources.osm ? "OpenStreetMap couldn't find this place and there is no Google key. Check the city name, or add GOOGLE_PLACES_API_KEY." : "No lead source is available. Turn on OpenStreetMap or add a Google Places key.");
 
     // 1. search
     const raw: RawPlace[] = [];
@@ -261,7 +272,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     const useIg = params.sources.instagram && !!webSearch;
     const useFb = params.sources.facebook && (fbApi || !!webSearch);
     const useWeb = params.sources.web && !!webSearch;
-    const jobs = [
+    const jobs = resume ? [] : [
       ...liveCats.flatMap((c) => [
         ...(useGoogle ? [{ src: "google" as const, c }] : []),
         ...(useOsm && c.osm.length ? [{ src: "osm" as const, c }] : []),
@@ -283,7 +294,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
       }),
     ];
     const usedSources = [useGoogle && "google", useOsm && "osm", useIg && "instagram", useFb && "facebook", useWeb && "web"].filter(Boolean) as string[];
-    if (!useGoogle && !useOsm && !useIg && !useFb && !useWeb && !useGmaps && saved.size < cats.length) throw new Error("No lead source is available.");
+    if (!resume && !useGoogle && !useOsm && !useIg && !useFb && !useWeb && !useGmaps && saved.size < cats.length) throw new Error("No lead source is available.");
     let done = 0, googleRequests = 0;
     const failedJobs = new Set<string>(); // "source:category" that errored, so the directory doesn't claim them
     const total = jobs.length + (useGmaps ? 1 : 0);
@@ -376,10 +387,10 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
       log(`Checking the ${raw.length} results found so far. The Google Maps scraper keeps going: its businesses are added as soon as it finishes.`);
     }
     if (googleRequests) log(`Used ${googleRequests} Google Places request${googleRequests > 1 ? "s" : ""} (1,000 free per month).`);
-    search.counts.found = raw.length;
+    if (!resume) search.counts.found = raw.length;
 
     // 2. merge + drop closed
-    let leads = mergePlaces(raw);
+    let leads = resume ? resume.leads.filter((l) => l.businessStatus !== "CLOSED_PERMANENTLY") : mergePlaces(raw);
     if (saved.size) {
       // saved businesses first; a live result that's one of them is dropped, the rest are new since last time
       const known = new Set<string>();
@@ -399,7 +410,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     leads = leads.filter((l) => l.businessStatus !== "CLOSED_PERMANENTLY");
     if (previewLeads.length) carry(previewLeads, leads);
     search.counts.afterDedupe = leads.length;
-    log(`${raw.length} results → ${leads.length} unique businesses${closed ? ` (${closed} permanently closed removed)` : ""}.`);
+    if (!resume) log(`${raw.length} results → ${leads.length} unique businesses${closed ? ` (${closed} permanently closed removed)` : ""}.`);
     emit({ type: "stage", stage: "dedupe", done: 1, total: 1 });
 
     // 2b. chains: same name at several places in this search, or a brand tag on the map
@@ -426,6 +437,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     // 3. Show every business now, then check each one and update it as soon as it's done.
     for (const l of leads) {
       l.country ??= currentCountry();
+      if (resume && !l.pending) continue; // checked before the restart
       if (!l.saved) l.websiteCheck = { via: l.website && !isSocialHost(domainOf(l.website)) ? "source" : "none_found", tried: [l.sources.map((x) => SOURCE_LABEL[x]).join(" + ")] };
       Object.assign(l, score(l));
       l.pending = true;
@@ -436,10 +448,10 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
 
     // Saved businesses checked in the last week are ready; older ones and new ones get a full check.
     const nowMs = (deps.now?.() ?? new Date()).getTime();
-    const needsCheck = (l: Lead) => !l.saved || !l.checkedAt || nowMs - Date.parse(l.checkedAt) > RECHECK_AFTER;
+    const needsCheck = (l: Lead) => resume ? !!l.pending : !l.saved || !l.checkedAt || nowMs - Date.parse(l.checkedAt) > RECHECK_AFTER;
     const toCheck = leads.filter(needsCheck);
     const ready = leads.filter((l) => !needsCheck(l));
-    const recheck = toCheck.filter((l) => l.saved).length;
+    const recheck = resume ? 0 : toCheck.filter((l) => l.saved).length;
     const needSite = params.verifyWebsites ? toCheck.filter((l) => !l.chain && (!l.website || isSocialHost(domainOf(l.website)))).length : 0;
     if (ready.length) log(`${ready.length} saved business${ready.length === 1 ? " was" : "es were"} checked in the last week: loading them${recheck ? `; rechecking ${recheck} older one${recheck === 1 ? "" : "s"}` : ""}.`);
     if (needSite) log(`Checking ${toCheck.length} businesses. ${needSite} have no website listed: looking for one (likely web addresses${siteSearch ? ", web search" : ""}${siteSearch && numberSearch ? " and their phone number" : ""}).`);
@@ -528,7 +540,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
       finish(l);
     };
     // shown one after another at a readable pace (about 20 seconds at most for the whole list)
-    const pace = deps.revealMs ?? Math.max(150, Math.min(700, Math.round(20_000 / Math.max(1, ready.length))));
+    const pace = deps.revealMs ?? (resume ? 0 : Math.max(150, Math.min(700, Math.round(20_000 / Math.max(1, ready.length)))));
     await Promise.all([
       mapLimit(byPhone(toCheck), deps.concurrency ?? 16, checkOne),
       (async () => {
@@ -683,11 +695,12 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
 
     // 5. save
     search.status = stopped() ? "stopped" : "done";
+    if (!stopped()) search.error = undefined;
     if (stopped()) search.error = `Stopped by you after checking ${done_.length} of ${leads.length} businesses`;
     await deps.store.saveSearch(search);
     await deps.store.saveLeads(search.id, leads);
     // remember what this search found (a stopped search is incomplete, so it isn't saved)
-    if (deps.directory && !stopped()) {
+    if (deps.directory && !stopped() && !resume) {
       const savedAt = (deps.now?.() ?? new Date()).toISOString();
       for (const c of cats) {
         const mine = leads.filter((l) => l.category === c.label && !l.pending);
@@ -981,3 +994,10 @@ export function defaultDeps(store: Store): Deps {
     store,
   };
 }
+
+/** A resumed search carries a note in its error field (the store has no column for a counter). */
+export const resumeNote = (n: number) => `Resumed after a restart (${n})`;
+export const resumeCount = (error?: string): number | undefined => {
+  const m = /^Resumed after a restart \((\d+)\)/.exec(error ?? "");
+  return m ? Number(m[1]) : undefined;
+};
