@@ -44,14 +44,14 @@ export async function verifyMailbox(m: Mailbox): Promise<{ ok: boolean; error?: 
 
 export const smtpSend: SendDeps["send"] = async (m, mail) => {
   // one-click unsubscribe headers come with the mail; no "X-Mailer: nodemailer" (a script marker)
-  const info = await transportFor(m).sendMail({ ...mail, xMailer: false });
+  const info = await transportFor(m).sendMail({ ...mail, ...(m.replyTo ? { replyTo: m.replyTo } : {}), xMailer: false });
   return { messageId: info.messageId };
 };
 
 /** Any mail from this address in the inbox since the first email? */
 export const imapReplied: NonNullable<SendDeps["replied"]> = async (m, from, since) => {
   if (!m.imap) return undefined;
-  const client = new ImapFlow({ host: m.imap.host, port: m.imap.port, secure: true, auth: { user: m.smtp.user, pass: m.smtp.pass }, logger: false });
+  const client = new ImapFlow({ host: m.imap.host, port: m.imap.port, secure: true, auth: { user: m.imap.user ?? m.smtp.user, pass: m.imap.pass ?? m.smtp.pass }, logger: false });
   client.on("error", () => {}); // a dropped connection must not crash the server (the calls below handle failure)
   try {
     await client.connect();
@@ -76,7 +76,7 @@ export const imapReplied: NonNullable<SendDeps["replied"]> = async (m, from, sin
 export interface InboxReply { address: string; subject: string; text: string; messageId?: string; references?: string[]; at: string }
 export async function imapScan(m: Mailbox, since: Date): Promise<{ events: InboxEvent[]; replies: InboxReply[] } | undefined> {
   if (!m.imap) return undefined;
-  const client = new ImapFlow({ host: m.imap.host, port: m.imap.port, secure: true, auth: { user: m.smtp.user, pass: m.smtp.pass }, logger: false });
+  const client = new ImapFlow({ host: m.imap.host, port: m.imap.port, secure: true, auth: { user: m.imap.user ?? m.smtp.user, pass: m.imap.pass ?? m.smtp.pass }, logger: false });
   client.on("error", () => {}); // a dropped connection must not crash the server (the calls below handle failure)
   const out: InboxEvent[] = [];
   const replies: InboxReply[] = [];
@@ -97,10 +97,10 @@ export async function imapScan(m: Mailbox, since: Date): Promise<{ events: Inbox
           if (a) out.push({ kind: "complaint", address: a });
         } else if (isBounceMail(from, subject)) {
           const a = bouncedAddress(body);
-          if (a && a !== m.email) out.push({ kind: "bounce", address: a });
+          if (a && a !== m.email && a !== m.replyTo) out.push({ kind: "bounce", address: a });
         } else if (from && isUnsubscribeReply(subject, cleanReply(body).slice(0, 2000))) {
           out.push({ kind: "unsubscribe", address: from.split(" ")[0] });
-        } else if (from && from.split(" ")[0].toLowerCase() !== m.email) {
+        } else if (from && from.split(" ")[0].toLowerCase() !== m.email && from.split(" ")[0].toLowerCase() !== m.replyTo) {
           const text = cleanReply(body);
           const refs = parsed?.references;
           if (text) replies.push({ address: from.split(" ")[0].toLowerCase(), subject, text, messageId: parsed?.messageId ?? msg.envelope?.messageId, references: Array.isArray(refs) ? refs : refs ? [refs] : undefined, at: new Date(msg.envelope?.date ?? Date.now()).toISOString() });

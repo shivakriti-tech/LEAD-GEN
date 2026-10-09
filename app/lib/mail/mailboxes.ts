@@ -6,7 +6,14 @@
  *
  * smtps:// = port 465 (SSL), smtp:// = STARTTLS (587). `name` is the From name, `start` the day you
  * started using it (warm-up), `imap` the inbox server for reply checks (guessed from the SMTP host),
- * `max` the most it ever sends a day. Use an address on a separate sending domain, not the client's
+ * `max` the most it ever sends a day.
+ *
+ * A sending service (Brevo, SendGrid, …) signs in with its own login, so say who the mail is from,
+ * where replies go, and which inbox the app reads replies from:
+ *
+ *   MAILBOX_1=smtp://LOGIN%40smtp-brevo.com:SMTP-KEY@smtp-relay.brevo.com:2525?from=divy%40yourdomain.in&replyTo=you%40gmail.com&imap=imap.gmail.com&imapUser=you%40gmail.com&imapPass=gmail-app-password
+ *
+ * (port 2525: Render's free plan blocks the usual mail ports 25, 465 and 587.) Use an address on a separate sending domain, not the client's
  * main domain: if cold email hurts a domain's reputation, it shouldn't be the one their customers use.
  */
 
@@ -16,7 +23,10 @@ export interface Mailbox {
   name?: string;
   domain: string;
   smtp: { host: string; port: number; secure: boolean; user: string; pass: string };
-  imap?: { host: string; port: number };
+  /** Inbox read for replies and bounces; signs in with its own login when given, else the SMTP one. */
+  imap?: { host: string; port: number; user?: string; pass?: string };
+  /** Where replies go, when not to the sending address. */
+  replyTo?: string;
   /** Day you started sending from it (YYYY-MM-DD), for the warm-up ramp. */
   start?: string;
   /** Hard ceiling per day once warmed up. */
@@ -35,6 +45,9 @@ const IMAP_FOR: Array<[RegExp, string]> = [
   [/^smtp\.hostinger\.com$/i, "imap.hostinger.com"],
   [/^smtpout\.secureserver\.net$/i, "imap.secureserver.net"],
 ];
+/** Sending services: they sign in with their own login and have no inbox. */
+const SERVICE = /(brevo|sendinblue|sendgrid|mailgun|postmarkapp|mailjet|amazonaws|resend|sparkpost)\./i;
+
 export const imapHostFor = (smtpHost: string) => {
   for (const [re, imap] of IMAP_FOR) if (re.test(smtpHost)) return smtpHost.replace(re, imap);
   return smtpHost.replace(/^smtp(out)?\./i, "imap.");
@@ -50,13 +63,21 @@ export function parseMailbox(key: string, value: string): Mailbox | { key: strin
     const q = u.searchParams;
     const start = q.get("start") ?? undefined;
     const imap = q.get("imap");
+    const from = q.get("from")?.trim().toLowerCase();
+    if (from && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(from)) return { key, error: "from= must be an email address" };
+    const replyTo = q.get("replyTo")?.trim().toLowerCase() || undefined;
+    const imapUser = q.get("imapUser") ?? undefined, imapPass = q.get("imapPass") ?? undefined;
+    // sending services have no inbox to read: replies are only checked when imap= is given
+    const service = SERVICE.test(u.hostname);
+    const email = from || user.toLowerCase();
     return {
       key,
-      email: user.toLowerCase(),
+      email,
       name: q.get("name") ?? undefined,
-      domain: user.split("@")[1].toLowerCase(),
+      domain: email.split("@")[1],
       smtp: { host: u.hostname, port: Number(u.port) || (secure ? 465 : 587), secure, user, pass },
-      imap: imap === "off" ? undefined : { host: imap || imapHostFor(u.hostname), port: 993 },
+      imap: imap === "off" || (service && !imap) ? undefined : { host: imap || imapHostFor(u.hostname), port: 993, ...(imapUser && imapPass ? { user: imapUser, pass: imapPass } : {}) },
+      replyTo,
       start: start && /^\d{4}-\d{2}-\d{2}$/.test(start) ? start : undefined,
       max: Math.min(200, Math.max(5, Number(q.get("max")) || 40)),
     };
