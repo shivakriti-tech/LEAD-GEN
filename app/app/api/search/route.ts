@@ -78,6 +78,16 @@ export async function POST(req: Request) {
         }
       };
       const emit = track(ctrl, send);
+      // A blank line every 20s: keeps proxies from dropping a quiet connection, and lets the
+      // browser notice a dead one (it switches to refreshing the saved search).
+      const beat = setInterval(() => {
+        if (closed) return;
+        try {
+          controller.enqueue(enc.encode("\n"));
+        } catch {
+          closed = true;
+        }
+      }, 20_000);
       const t0 = Date.now();
       console.log(`[search] start ${params.city} · ${params.categories.length} types · ${live.size} running`);
       try {
@@ -89,6 +99,7 @@ export async function POST(req: Request) {
         console.error(`[search] failed ${params.city} after ${Math.round((Date.now() - t0) / 1000)}s`, e);
         emit({ type: "log", level: "error", message: e instanceof Error ? e.message : "Search failed" });
       } finally {
+        clearInterval(beat);
         emit.end();
         if (!closed) controller.close();
       }

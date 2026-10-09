@@ -356,9 +356,21 @@ export default function LeadFinder() {
       }
       const reader = res.body.getReader();
       const dec = new TextDecoder();
-      let buf = "", finished = false, lastError = "";
+      let buf = "", finished = false, lastError = "", sid = "";
+      // The server sends a blank line every 20s. Silence for a minute means the connection is dead
+      // (e.g. the server restarted for a deploy and carries on with the search on its own).
+      let quiet: ReturnType<typeof setTimeout> | undefined;
+      const read = () => new Promise<ReadableStreamReadResult<Uint8Array> | null>((resolve, reject) => {
+        quiet = setTimeout(() => resolve(null), 60_000);
+        reader.read().then(resolve, reject).finally(() => clearTimeout(quiet));
+      });
       for (;;) {
-        const { value, done } = await reader.read();
+        const got = await read().catch(() => null);
+        if (!got) {
+          reader.cancel().catch(() => {});
+          break;
+        }
+        const { value, done } = got;
         if (done) break;
         buf += dec.decode(value, { stream: true });
         let nl;
@@ -367,7 +379,7 @@ export default function LeadFinder() {
           buf = buf.slice(nl + 1);
           if (!line.trim()) continue;
           const ev = JSON.parse(line) as ProgressEvent;
-          if (ev.type === "start") setSearchId(ev.searchId);
+          if (ev.type === "start") setSearchId((sid = ev.searchId));
           else if (ev.type === "log") {
             setLog((l) => [...l, { level: ev.level, message: ev.message }]);
             if (ev.level === "error") lastError = ev.message;
@@ -383,6 +395,8 @@ export default function LeadFinder() {
           }
         }
       }
+      // Connection lost before the end: follow the saved search instead (it may still be running).
+      if (!finished && sid && !lastError && (await followSaved(sid))) return;
       if (!finished) throw new Error(lastError || "The search stopped before it finished.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Search failed");
@@ -391,6 +405,26 @@ export default function LeadFinder() {
       loadHistory();
       loadPipeline();
     }
+  }
+
+  /** Show a search as saved on the server (the refresh below takes over while it runs). False if it can't be loaded. */
+  async function followSaved(id: string): Promise<boolean> {
+    for (let i = 0; i < 6; i++) {
+      const r = await fetch(`/api/searches/${id}`).catch(() => null);
+      if (r?.ok) {
+        const d = await r.json();
+        setSearch(d.search);
+        setLeads(d.leads);
+        if (d.live) {
+          setLog(d.live.logs);
+          setStage(d.live.stage ?? null);
+        }
+        if (d.search.status === "failed") setError(d.search.error || "Search failed");
+        return true;
+      }
+      await new Promise((r) => setTimeout(r, 5000)); // server still starting up
+    }
+    return false;
   }
 
   // A running search opened from Recent searches: refresh it until it's done.
