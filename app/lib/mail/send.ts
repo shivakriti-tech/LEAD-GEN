@@ -1,3 +1,4 @@
+import dns from "node:dns";
 import nodemailer, { type Transporter } from "nodemailer";
 import { ImapFlow } from "imapflow";
 import { getStore } from "../store";
@@ -12,6 +13,9 @@ import { cleanReply } from "../agent/intent";
 import { handleEmailReply, inboxStore } from "../agent/inbox";
 import { getClientStore } from "../store";
 
+// Hosts without an IPv6 route fail with ENETUNREACH when Gmail resolves to AAAA; prefer IPv4 everywhere.
+dns.setDefaultResultOrder("ipv4first");
+
 /** The real connections for the email queue: SMTP (nodemailer), IMAP reply checks, saved leads. */
 
 interface MailState { transports: Map<string, Transporter>; timer?: ReturnType<typeof setInterval>; busy: boolean; last?: { at: string; did: string; detail?: string } }
@@ -21,7 +25,7 @@ const state: MailState = (g.__mail ??= { transports: new Map(), busy: false });
 export function transportFor(m: Mailbox): Transporter {
   let t = state.transports.get(m.email);
   if (!t) {
-    t = nodemailer.createTransport({ host: m.smtp.host, port: m.smtp.port, secure: m.smtp.secure, auth: { user: m.smtp.user, pass: m.smtp.pass }, connectionTimeout: 20_000, greetingTimeout: 20_000, socketTimeout: 60_000 });
+    t = nodemailer.createTransport({ host: m.smtp.host, port: m.smtp.port, secure: m.smtp.secure, auth: { user: m.smtp.user, pass: m.smtp.pass }, family: 4, connectionTimeout: 20_000, greetingTimeout: 20_000, socketTimeout: 60_000 });
     state.transports.set(m.email, t);
   }
   return t;
