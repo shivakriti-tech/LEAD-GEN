@@ -52,6 +52,7 @@ export const smtpSend: SendDeps["send"] = async (m, mail) => {
 export const imapReplied: NonNullable<SendDeps["replied"]> = async (m, from, since) => {
   if (!m.imap) return undefined;
   const client = new ImapFlow({ host: m.imap.host, port: m.imap.port, secure: true, auth: { user: m.smtp.user, pass: m.smtp.pass }, logger: false });
+  client.on("error", () => {}); // a dropped connection must not crash the server (the calls below handle failure)
   try {
     await client.connect();
     const lock = await client.getMailboxLock("INBOX");
@@ -76,6 +77,7 @@ export interface InboxReply { address: string; subject: string; text: string; me
 export async function imapScan(m: Mailbox, since: Date): Promise<{ events: InboxEvent[]; replies: InboxReply[] } | undefined> {
   if (!m.imap) return undefined;
   const client = new ImapFlow({ host: m.imap.host, port: m.imap.port, secure: true, auth: { user: m.smtp.user, pass: m.smtp.pass }, logger: false });
+  client.on("error", () => {}); // a dropped connection must not crash the server (the calls below handle failure)
   const out: InboxEvent[] = [];
   const replies: InboxReply[] = [];
   try {
