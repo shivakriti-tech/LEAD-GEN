@@ -155,6 +155,12 @@ function EmailTab() {
     await fetch("/api/outreach/email/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [id] }) });
     load();
   };
+  const retryFailed = async () => {
+    const r = await fetch("/api/outreach/email/retry", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then((x) => x.json());
+    setMsg(`${r.requeued} failed email(s) put back in the queue.`);
+    load();
+  };
+  const failedCount = d.items.filter((i) => i.status === "failed" && !i.reason?.startsWith("Bounced")).length;
   const queued = d.items.filter((i) => i.status === "queued").sort((a, b) => a.notBefore.localeCompare(b.notBefore));
   const recent = d.items.filter((i) => i.status !== "queued").slice(0, 40);
 
@@ -219,6 +225,7 @@ function EmailTab() {
 
       <section className="panel bsec">
         <h2>Waiting to send <span className="count">{queued.length}</span></h2>
+        {failedCount > 0 && <p className="sub"><button type="button" className="linkish" onClick={retryFailed}>Retry {failedCount} failed email(s)</button></p>}
         {!queued.length ? (
           <p className="sub">Nothing waiting. In a search, tick leads and press <b>Email</b>.</p>
         ) : (
