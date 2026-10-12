@@ -1,6 +1,6 @@
-import { mailboxesFromEnv, dailyCap, inSendWindow, istParts } from "@/lib/mail/mailboxes";
+import { mailboxesFromEnv, inSendWindow, istParts } from "@/lib/mail/mailboxes";
 import { checkDomain, type DomainHealth } from "@/lib/mail/dnsHealth";
-import { queueStore } from "@/lib/mail/queue";
+import { capToday, queueStore } from "@/lib/mail/queue";
 import { startEmailWorker, workerStatus } from "@/lib/mail/send";
 import { getClientStore } from "@/lib/store";
 import { domainOf } from "@/lib/util";
@@ -38,7 +38,7 @@ export async function GET(req: Request) {
       const started = m.start ?? st?.startedOn ?? today;
       const week = (r?: Record<string, number>) => Object.entries(r ?? {}).filter(([k]) => Date.parse(`${k}T00:00:00Z`) >= Date.now() - 7 * 86_400_000).reduce((t, [, n]) => t + n, 0);
       const paused = st?.pausedUntil && Date.parse(st.pausedUntil) > Date.now() ? { until: st.pausedUntil, why: st.pauseReason } : undefined;
-      return { email: m.email, name: m.name, domain: m.domain, startedOn: started, capToday: dailyCap(m, started, today), sentToday: st?.sent[today] ?? 0, lastAt: st?.lastAt, error: st?.error, paused, sent7: week(st?.sent), bounced7: week(st?.bounces), complaints7: week(st?.complaints), replyCheck: !!m.imap };
+      return { email: m.email, name: m.name, domain: m.domain, startedOn: started, capToday: capToday(m, st, today), perDay: st?.perDay ?? m.max, warmup: st?.warmup !== false, sentToday: st?.sent[today] ?? 0, lastAt: st?.lastAt, error: st?.error, paused, sent7: week(st?.sent), bounced7: week(st?.bounces), complaints7: week(st?.complaints), replyCheck: !!m.imap };
     }),
     problems,
     health,

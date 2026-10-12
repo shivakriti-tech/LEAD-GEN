@@ -127,7 +127,7 @@ function InboxTab({ onChange }: { onChange: (n: number) => void }) {
 type Check = { ok: boolean; label: string; detail: string; fix?: string };
 type EmailData = {
   window: { open: boolean; hours: string };
-  mailboxes: Array<{ email: string; name?: string; domain: string; startedOn: string; capToday: number; sentToday: number; lastAt?: string; error?: string; paused?: { until: string; why?: string }; sent7: number; bounced7: number; complaints7: number; replyCheck: boolean }>;
+  mailboxes: Array<{ email: string; name?: string; domain: string; startedOn: string; capToday: number; perDay: number; warmup: boolean; sentToday: number; lastAt?: string; error?: string; paused?: { until: string; why?: string }; sent7: number; bounced7: number; complaints7: number; replyCheck: boolean }>;
   suppressed?: number;
   problems: Array<{ key: string; error: string }>;
   health: Array<{ domain: string; ok: boolean; mainDomain?: boolean; checks: Record<"mx" | "spf" | "dkim" | "dmarc", Check> }>;
@@ -139,6 +139,7 @@ function EmailTab() {
   const [d, setD] = useState<EmailData | null>(null);
   const [msg, setMsg] = useState("");
   const [testTo, setTestTo] = useState("");
+  const [limitFor, setLimitFor] = useState<{ email: string; perDay: number; warmup: boolean } | null>(null);
   useEffect(() => { try { setTestTo(localStorage.getItem("testTo") ?? ""); } catch {} }, []);
   const load = useCallback((fresh = false) => fetch(`/api/outreach/email${fresh ? "?fresh=1" : ""}`).then((r) => r.json()).then(setD).catch(() => setMsg("Couldn't load the email queue")), []);
   useEffect(() => {
@@ -159,6 +160,12 @@ function EmailTab() {
     setMsg(`Sending a test from ${email} to ${testTo}…`);
     const r = await fetch("/api/outreach/email/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, to: testTo.trim() }) }).then((x) => x.json()).catch(() => ({ error: "Couldn't reach the server" }));
     setMsg(r.ok ? `Test sent to ${testTo}: "${r.subject}" (the email for ${r.leadName}). Check Inbox, Promotions and Spam.` : `Test failed: ${r.error}`);
+  };
+  const saveLimit = async (email: string, perDay: number, warmup: boolean) => {
+    const r = await fetch("/api/outreach/email/limit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, perDay, warmup }) }).then((x) => x.json()).catch(() => ({ error: "Couldn't reach the server" }));
+    setMsg(r.ok ? `${email}: up to ${r.perDay} emails a day${r.warmup ? `, warming up (${r.capToday} today)` : ""}.` : `${email}: ${r.error}`);
+    setLimitFor(null);
+    load();
   };
   const cancel = async (id: string) => {
     await fetch("/api/outreach/email/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [id] }) });
@@ -204,7 +211,18 @@ function EmailTab() {
             <article className="panel mb-card" key={m.email}>
               <div className="row between"><b>{m.email}</b>{m.error || m.paused ? <span className="tag bad">Paused</span> : <span className="tag good">Active</span>}</div>
               <div className="mb-meter" aria-label={`${m.sentToday} of ${m.capToday} sent today`}><i style={{ width: `${Math.min(100, (m.sentToday / Math.max(1, m.capToday)) * 100)}%` }} /></div>
-              <p className="sub">Warm-up day {day}: {m.sentToday} of {m.capToday} today{m.lastAt ? ` · last ${when(m.lastAt)}` : ""}</p>
+              <p className="sub">{m.warmup && m.capToday < m.perDay ? `Warm-up day ${day}: ` : ""}{m.sentToday} of {m.capToday} today{m.lastAt ? ` · last ${when(m.lastAt)}` : ""}</p>
+              {limitFor?.email === m.email ? (
+                <div className="row gap">
+                  <label className="sub">Emails a day <input className="mb-limit" type="number" min={1} max={200} value={limitFor.perDay} onChange={(e) => setLimitFor({ ...limitFor, perDay: Number(e.target.value) })} /></label>
+                  <label className="sub"><input type="checkbox" checked={limitFor.warmup} onChange={(e) => setLimitFor({ ...limitFor, warmup: e.target.checked })} /> Warm up (start at 5, +3 a day)</label>
+                  <span className="grow" />
+                  <button className="btn sm" onClick={() => setLimitFor(null)}>Cancel</button>
+                  <button className="btn sm primary" onClick={() => saveLimit(m.email, limitFor.perDay, limitFor.warmup)}>Save</button>
+                </div>
+              ) : (
+                <p className="sub">Up to {m.perDay} a day{m.warmup ? "" : ", no warm-up"} · <button type="button" className="linkish" onClick={() => setLimitFor({ email: m.email, perDay: m.perDay, warmup: m.warmup })}>Change</button></p>
+              )}
               <p className="sub">{m.replyCheck ? "Checks its inbox for replies before each follow-up" : "Reply check off: mark replies yourself"}</p>
               <p className="sub">This week: {m.sent7} sent · {m.bounced7} bounced{m.sent7 ? ` (${Math.round((m.bounced7 / m.sent7) * 100)}%, keep under 3%)` : ""}{m.complaints7 ? ` · ${m.complaints7} spam complaint${m.complaints7 === 1 ? "" : "s"}` : ""}</p>
               {m.error && <p className="pitch-warn">{m.error}</p>}

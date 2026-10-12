@@ -876,3 +876,4 @@ label.check input { width: auto; }
   .bill-kpis b { font-size: 20px; }
 }
 .mb-test { flex: 1; min-width: 140px; padding: 6px 10px; }
+.mb-limit { width: 72px; padding: 4px 8px; margin-left: 4px; }

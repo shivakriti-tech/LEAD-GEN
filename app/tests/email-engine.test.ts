@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { dailyCap, inSendWindow, mailboxesFromEnv, parseMailbox, type Mailbox } from "@/lib/mail/mailboxes";
 import { checkDomain, type Resolver } from "@/lib/mail/dnsHealth";
-import { enqueue, memoryQueueStore, tick, type LeadAccess, type SendDeps } from "@/lib/mail/queue";
+import { capToday, enqueue, memoryQueueStore, tick, type LeadAccess, type SendDeps } from "@/lib/mail/queue";
 import { mergeFollowUp, type FollowUpPatch } from "@/lib/followups";
 import type { Lead } from "@/lib/types";
 
@@ -18,6 +18,13 @@ describe("mailboxes", () => {
 
   it("warms up: 5 a day, +3 a day, up to the maximum", () => {
     expect([0, 1, 5, 20].map((n) => dailyCap(MB, "2026-10-01", `2026-10-${String(1 + n).padStart(2, "0")}`))).toEqual([5, 8, 20, 40]);
+  });
+
+  it("uses the emails-a-day you set, with or without warm-up", () => {
+    expect(capToday(MB, { startedOn: "2026-10-01", sent: {}, perDay: 12 }, "2026-10-02")).toBe(8);
+    expect(capToday(MB, { startedOn: "2026-10-01", sent: {}, perDay: 12 }, "2026-10-21")).toBe(12);
+    expect(capToday(MB, { startedOn: "2026-10-01", sent: {}, perDay: 60, warmup: false }, "2026-10-01")).toBe(60);
+    expect(capToday(MB, undefined, "2026-10-21")).toBe(40);
   });
 
   it("sends only Mon–Sat, 10:00–18:30 in India", () => {

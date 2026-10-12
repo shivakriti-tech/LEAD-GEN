@@ -79,7 +79,7 @@ export function parseMailbox(key: string, value: string): Mailbox | { key: strin
       imap: imap === "off" || (service && !imap) ? undefined : { host: imap || imapHostFor(u.hostname), port: 993, ...(imapUser && imapPass ? { user: imapUser, pass: imapPass } : {}) },
       replyTo,
       start: start && /^\d{4}-\d{2}-\d{2}$/.test(start) ? start : undefined,
-      max: Math.min(200, Math.max(5, Number(q.get("max")) || 40)),
+      max: Math.min(MAX_PER_DAY, Math.max(5, Number(q.get("max")) || 40)),
     };
   } catch {
     return { key, error: "isn't a valid address (smtps://you%40domain.in:password@smtp.host:465)" };
@@ -103,8 +103,10 @@ export function mailboxesFromEnv(env: Record<string, string | undefined> = proce
  * Warm-up: a new mailbox starts at 5 emails a day and adds 3 a day, up to its maximum (40 by default).
  * Sending 200 cold emails on day one from a new domain is how it ends up in spam for good.
  * (A warm-up service that exchanges real replies helps too; this only paces your own sending.)
+ * With warm-up off it sends its maximum from the first day.
  */
-export function dailyCap(m: Pick<Mailbox, "max">, startedOn: string, today: string): number {
+export function dailyCap(m: Pick<Mailbox, "max">, startedOn: string, today: string, warmup = true): number {
+  if (!warmup) return m.max;
   const days = Math.max(0, Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${startedOn}T00:00:00Z`)) / 86_400_000));
   return Math.min(m.max, 5 + 3 * days);
 }
@@ -115,6 +117,9 @@ export function istParts(now: Date): { date: string; weekday: number; minutes: n
   const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(p.weekday);
   return { date: `${p.year}-${p.month}-${p.day}`, weekday, minutes: (Number(p.hour) % 24) * 60 + Number(p.minute) };
 }
+/** Most emails a day you can set for one mailbox (from .env.local or Outreach → Email). */
+export const MAX_PER_DAY = 200;
+
 export const SEND_WINDOW = { from: 10 * 60, to: 18 * 60 + 30 };
 export function inSendWindow(now: Date): boolean {
   const t = istParts(now);
