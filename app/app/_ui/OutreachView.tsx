@@ -138,6 +138,8 @@ type EmailData = {
 function EmailTab() {
   const [d, setD] = useState<EmailData | null>(null);
   const [msg, setMsg] = useState("");
+  const [testTo, setTestTo] = useState("");
+  useEffect(() => { try { setTestTo(localStorage.getItem("testTo") ?? ""); } catch {} }, []);
   const load = useCallback((fresh = false) => fetch(`/api/outreach/email${fresh ? "?fresh=1" : ""}`).then((r) => r.json()).then(setD).catch(() => setMsg("Couldn't load the email queue")), []);
   useEffect(() => {
     load();
@@ -150,6 +152,13 @@ function EmailTab() {
     const r = await fetch("/api/outreach/email/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }) }).then((x) => x.json());
     setMsg(r.ok ? `${email}: signed in fine.` : `${email}: ${r.error}`);
     load();
+  };
+  const sendTest = async (email: string) => {
+    if (!testTo.trim()) return setMsg("Enter your own address to send the test to.");
+    try { localStorage.setItem("testTo", testTo.trim()); } catch {}
+    setMsg(`Sending a test from ${email} to ${testTo}…`);
+    const r = await fetch("/api/outreach/email/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, to: testTo.trim() }) }).then((x) => x.json()).catch(() => ({ error: "Couldn't reach the server" }));
+    setMsg(r.ok ? `Test sent to ${testTo}: "${r.subject}" (the email for ${r.leadName}). Check Inbox, Promotions and Spam.` : `Test failed: ${r.error}`);
   };
   const cancel = async (id: string) => {
     await fetch("/api/outreach/email/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [id] }) });
@@ -200,7 +209,11 @@ function EmailTab() {
               <p className="sub">This week: {m.sent7} sent · {m.bounced7} bounced{m.sent7 ? ` (${Math.round((m.bounced7 / m.sent7) * 100)}%, keep under 3%)` : ""}{m.complaints7 ? ` · ${m.complaints7} spam complaint${m.complaints7 === 1 ? "" : "s"}` : ""}</p>
               {m.error && <p className="pitch-warn">{m.error}</p>}
               {m.paused && <p className="pitch-warn">{m.paused.why} Resumes {when(m.paused.until)}.</p>}
-              <button className="btn sm" onClick={() => verify(m.email)}>Check sign-in</button>
+              <div className="row gap">
+                <button className="btn sm" onClick={() => verify(m.email)}>Check sign-in</button>
+                <input className="mb-test" type="email" placeholder="your address" aria-label="Send a test to" value={testTo} onChange={(e) => setTestTo(e.target.value)} />
+                <button className="btn sm" onClick={() => sendTest(m.email)} title="Sends you the newest email in the queue, exactly as the lead gets it">Send a test</button>
+              </div>
             </article>
           );
         })}

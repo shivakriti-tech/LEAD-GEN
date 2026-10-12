@@ -125,7 +125,7 @@ main { grid-row: 2; padding: 10px 32px 96px 8px; min-width: 0; display: flex; fl
 
 /* ---------- controls ---------- */
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-input[type=text], input[type=password], input[type=search], input[type=number], input[type=date], select, textarea { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px 12px; width: 100%; transition: border-color .15s, box-shadow .15s; }
+input[type=text], input[type=email], input[type=password], input[type=search], input[type=number], input[type=date], select, textarea { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px 12px; width: 100%; transition: border-color .15s, box-shadow .15s; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--ink-2); box-shadow: 0 0 0 3px rgba(26, 23, 20, .08); }
 textarea { resize: vertical; }
 input:disabled, textarea:disabled, select:disabled { opacity: .6; cursor: not-allowed; }
@@ -875,3 +875,4 @@ label.check input { width: auto; }
   .board-col { scroll-snap-align: start; }
   .bill-kpis b { font-size: 20px; }
 }
+.mb-test { flex: 1; min-width: 140px; padding: 6px 10px; }
