@@ -248,6 +248,17 @@ const gapMs = (rand: () => number) => (3 + rand() * 4) * 60_000;
  * Send at most one email (the next one due). Returns what happened, for the log and tests.
  * Called every 30 seconds by the worker.
  */
+/** An email exactly as it goes out: From line, subject, plain text and HTML. */
+export function renderEmail(item: EmailItem, lead: Lead, mbox: Mailbox): { from: string; subject: string; plain: string; text: string; html: string } {
+  const subject = item.subject ?? (item.threadSubject ? `Re: ${item.threadSubject.replace(/^re:\s*/i, "")}` : subjectFor(lead));
+  // the first email carries no link: links in a first message from a stranger are a top spam signal
+  // laid out as an email (greeting, short paragraphs), with any sign-off removed: the signature follows
+  const plain = emailLetter(item.body ?? messageForStep(lead, item.lang, item.step === 0 ? { ...item.sender, link: undefined } : item.sender, item.tone, item.step), item.sender);
+  const text = plain + footer(item.sender, mbox);
+  const fromName = item.sender.name ? `${item.sender.name}${item.sender.company ? `, ${item.sender.company}` : ""}` : mbox.name;
+  return { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, subject, plain, text, html: emailHtml(text, item.sender, { subject }) };
+}
+
 export async function tick(deps: SendDeps): Promise<{ did: "sent" | "skipped" | "failed" | "idle"; detail?: string; itemId?: string }> {
   const now = deps.now?.() ?? new Date();
   const rand = deps.rand ?? Math.random;
@@ -297,10 +308,7 @@ export async function tick(deps: SendDeps): Promise<{ did: "sent" | "skipped" | 
         return finish("skipped", "They replied (found in your inbox), so no follow-up");
       }
     }
-    const subject = item.subject ?? (item.threadSubject ? `Re: ${item.threadSubject.replace(/^re:\s*/i, "")}` : subjectFor(lead));
-    // the first email carries no link: links in a first message from a stranger are a top spam signal
-    // laid out as an email (greeting, short paragraphs), with any sign-off removed: the signature follows
-    const plain = emailLetter(item.body ?? messageForStep(lead, item.lang, item.step === 0 ? { ...item.sender, link: undefined } : item.sender, item.tone, item.step), item.sender);
+    const { subject, plain, text, html, from } = renderEmail(item, lead, mbox);
     const spam = checkContent(subject, plain).block;
     if (spam.length) return finish("skipped", `Spam check: ${spam[0]}`);
     if (deps.domainProblem) {
@@ -310,11 +318,9 @@ export async function tick(deps: SendDeps): Promise<{ did: "sent" | "skipped" | 
         return { did: "idle" as const, detail: `${mbox.email} paused: ${why}` };
       }
     }
-    const text = plain + footer(item.sender, mbox);
-    const fromName = item.sender.name ? `${item.sender.name}${item.sender.company ? `, ${item.sender.company}` : ""}` : mbox.name;
     let messageId: string;
     try {
-      messageId = (await deps.send(mbox, { from: fromName ? `"${fromName.replace(/"/g, "")}" <${mbox.email}>` : mbox.email, to: item.to, subject, text, html: emailHtml(text, item.sender, { subject }), inReplyTo: item.inReplyTo, references: item.references, headers: await unsubscribeHeaders(item.to, mbox.replyTo ?? mbox.email) })).messageId;
+      messageId = (await deps.send(mbox, { from, to: item.to, subject, text, html, inReplyTo: item.inReplyTo, references: item.references, headers: await unsubscribeHeaders(item.to, mbox.replyTo ?? mbox.email) })).messageId;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       const auth = /auth|login|credentials|535|534|password/i.test(msg) && !isBlock(msg);
