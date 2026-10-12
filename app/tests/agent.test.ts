@@ -161,3 +161,13 @@ describe("replies end to end", () => {
     expect(await handleEmailReply(deps, { mailbox: MB.email, address: "news@shop.com", subject: "Sale", text: "50% off", at: "" })).toBeUndefined();
   });
 });
+
+describe("greeting", () => {
+  it("greets the lead, never the person signing the email", async () => {
+    const { greetLead } = await import("@/lib/agent/agent");
+    const me = { name: "ShivaKriti", company: "ShivaKriti Tech" };
+    expect(greetLead("Hi ShivaKriti,\n\nThank you for getting back to us.", {}, me)).toBe("Hello,\n\nThank you for getting back to us.");
+    expect(greetLead("Hi ShivaKriti Tech,\n\nThanks.", { owner: { name: "Priya Shah" } } as never, me)).toBe("Hi Priya,\n\nThanks.");
+    expect(greetLead("Hi Priya,\n\nThanks.", {}, me)).toBe("Hi Priya,\n\nThanks.");
+  });
+});

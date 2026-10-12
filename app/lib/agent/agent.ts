@@ -62,7 +62,7 @@ export function brainFacts(b?: Pick<ClientBrain, "name" | "summary" | "services"
 const SYSTEM = `You answer replies to a cold email for a small company, as the person who sent it.
 Read the lead's latest message and return JSON: intent, a one-line summary of what they said, a reply, and whether a person must take over.
 Reply rules: write it as a short, professional business email that a person typed themselves.
-- Layout: a greeting line ("Hi Priya," or "Hello," when you don't know their name), a blank line, then 1 or 2 short paragraphs (2 to 5 sentences in all) separated by a blank line.
+- Layout: a greeting line to the lead ("Hi Priya," with the contact name given, or "Hello," when there is none; never the name of the person who signs for us), a blank line, then 1 or 2 short paragraphs (2 to 5 sentences in all) separated by a blank line.
 - No closing, name or signature ("Best regards" and the signature are added for you), no subject line, no placeholders.
 - Plain text only: no HTML, markdown, bold, bullet lists or emojis.
 - Courteous and factual, not salesy: no exclamation marks, no ALL CAPS, no hype or pressure words (free, guaranteed, limited time, act now, urgent, best price, cheap, click here, special offer, 100%), no "Dear Sir/Madam". These read as promotional and send the email to spam.
@@ -88,6 +88,19 @@ export function replyProblem(reply: string, brain?: Pick<ClientBrain, "services"
   if (spam) return `Spam check: ${spam}`;
   if (reply.length > 1500) return "Too long for a reply";
   return undefined;
+}
+
+/**
+ * The AI sometimes greets the person who signs the email (the only name it sees when the lead has
+ * no contact name): "Hi ShivaKriti," to a lead, from ShivaKriti. Greet the lead instead.
+ */
+export function greetLead(reply: string | undefined, lead: Pick<Lead, "owner">, me: Pick<Sender, "name" | "company">): string | undefined {
+  if (!reply) return reply;
+  const ours = [me.name, me.name?.split(/\s+/)[0], me.company].map((x) => x?.trim().toLowerCase()).filter((x): x is string => !!x && x.length > 1);
+  const m = reply.match(/^((?:hi|hello|hey|dear|namaste)\s+)([^,\n]{1,60})(,?)/i);
+  if (!m || !ours.includes(m[2].trim().toLowerCase())) return reply;
+  const first = lead.owner?.name?.trim().split(/\s+/)[0];
+  return (first ? `Hi ${first},` : "Hello,") + reply.slice(m[0].length);
 }
 
 /** Ready replies for when there's no AI, or the case is clear enough not to need it. */
@@ -147,7 +160,8 @@ export async function runAgent(x: AgentInput): Promise<AgentResult> {
   const model = env.GEMINI_MODEL?.trim() || GEMINI_DEFAULT_MODEL;
   // the last few messages, trimmed: enough context, few tokens
   const convo = x.thread.slice(-6).map((m) => `${m.dir === "out" ? "US" : "THEM"}: ${m.text.slice(0, 1200)}`).join("\n\n");
-  const prompt = `${brainFacts(x.brain)}\n\nLead: ${x.lead.name} (${x.lead.category}${x.lead.city ? `, ${x.lead.city}` : ""}). Why we wrote: ${x.lead.whyNow.slice(0, 300)}\nSigned by: ${x.sender.name ?? "us"}\n\nConversation (subject "${x.subject.slice(0, 120)}"):\n${convo}`;
+  const contact = x.lead.owner?.name?.trim();
+  const prompt = `${brainFacts(x.brain)}\n\nLead: ${x.lead.name} (${x.lead.category}${x.lead.city ? `, ${x.lead.city}` : ""}). Why we wrote: ${x.lead.whyNow.slice(0, 300)}\nContact name: ${contact || "unknown (greet with \"Hello,\")"}\nSigned by (us, the sender; never greet this name): ${x.sender.name ?? "us"}\n\nConversation (subject "${x.subject.slice(0, 120)}"):\n${convo}`;
   const system = `${SYSTEM}\nJSON keys: intent (one of ${Object.keys(INTENT_LABEL).join(", ")}), summary, reply (null if none needed), needs_person, needs_person_why.`;
   const asGpt = async () => openaiChat(env, f, system, prompt, { maxTokens: 700, temperature: 0.3, timeoutMs: 45_000 });
   const asGemini = async () => {
@@ -185,7 +199,7 @@ export async function runAgent(x: AgentInput): Promise<AgentResult> {
     const reply = ruleReply(rules.intent, x.lead, x.sender, link);
     return { intent: rules.intent, summary: summaryOf(text), reply, handoff: true, why: `AI not available (${err}): check the draft`, by: "rules", referral: rules.referral };
   }
-  const reply = parsed.reply?.trim() || undefined;
+  const reply = greetLead(parsed.reply?.trim() || undefined, x.lead, x.sender);
   const problem = reply ? replyProblem(reply, x.brain) : undefined;
   const mustPerson = ["interested", "meeting", "question"].includes(parsed.intent);
   return {
