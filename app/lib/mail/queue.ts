@@ -68,6 +68,10 @@ export interface MailboxState {
   complaints?: Record<string, number>;
   /** Last time the inbox was read for bounces and unsubscribe replies. */
   scannedAt?: string;
+  /** Emails a day, set in Outreach → Email (otherwise `max` from .env.local). */
+  perDay?: number;
+  /** false: send the full amount from day one instead of ramping up. */
+  warmup?: boolean;
 }
 export interface QueueData {
   items: EmailItem[];
@@ -78,6 +82,11 @@ export interface QueueData {
 export interface QueueStore {
   read(): Promise<QueueData>;
   write(d: QueueData): Promise<void>;
+}
+
+/** Today's limit for a mailbox: your setting (or its `max`), ramped up by the warm-up unless you turned that off. */
+export function capToday(m: Mailbox, st: MailboxState | undefined, today: string): number {
+  return dailyCap({ max: st?.perDay ?? m.max }, m.start ?? st?.startedOn ?? today, today, st?.warmup !== false);
 }
 
 const emptyQueue = (): QueueData => ({ items: [], mailboxes: {} });
@@ -274,7 +283,7 @@ export async function tick(deps: SendDeps): Promise<{ did: "sent" | "skipped" | 
   if (queuedDue.length && !due.length) return { did: "idle", detail: "Waiting for office hours where the leads are" };
   const room = (m: Mailbox) => {
     const st = d.mailboxes[m.email];
-    return !st.error && !(st.pausedUntil && Date.parse(st.pausedUntil) > now.getTime()) && (st.sent[today] ?? 0) < dailyCap(m, m.start ?? st.startedOn, today) && (!st.nextAt || Date.parse(st.nextAt) <= now.getTime());
+    return !st.error && !(st.pausedUntil && Date.parse(st.pausedUntil) > now.getTime()) && (st.sent[today] ?? 0) < capToday(m, st, today) && (!st.nextAt || Date.parse(st.nextAt) <= now.getTime());
   };
 
   for (const item of due) {
