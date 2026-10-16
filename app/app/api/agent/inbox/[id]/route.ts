@@ -33,11 +33,13 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const lead = conv.searchId && conv.leadId ? await savedLeads.get(conv.searchId, conv.leadId) : undefined;
     const brain = await deps.brainFor(conv.clientId);
     const r = await runAgent({ lead: lead ?? { name: conv.leadName ?? conv.address, category: "", whyNow: "" }, brain, sender: conv.sender ?? {}, subject: conv.subject ?? "", thread: conv.messages });
+    const closed = !r.reply && (r.intent === "out_of_office" || r.intent === "unsubscribe");
     await updateInbox(store, (d) => {
       const c = d.conversations.find((x) => x.id === id);
-      if (c) Object.assign(c, { agent: r, draft: r.reply, updatedAt: new Date().toISOString() });
+      // an auto-reply or an unsubscribe needs no answer: it moves to Handled
+      if (c) Object.assign(c, { agent: r, draft: r.reply, updatedAt: new Date().toISOString() }, closed ? { status: "closed" } : {});
     });
-    return Response.json({ ok: true, agent: r });
+    return Response.json({ ok: true, agent: r, closed });
   }
 
   if (body.action === "send") {

@@ -41,7 +41,7 @@ export function OutreachView() {
 type Conv = {
   id: string; channel: "email" | "whatsapp"; address: string; leadName?: string; subject?: string; status: "drafted" | "handoff" | "sent" | "closed"; updatedAt: string; draft?: string;
   messages: Array<{ dir: "in" | "out"; text: string; at: string; by?: string }>;
-  agent?: { intent: string; summary: string; handoff: boolean; why?: string; by: string; returnOn?: string; referral?: string };
+  agent?: { intent: string; summary: string; handoff: boolean; why?: string; by: string; returnOn?: string; referral?: string; contact?: string };
 };
 const INTENT: Record<string, { label: string; kind: string }> = {
   interested: { label: "Interested", kind: "good" }, meeting: { label: "Wants a call", kind: "good" }, question: { label: "Has a question", kind: "warn" },
@@ -65,7 +65,7 @@ function InboxTab({ onChange }: { onChange: (n: number) => void }) {
     setBusy(c.id + action);
     const r = await fetch(`/api/agent/inbox/${c.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, text: texts[c.id] ?? c.draft ?? "" }) });
     const j = await r.json().catch(() => ({}));
-    setMsg((m) => ({ ...m, [c.id]: r.ok ? (action === "send" ? "Sent." : action === "redraft" ? "New draft ready." : "") : j.error ?? "Failed" }));
+    setMsg((m) => ({ ...m, [c.id]: r.ok ? (action === "send" ? "Sent." : action === "redraft" ? (j.closed ? "No answer needed: moved to Handled." : "New draft ready.") : "") : j.error ?? "Failed" }));
     if (action === "redraft") setTexts((t) => { const n = { ...t }; delete n[c.id]; return n; });
     setBusy("");
     load();
@@ -93,6 +93,7 @@ function InboxTab({ onChange }: { onChange: (n: number) => void }) {
             {c.subject && <p className="sub">Re: {c.subject}</p>}
             <blockquote className="their">{last?.text}</blockquote>
             {c.agent?.why && <p className="sub"><b>Why it's with you:</b> {c.agent.why}</p>}
+            {!c.draft && (c.agent?.intent === "out_of_office" || c.agent?.intent === "unsubscribe") && <p className="sub"><b>No answer needed:</b> {c.agent.intent === "out_of_office" ? "this is an automatic reply, and follow-ups wait until they're back" : "they asked not to be emailed"}{c.agent.contact ? `. They say to ${c.agent.contact}: worth a call.` : "."} Press Done, no reply.</p>}
             <label className="field">
               <span className="lbl">Your answer <span className="opt">{(c.agent?.by === "gemini" || c.agent?.by === "gpt") ? "drafted by AI, check it" : "ready reply, edit as needed"}</span></span>
               <textarea rows={5} value={texts[c.id] ?? c.draft ?? ""} onChange={(e) => setTexts((t) => ({ ...t, [c.id]: e.target.value }))} placeholder="Write your reply" />
