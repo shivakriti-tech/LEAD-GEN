@@ -238,6 +238,7 @@ export function LeadPanel({
                     <span className="email">{e.email}</span>
                     <span className={`tag ${e.deliverable === false ? "bad" : e.kind === "own_named" || e.kind === "personal" ? "good" : ""}`}>{e.deliverable === false ? "can't receive mail" : EMAIL_KIND_LABEL[e.kind]}</span>
                     {e.disposable ? <span className="tag bad">throwaway inbox</span> : e.mailbox && e.mailbox !== "unknown" && <span className={`tag ${e.mailbox === "valid" ? "good" : e.mailbox === "invalid" ? "bad" : "warn"}`} title={e.mailboxBy ? `Checked with ${e.mailboxBy}` : undefined}>{MAILBOX_LABEL[e.mailbox]}</span>}
+                    {e.guessed && <span className="tag" title="Built from the owner's name and kept because the mailbox check says it exists">from owner's name</span>}
                     <span className="grow" />
                     <button className="act icon-only" onClick={() => copy(e.email, () => flash(e.email))} aria-label={`Copy ${e.email}`} title="Copy">{copied === e.email ? <IconCheck /> : <IconCopy />}</button>
                   </div>

@@ -24,6 +24,8 @@ export interface FollowUp {
   optedIn?: { at: string; via: string };
   /** They asked not to be contacted (STOP, unsubscribe, "not interested, don't message"): every channel stops. */
   optedOut?: { at: string; via: string };
+  /** What their last reply meant, as the Inbox agent read it: positive (interested, a question, a call, a referral), not now, or no. */
+  replyKind?: "positive" | "not_now" | "negative";
 }
 
 export type TouchChannel = "whatsapp" | "email" | "call" | "linkedin";

@@ -18,6 +18,8 @@ export interface HomeDay {
   date: string; // YYYY-MM-DD, your local day
   messaged: number;
   replied: number;
+  /** Replies that want to talk (interested, a question, a call, a referral, or a meeting/won later). */
+  positive: number;
   meetings: number;
   won: number;
   wonValue: number;
@@ -37,7 +39,7 @@ export interface HomeData {
   waiting: HomeLead[];
   waitingTotal: number;
   /** Per business type: how many you messaged and how many replied. */
-  byCategory: Record<string, { messaged: number; replied: number }>;
+  byCategory: Record<string, { messaged: number; replied: number; positive: number }>;
   searches: number;
   leads: number;
   latest?: { id: string; search: string; createdAt: string; hot: number; leads: number };
@@ -61,7 +63,7 @@ export async function homeData(store: Store, opts: { today: string; tz: number }
   const start = new Date(`${today}T12:00:00Z`);
   for (let i = 59; i >= 0; i--) {
     const d = new Date(start.getTime() - i * 86_400_000).toISOString().slice(0, 10);
-    days.set(d, { date: d, messaged: 0, replied: 0, meetings: 0, won: 0, wonValue: 0 });
+    days.set(d, { date: d, messaged: 0, replied: 0, positive: 0, meetings: 0, won: 0, wonValue: 0 });
   }
   const bump = (iso: string | undefined, k: keyof Omit<HomeDay, "date">, by = 1) => {
     const d = iso && days.get(localDay(iso, tz));
@@ -104,14 +106,18 @@ export async function homeData(store: Store, opts: { today: string; tz: number }
       const won = firstOf((x) => x === "won");
       bump(fu.contactedAt, "messaged");
       bump(reply, "replied");
+      // positive reply rate (coldoutboundskills): a reply that wants to talk, not just any reply
+      const positive = !!reply && (fu.replyKind === "positive" || h.some((e) => e.status === "meeting" || e.status === "won"));
+      if (positive) bump(reply, "positive");
       bump(firstOf((x) => x === "meeting"), "meetings");
       if (won && st === "won") {
         bump(won, "won");
         bump(won, "wonValue", fu.value ?? 0);
       }
-      const c = (byCategory[l.category] ??= { messaged: 0, replied: 0 });
+      const c = (byCategory[l.category] ??= { messaged: 0, replied: 0, positive: 0 });
       c.messaged++;
       if (reply) c.replied++;
+      if (positive) c.positive++;
       const last = h[h.length - 1];
       if (last) recent.push({ status: st, at: last.at, lead: slim(l, s.id, place) });
     }

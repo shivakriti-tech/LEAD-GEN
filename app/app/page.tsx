@@ -264,7 +264,10 @@ export default function LeadFinder() {
     if (r.error) return setToast({ text: r.error });
     const n = kind === "email" ? r.queued : r.added;
     const why = [...new Set((r.skipped ?? []).map((x: { why: string }) => x.why))].slice(0, 2).join("; ");
-    setToast({ text: `${n} ${kind === "email" ? `email${n === 1 ? "" : "s"} queued` : `LinkedIn task${n === 1 ? "" : "s"} added`}${r.skipped?.length ? ` · ${r.skipped.length} skipped (${why})` : ""}` });
+    // the batch's grade (verified, catch-all, shared inboxes) and the first edited text that reads like AI or a template
+    const q = kind === "email" && r.quality && r.quality.grade !== "A" ? ` · Batch quality ${r.quality.grade}: ${r.quality.issues[0]}` : "";
+    const w = kind === "email" && r.warnings?.length ? ` · ${r.warnings[0].name}: ${r.warnings[0].why}` : "";
+    setToast({ text: `${n} ${kind === "email" ? `email${n === 1 ? "" : "s"} queued` : `LinkedIn task${n === 1 ? "" : "s"} added`}${r.skipped?.length ? ` · ${r.skipped.length} skipped (${why})` : ""}${q}${w}` });
     if (n) setSelected(new Set());
   }
 

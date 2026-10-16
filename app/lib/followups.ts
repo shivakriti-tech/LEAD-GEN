@@ -17,6 +17,8 @@ export interface FollowUpPatch {
   optIn?: { via: string } | false;
   /** They asked not to be contacted: all outreach to them stops. false undoes a mistaken opt-out. */
   optOut?: { via: string } | false;
+  /** What their reply meant (Inbox agent): counted as the positive reply rate on Home. */
+  replyKind?: "positive" | "not_now" | "negative";
 }
 
 /** A lead's status changes. Older saves have no history: rebuild what we can from its dates. */
@@ -40,6 +42,7 @@ export function mergeFollowUp(prev: FollowUp | undefined, patch: FollowUpPatch, 
     : was;
   const next: FollowUp = { ...prev, status, updatedAt: now.toISOString() };
   if (patch.replied && !prev?.repliedAt) next.repliedAt = now.toISOString();
+  if (patch.replyKind) next.replyKind = patch.replyKind;
   if (status !== was) next.history = [...historyOf(prev), { status, at: now.toISOString() }].slice(-30);
   if (patch.value !== undefined) next.value = patch.value != null && patch.value > 0 ? Math.round(patch.value) : undefined;
   if (patch.note !== undefined) next.note = patch.note.slice(0, 2000) || undefined;

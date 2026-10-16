@@ -239,6 +239,7 @@ export function HomeView({
   const replies = windowed(data.days, n, "replied");
   const r30 = windowed(data.days, 30, "replied"), m30 = windowed(data.days, 30, "messaged");
   const rate = { now: pct(r30.now, m30.now), prev: pct(r30.prev, m30.prev) };
+  const p30 = windowed(data.days, 30, "positive");
   const won = windowed(data.days, 30, "won"), wonValue = windowed(data.days, 30, "wonValue");
   const spark = (k: keyof Omit<HomeDay, "date">) => data.days.slice(-14).map((d) => d[k]);
   const waitingReply = data.byStatus.contacted ?? 0;
@@ -342,7 +343,7 @@ export function HomeView({
               <header><span className="ac-ic"><IconPercent /></span><span>Reply rate</span></header>
               <Delta now={rate.now} prev={rate.prev} vs="the 30 before" unit=" pts" />
               <b className="kpi-v">{rate.now}%</b>
-              <span className="sub">Last 30 days</span>
+              <span className="sub" title="Replies that want to talk (interested, a question, a call, a referral), out of everyone messaged. Any reply counts above; this is what says the message works.">Last 30 days · {pct(p30.now, m30.now)}% positive</span>
             </section>
             <section className="stat">
               <header><span className="ac-ic"><IconTrophy /></span><span>Won</span></header>

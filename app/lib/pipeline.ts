@@ -16,13 +16,14 @@ import { googleTextSearch } from "./sources/googlePlaces";
 import { geocodeBBox, osmSearch, type BBox } from "./sources/osm";
 import { facebookPageSearch, firstRealLink, instagramBusinessDiscovery, MetaError } from "./sources/meta";
 import { igScraperOn, InstagramBlocked, instagramPublicProfile } from "./sources/igPublic";
+import { linkInBioIn, readLinkInBio } from "./enrich/linkInBio";
 import { socialSearch } from "./sources/social";
 import { webLeadSearch } from "./sources/webSearch";
 import { gmapsScrapeBatch, gmapsScraperUrl } from "./sources/gmapsScraper";
 import { mergeBySocial, rememberSocial } from "./dedupe";
 import { cached, cacheMode, DAY, type CacheStats } from "./cache";
 import { forDirectory, getDirectory, RECHECK_AFTER, whatChanged, type Directory, type DirectoryEntry } from "./directory";
-import { classifyEmail, isDisposable, looksLikeEmail, rankEmails, usable } from "./enrich/email";
+import { classifyEmail, emailGuesses, isDisposable, looksLikeEmail, rankEmails, usable, type EmailInfo } from "./enrich/email";
 import { domainRegisteredOn, registrableDomain } from "./enrich/domainAge";
 import { cappedVerifier, verifierFromEnv, type EmailVerifier, type MailboxCheck, type VerifyStats } from "./enrich/verifyEmail";
 import { domainAcceptsMail } from "./enrich/mx";
@@ -41,6 +42,8 @@ export interface Deps {
   web: typeof webLeadSearch;
   gmaps: typeof gmapsScrapeBatch;
   igLookup: typeof instagramBusinessDiscovery;
+  /** Read a Linktree-style page from an Instagram bio for the website, WhatsApp and email on it. */
+  linkInBio?: typeof readLinkInBio;
   /** Testing only (Scout's way): public Instagram pages, when there's no official token. */
   igPublic?: typeof instagramPublicProfile;
   fbSearch: typeof facebookPageSearch;
@@ -662,7 +665,24 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
               }
               l.phone ??= l.phones[0];
               // Their own bio links a website? Check it's really theirs, then use it.
-              const link = firstRealLink(p.website, p.bio);
+              let link = firstRealLink(p.website, p.bio);
+              // A Linktree (or similar) instead: it lists their website, WhatsApp and email (Scout's way)
+              const bioPage = !link && deps.linkInBio ? linkInBioIn(p.website, p.bio) : undefined;
+              if (bioPage) {
+                const r = await deps.linkInBio!(bioPage).catch(() => undefined);
+                if (r) {
+                  const before = l.emails.length;
+                  for (const e of r.emails) if (!l.emails.includes(e)) l.emails.push(e);
+                  for (const d of r.phones) {
+                    const ph = normalizePhone(d.length > 10 ? `+${d}` : d, currentCountry());
+                    if (ph && !l.phones.includes(ph)) l.phones.push(ph);
+                  }
+                  l.phone ??= l.phones[0];
+                  l.websiteCheck?.tried.push(`link-in-bio page ${bioPage}: ${r.website ? `lists ${r.website}` : "no website listed"}${r.emails.length ? `, ${r.emails.length} email${r.emails.length > 1 ? "s" : ""}` : ""}${r.phones.length ? ", WhatsApp/phone" : ""}`);
+                  if (l.emails.length > before) await checkEmails([l], deps.mx, verifyEmail);
+                  link = r.website;
+                }
+              }
               const noWorkingSite = !l.audit || l.audit.status !== "ok";
               if (link && noWorkingSite) {
                 const v = await deps.checkCandidate(link, l, params.area);
@@ -899,9 +919,31 @@ function saver(save: () => Promise<void>, everyMs = 4000) {
 }
 
 /**
+ * The owner's own address on the business's domain, found by checking likely ones (first@, first.last@)
+ * with the mailbox check, when the website gave none. Only a mailbox the check says exists is kept:
+ * "accepts any address" or "can't confirm" isn't proof. At most 2 checks a lead.
+ */
+async function guessOwnerEmail(l: Lead, site: string | undefined, infos: EmailInfo[], verify: (email: string) => Promise<MailboxCheck | undefined>, mx?: typeof domainAcceptsMail): Promise<EmailInfo | undefined> {
+  const name = l.owner?.name;
+  if (/^(off|0|false|no)$/i.test(process.env.EMAIL_GUESS || "")) return undefined;
+  if (!name || !site || isSocialHost(site) || l.audit?.status !== "ok" || l.audit.freeSubdomain || l.chain) return undefined;
+  const mine = infos.filter((i) => i.email.endsWith(`@${site}`));
+  if (mine.some((i) => i.kind === "own_named" && usable(i))) return undefined; // already have a person there
+  if (mine.some((i) => i.mailbox === "catch_all")) return undefined; // the server says yes to anything: a guess can't be confirmed
+  if (mx && (await mx(site)) === false) return undefined;
+  for (const email of emailGuesses(name, site).filter((e) => !infos.some((i) => i.email === e)).slice(0, 2)) {
+    const r = await verify(email);
+    if (!r || r.status === "catch_all") return undefined;
+    if (r.status === "valid") return { email, kind: "own_named", deliverable: true, mailbox: "valid", mailboxBy: r.by, guessed: true };
+  }
+  return undefined;
+}
+
+/**
  * Rank each lead's emails (owner's own first), drop junk matches, flag throwaway inboxes and, when
  * `mx` is given, domains that can't receive mail. With `verify`, the best address is checked with a
  * verification service; if its mailbox doesn't exist, the next best one is checked (at most 2 a lead).
+ * With `verify` and the owner's name, their own address on the business's domain is looked for too.
  */
 export async function checkEmails(leads: Lead[], mx?: typeof domainAcceptsMail, verify?: (email: string) => Promise<MailboxCheck | undefined>): Promise<void> {
   for (const l of leads) l.emails = l.emails.filter(looksLikeEmail);
@@ -909,17 +951,19 @@ export async function checkEmails(leads: Lead[], mx?: typeof domainAcceptsMail, 
   const ok = new Map<string, boolean | undefined>();
   if (mx) await mapLimit(domains, 10, async (d) => void ok.set(d, await mx(d)));
   for (const l of leads) {
+    const site = domainOf(l.audit?.finalUrl ?? l.website);
     if (!l.emails.length) {
-      l.email = undefined;
-      l.emailInfo = undefined;
+      const guess = verify ? await guessOwnerEmail(l, site, [], verify, mx) : undefined;
+      l.emails = guess ? [guess.email] : [];
+      l.emailInfo = guess ? [guess] : undefined;
+      l.email = guess?.email;
       continue;
     }
-    const site = domainOf(l.audit?.finalUrl ?? l.website);
     const prev = new Map((l.emailInfo ?? []).map((i) => [i.email, i]));
     let infos = rankEmails(
       l.emails.map((email) => {
         const was = prev.get(email);
-        return { email, kind: classifyEmail(email, site), deliverable: ok.get(email.split("@")[1]?.toLowerCase()), disposable: isDisposable(email) || undefined, mailbox: was?.mailbox, mailboxBy: was?.mailboxBy };
+        return { email, kind: classifyEmail(email, site), deliverable: ok.get(email.split("@")[1]?.toLowerCase()), disposable: isDisposable(email) || undefined, mailbox: was?.mailbox, mailboxBy: was?.mailboxBy, guessed: was?.guessed };
       }),
     );
     if (verify) {
@@ -932,6 +976,11 @@ export async function checkEmails(leads: Lead[], mx?: typeof domainAcceptsMail, 
         next.mailboxBy = r.by;
         infos = rankEmails(infos);
         if (r.status !== "invalid") break;
+      }
+      const guess = await guessOwnerEmail(l, site, infos, verify, mx);
+      if (guess) {
+        l.emails.push(guess.email);
+        infos = rankEmails([...infos, guess]);
       }
     }
     l.emailInfo = infos;
@@ -1002,6 +1051,7 @@ export function defaultDeps(store: Store): Deps {
     gmaps: gmapsScrapeBatch,
     igLookup: instagramBusinessDiscovery,
     igPublic: instagramPublicProfile,
+    linkInBio: readLinkInBio,
     fbSearch: facebookPageSearch,
     checkCandidate: verifyCandidate,
     audit: c?.audit ?? auditWebsite,

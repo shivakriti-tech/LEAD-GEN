@@ -349,7 +349,17 @@ Your app can stay in development mode while only you use it. When clients connec
 
 Facebook: Page search through the official API needs Meta's "Page Public Metadata Access" feature (App Review + business verification). Until then the app finds Facebook Pages through web search and keeps the link. It doesn't read Facebook pages.
 
-## Testing before the official keys arrive (local only)
+## Ideas from open-source outbound tools
+
+Small features taken from repos that do one thing well (each file names its source; all MIT):
+
+- **Messages that sound typed, not generated** ([oneshot-gtm](https://github.com/oneshot-agent/oneshot-gtm)). Your edited emails are checked for AI and template tells ("Hope this finds you well", "just wanted to", "leverage", "seamless", em dashes…) and soft spam phrases ("free consultation", "don't miss out"…, from [coldoutboundskills](https://github.com/growthenginenowoslawski/coldoutboundskills)). They still go; the toast after *Email* names the first one. The Inbox agent is told to avoid them, and a draft that has them waits for you instead of going out. A message that uses a failed inspection, a violation or a lapsed licence as leverage is held.
+- **The owner's own email, guessed and verified** ([Scout](https://github.com/kiryano/Scout), [yc-outreach](https://github.com/adityajha2005/yc-outreach)). When a lead has the owner's name and its own website but no personal address there, the mailbox check (`EMAIL_VERIFY`) tries `first@domain`, then `first.last@domain`. A guess is kept only if the check says the mailbox exists (never on servers that accept any address), is marked *from owner's name*, and is written to first. Without `EMAIL_VERIFY` nothing is guessed. It uses up to 2 of the search's mailbox checks per lead; `EMAIL_GUESS=off` turns it off.
+- **Positive reply rate** (coldoutboundskills). Home shows, under *Reply rate*, the share of messaged leads whose reply wanted to talk (interested, a question, a call, a referral, or a meeting/won later), as read by the Inbox agent. Any reply counts in the big number; this one says whether the message works.
+- **A grade for each email batch** (coldoutboundskills' list-quality-scorecard). After *Email*, the toast grades the queued addresses A–F with the worst problem: not checked at mailbox level, servers that accept any address, shared inboxes (info@…), more than 2 emails to one company.
+- **Link-in-bio pages** (Scout). An Instagram bio with a Linktree, bio.link, Beacons… page is read for the business's website (verified like any other), WhatsApp and email.
+
+## Testing before the official keys arrive
 
 Two stand-ins let you try Instagram details and WhatsApp replies while Meta reviews your app. Both are **switched off in any live build** (like the Google Maps scraper) unless `ALLOW_TESTING_TOOLS=yes` is set (the Render blueprint sets it for now: see DEPLOY.md, *Testing online*), and each steps aside on its own once its official key is set.
 

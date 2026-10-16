@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileDoc, savedDoc } from "../saved";
 import { randomUUID } from "node:crypto";
 import type { Lead } from "../types";
+import type { EmailInfo } from "../enrich/email";
 import { emailHtml } from "./html";
 import { emailLetter } from "./letter";
 import { unsubscribeHeaders } from "./unsubscribe";
@@ -9,7 +10,7 @@ import type { FollowUpPatch } from "../followups";
 import { CADENCE, canContact, followUpAfter, MAX_STEPS, messageForStep, nextStep, statusOf, subjectLine, type Lang, type Sender, type Tone } from "../outreach";
 import { dailyCap, inSendWindow, istParts, type Mailbox } from "./mailboxes";
 import { inOfficeHours } from "../markets";
-import { checkContent, companyKey, isBlock, isHardBounce, PER_COMPANY_DAY, pauseFor, recipientProblem, type Suppression } from "./guard";
+import { batchQuality, checkContent, companyKey, isBlock, isHardBounce, PER_COMPANY_DAY, pauseFor, recipientProblem, type Suppression } from "./guard";
 
 /**
  * The email send queue. Emails wait here and go out one at a time: in Indian business hours, from a
@@ -167,11 +168,16 @@ export interface EnqueueRequest {
 export interface EnqueueResult {
   queued: number;
   skipped: Array<{ leadId: string; name: string; why: string }>;
+  /** How good the queued addresses are, before anything goes (lib/mail/guard.ts batchQuality). */
+  quality?: ReturnType<typeof batchQuality>;
+  /** Your edited texts that read like AI or a template, or use soft spam phrases: they still go. */
+  warnings?: Array<{ leadId: string; name: string; why: string }>;
 }
 
 /** Add each lead's next email to the queue, or say why not. */
 export function enqueue(d: QueueData, r: EnqueueRequest, now = new Date()): EnqueueResult {
   const out: EnqueueResult = { queued: 0, skipped: [] };
+  const good: Array<{ email: string; info?: EmailInfo }> = [];
   for (const l of r.leads) {
     const skip = (why: string) => out.skipped.push({ leadId: l.id, name: l.name, why });
     if (!l.email) {
@@ -189,9 +195,9 @@ export function enqueue(d: QueueData, r: EnqueueRequest, now = new Date()): Enqu
       continue;
     }
     const own = r.texts?.[l.id];
-    const spam = own ? checkContent(subjectLine(l), own).block : [];
-    if (spam.length) {
-      skip(`Spam check: ${spam[0]}`);
+    const check = own ? checkContent(subjectLine(l), own) : undefined;
+    if (check?.block.length) {
+      skip(`Spam check: ${check.block[0]}`);
       continue;
     }
     if (NEEDS_ADDRESS.has(l.country ?? "IN") && !r.sender.address?.trim()) {
@@ -233,7 +239,10 @@ export function enqueue(d: QueueData, r: EnqueueRequest, now = new Date()): Enqu
       status: "queued",
     });
     out.queued++;
+    good.push({ email: l.email, info: l.emailInfo?.find((e) => e.email.toLowerCase() === l.email!.toLowerCase()) });
+    if (check?.warn.length) (out.warnings ??= []).push({ leadId: l.id, name: l.name, why: check.warn[0] });
   }
+  out.quality = batchQuality(good);
   return out;
 }
 
