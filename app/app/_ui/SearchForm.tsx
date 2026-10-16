@@ -73,6 +73,10 @@ export type Config = {
   ai?: string | null;
   /** WhatsApp Business API set up (token + phone number id). */
   whatsapp?: boolean;
+  /** WhatsApp through WAHA (testing only). */
+  whatsappTesting?: boolean;
+  /** Instagram from public pages (testing only, IG_SCRAPER=on). */
+  igScraper?: boolean;
   /** Sending mailboxes set up (MAILBOX_n). */
   mailboxes?: number;
   store: "local" | "supabase";
@@ -178,7 +182,7 @@ export function sourceInfo(config: Config | null) {
     { key: "osm", label: "OpenStreetMap", note: "Free", ready: true, why: "" },
     ...(config?.gmapsScraper ? [{ key: "gmaps", label: "Google Maps scraper", note: "Testing only", ready: true, why: "" }] : []),
     { key: "web", label: "Search engines", note: "Businesses with their own site", ready: true, why: "" },
-    { key: "instagram", label: "Instagram", note: config?.meta ? "Followers & bio via Meta" : "Business profiles", ready: true, why: "" },
+    { key: "instagram", label: "Instagram", note: config?.meta ? "Followers & bio via Meta" : config?.igScraper ? "Followers & bio · Testing only" : "Business profiles", ready: true, why: "" },
     { key: "facebook", label: "Facebook Pages", note: "Pages via web search", ready: true, why: "" },
     { key: "apollo", label: "Apollo", note: "Company size", ready: true, why: "" },
   ] as Array<{ key: keyof Sources; label: string; note: string; ready: boolean; why: string }>;

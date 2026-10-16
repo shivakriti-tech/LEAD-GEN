@@ -15,6 +15,7 @@ import { apolloEnrichDomain } from "./sources/apollo";
 import { googleTextSearch } from "./sources/googlePlaces";
 import { geocodeBBox, osmSearch, type BBox } from "./sources/osm";
 import { facebookPageSearch, firstRealLink, instagramBusinessDiscovery, MetaError } from "./sources/meta";
+import { igScraperOn, InstagramBlocked, instagramPublicProfile } from "./sources/igPublic";
 import { socialSearch } from "./sources/social";
 import { webLeadSearch } from "./sources/webSearch";
 import { gmapsScrapeBatch, gmapsScraperUrl } from "./sources/gmapsScraper";
@@ -40,6 +41,8 @@ export interface Deps {
   web: typeof webLeadSearch;
   gmaps: typeof gmapsScrapeBatch;
   igLookup: typeof instagramBusinessDiscovery;
+  /** Testing only (Scout's way): public Instagram pages, when there's no official token. */
+  igPublic?: typeof instagramPublicProfile;
   fbSearch: typeof facebookPageSearch;
   checkCandidate: typeof verifyCandidate;
   webSearch?: (q: string) => Promise<SearchHit[]>;
@@ -81,7 +84,7 @@ export interface Deps {
   leadTimeoutMs?: number;
   /** After Stop, how long work already in flight may still finish and be kept (default 5s). */
   stopGraceMs?: number;
-  keys: { gmapsScraper?: string; google?: string; pageSpeed?: string; apollo?: string; brave?: string; metaToken?: string; igUserId?: string; fbPageSearch?: boolean; phoneSearch?: "auto" | "on" | "off" };
+  keys: { gmapsScraper?: string; google?: string; pageSpeed?: string; apollo?: string; brave?: string; metaToken?: string; igUserId?: string; igScraper?: boolean; fbPageSearch?: boolean; phoneSearch?: "auto" | "on" | "off" };
   store: Store;
   now?: () => Date;
 }
@@ -633,21 +636,25 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     leads = mergeBySocial(leads);
     if (leads.length < before) log(`${before - leads.length} Instagram/Facebook results were the same businesses as map results. Merged.`);
 
-    // 3c. Instagram profiles via Meta's official API
+    // 3c. Instagram profiles via Meta's official API (or, testing only, their public pages)
     const withIg = leads.filter((l) => l.social?.instagram);
-    if (withIg.length && deps.keys.metaToken && deps.keys.igUserId && !stopped()) {
-      const cap = withIg.slice(0, 150); // stay well inside Meta's hourly limit
-      log(`Reading ${cap.length} Instagram profile${cap.length > 1 ? "s" : ""} through Meta's official API.`);
+    const igApi = !!deps.keys.metaToken && !!deps.keys.igUserId;
+    const igScrape = !igApi && !!deps.keys.igScraper && !!deps.igPublic;
+    if (withIg.length && (igApi || igScrape) && !stopped()) {
+      // stay well inside Meta's hourly limit; public pages slowly and fewer, or Instagram blocks the connection
+      const cap = withIg.slice(0, igApi ? 150 : 40);
+      log(igApi ? `Reading ${cap.length} Instagram profile${cap.length > 1 ? "s" : ""} through Meta's official API.` : `Reading ${cap.length} Instagram profile${cap.length > 1 ? "s" : ""} from their public pages (testing only, IG_SCRAPER=on; the official token replaces this).`);
       let n = 0, stop = "";
       emit({ type: "stage", stage: "social", done: 0, total: cap.length });
-      await mapLimit(cap, 3, async (l) => {
+      await mapLimit(cap, igApi ? 3 : 1, async (l) => {
         const ig = l.social!.instagram!;
         if (!stop && !stopped()) {
           try {
-            const p = await deps.igLookup({ token: deps.keys.metaToken!, igUserId: deps.keys.igUserId!, handle: ig.handle });
-            if (!p) ig.checked = "not_business";
+            if (igScrape && n > 0) await new Promise((r) => setTimeout(r, 1500)); // one at a time, slowly, like Scout
+            const p = igApi ? await deps.igLookup({ token: deps.keys.metaToken!, igUserId: deps.keys.igUserId!, handle: ig.handle }) : await deps.igPublic!(ig.handle);
+            if (!p) ig.checked = igApi ? "not_business" : "link_only";
             else {
-              Object.assign(ig, { name: p.name, bio: p.bio, website: p.website, followers: p.followers, posts: p.posts, lastPostAt: p.lastPostAt, checked: "api" as const });
+              Object.assign(ig, { name: p.name, bio: p.bio, website: p.website, followers: p.followers, posts: p.posts, lastPostAt: p.lastPostAt, checked: igApi ? ("api" as const) : ("scraper" as const) });
               if (l.sources.length === 1 && l.sources[0] === "instagram" && p.name) l.name = p.name;
               for (const m of currentCountry() === "IN" ? (p.bio ?? "").match(/(?:\+91[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5}/g) ?? [] : phonesInText(p.bio ?? "", currentCountry())) {
                 const ph = normalizePhone(m, currentCountry());
@@ -673,7 +680,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
               } else if (!link && noWorkingSite) l.websiteCheck?.tried.push("Instagram profile has no website link");
             }
           } catch (e) {
-            if (e instanceof MetaError && (e.kind === "auth" || e.kind === "limit")) stop = e.message;
+            if ((e instanceof MetaError && (e.kind === "auth" || e.kind === "limit")) || e instanceof InstagramBlocked) stop = e.message;
             else log(`Instagram @${ig.handle}: ${msg(e)}`, "warn");
           }
         }
@@ -681,7 +688,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
       });
       if (stop) log(`Instagram check stopped: ${stop}`, "warn");
     } else if (withIg.length && (params.sources.instagram || withIg.length)) {
-      if (!deps.keys.metaToken || !deps.keys.igUserId) log(`${withIg.length} businesses have an Instagram profile. Add META_ACCESS_TOKEN and IG_BUSINESS_ACCOUNT_ID to read their followers, last post and bio website.`);
+      if (!igApi) log(`${withIg.length} businesses have an Instagram profile. Add META_ACCESS_TOKEN and IG_BUSINESS_ACCOUNT_ID to read their followers, last post and bio website (or IG_SCRAPER=on to test with their public pages).`);
     }
 
     if (params.pageSpeed && !stopped()) {
@@ -994,6 +1001,7 @@ export function defaultDeps(store: Store): Deps {
     web: webLeadSearch,
     gmaps: gmapsScrapeBatch,
     igLookup: instagramBusinessDiscovery,
+    igPublic: instagramPublicProfile,
     fbSearch: facebookPageSearch,
     checkCandidate: verifyCandidate,
     audit: c?.audit ?? auditWebsite,
@@ -1020,6 +1028,7 @@ export function defaultDeps(store: Store): Deps {
       gmapsScraper: gmapsScraperUrl(),
       metaToken: process.env.META_ACCESS_TOKEN || undefined,
       igUserId: process.env.IG_BUSINESS_ACCOUNT_ID || undefined,
+      igScraper: igScraperOn(),
       fbPageSearch: /^(on|true|1|yes)$/i.test(process.env.FB_PAGE_SEARCH || ""),
       // Off unless asked: even through Serper (Google), 69 phone searches found 1 site in the Vadodara benchmark.
       phoneSearch: /^(on|true|1|yes)$/i.test(process.env.PHONE_SEARCH || "") ? "on" : /^auto$/i.test(process.env.PHONE_SEARCH || "") ? "auto" : "off",

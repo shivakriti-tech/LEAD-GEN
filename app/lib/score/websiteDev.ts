@@ -32,7 +32,7 @@ export function scoreWebsiteDev(lead: Lead, now = new Date()): { signals: Signal
 
   const ig = lead.social?.instagram;
   const noWorkingSite = !a || a.status !== "ok";
-  if (ig?.checked === "api" && ig.followers != null && noWorkingSite) {
+  if ((ig?.checked === "api" || ig?.checked === "scraper") && ig.followers != null && noWorkingSite) {
     const days = ig.lastPostAt ? Math.floor((now.getTime() - new Date(ig.lastPostAt).getTime()) / 86_400_000) : undefined;
     if (ig.followers >= 300 && days != null && days <= 45) add("ig_active", `Active on Instagram: ${ig.followers.toLocaleString("en-IN")} followers, posted ${days === 0 ? "today" : `${days} day${days === 1 ? "" : "s"} ago`}`, 10);
     else if (days != null && days > 120) add("ig_quiet", `Instagram quiet for ${days} days`, 0);

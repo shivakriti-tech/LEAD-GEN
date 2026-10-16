@@ -349,6 +349,26 @@ Your app can stay in development mode while only you use it. When clients connec
 
 Facebook: Page search through the official API needs Meta's "Page Public Metadata Access" feature (App Review + business verification). Until then the app finds Facebook Pages through web search and keeps the link. It doesn't read Facebook pages.
 
+## Testing before the official keys arrive (local only)
+
+Two stand-ins let you try Instagram details and WhatsApp replies on your own computer while Meta reviews your app. Both are **switched off in any live build** (like the Google Maps scraper), and each steps aside on its own once its official key is set, so there's nothing to remove later.
+
+**Instagram from public pages** (the way [Scout](https://github.com/kiryano/Scout) reads them, MIT licence)
+- Set `IG_SCRAPER=on` in `.env.local`. Searches then read each business's public Instagram page for followers, posts, bio, bio website and (when the page shows it) the last post, and score them like the official API does.
+- One profile at a time with a pause, at most 40 a search. Reading Instagram's pages is against its terms, and Instagram often sends a connection to its login page instead: the search then says so and carries on without it.
+- Once `META_ACCESS_TOKEN` and `IG_BUSINESS_ACCOUNT_ID` are set, the official API is used and `IG_SCRAPER` is ignored.
+
+**WhatsApp through WAHA** (the WhatsApp connection [DeskcommCRM](https://github.com/melgarafael/DeskcommCRM) uses; WAHA is Apache-2.0)
+- WAHA runs in Docker and links a normal WhatsApp number by QR code. WhatsApp doesn't allow that for business messages, so **use a spare number**: it can be banned.
+- The rules stay the same as the official API: only leads who replied or opted in, free text only within 24 hours of their last message (WAHA has no templates), and a first hello still goes from your own phone.
+- Setup:
+  1. Add to `.env.local`: `WAHA_URL=http://localhost:3030`, `WAHA_API_KEY=` and `WAHA_WEBHOOK_SECRET=` (two long random texts).
+  2. With Docker Desktop running, open a terminal in `app/waha` and run `docker compose --env-file ../.env.local up -d`.
+  3. Open http://localhost:3030/dashboard (user `admin`, password: your `WAHA_API_KEY`), start the *default* session and scan the QR code (phone → WhatsApp → Linked devices).
+  4. Restart `npm run dev`. *Outreach → WhatsApp* shows "WhatsApp linked". Replies mark the lead Replied, "STOP" opts them out, and the Inbox agent drafts answers, exactly as with Meta's webhook.
+- WAHA sends its events to `/api/whatsapp/webhook/waha` with your `WAHA_WEBHOOK_SECRET` (and signs them with it); events without it are refused.
+- Once `WHATSAPP_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` are set, Meta's API is used and WAHA is ignored. `docker compose --env-file ../.env.local down` stops it; deleting `app/waha/sessions` unlinks the phone.
+
 ## Speed
 
 - All sources are searched at the same time, and **each business is checked the moment its source returns it**, not after every source has finished. The full check afterwards reuses that work, so nothing is checked twice.

@@ -1,5 +1,5 @@
 import { savedLeads } from "@/lib/mail/send";
-import { listTemplates, readWaLog, sendWhatsApp, updateWaLog, waConfig, waNumber, waPlan, type WaSend } from "@/lib/whatsapp";
+import { listTemplates, readWaLog, sendWhatsApp, updateWaLog, waConfig, wahaStatus, waNumber, waPlan, type WaSend } from "@/lib/whatsapp";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,19 +9,23 @@ export async function GET() {
   const c = waConfig();
   if (!c) return Response.json({ configured: false });
   const log = await readWaLog();
+  if (c.provider === "waha") {
+    const session = await wahaStatus(c);
+    return Response.json({ configured: true, provider: "waha", webhook: { ready: !!c.webhookSecret }, session, templates: [], entries: log.entries.slice(-200).reverse() });
+  }
   let templates: Awaited<ReturnType<typeof listTemplates>> = [], templateError: string | undefined;
   try {
     templates = (await listTemplates(c)).filter((t) => t.status === "APPROVED");
   } catch (e) {
     templateError = e instanceof Error ? e.message : String(e);
   }
-  return Response.json({ configured: true, webhook: { verifyToken: !!c.verifyToken, appSecret: !!c.appSecret }, templates, templateError, entries: log.entries.slice(-200).reverse() });
+  return Response.json({ configured: true, provider: "meta", webhook: { ready: !!c.verifyToken && !!c.appSecret }, templates, templateError, entries: log.entries.slice(-200).reverse() });
 }
 
 /** Send to one lead that opted in or replied: { searchId, leadId, template: {name, language, params} } or { ..., text }. */
 export async function POST(req: Request) {
   const c = waConfig();
-  if (!c) return Response.json({ error: "WhatsApp API isn't set up (WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID)" }, { status: 400 });
+  if (!c) return Response.json({ error: "WhatsApp API isn't set up (WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, or WAHA_URL while testing)" }, { status: 400 });
   const b = (await req.json().catch(() => null)) as { searchId?: string; leadId?: string; text?: unknown; template?: { name?: unknown; language?: unknown; params?: unknown } } | null;
   if (!b?.searchId || !b.leadId) return Response.json({ error: "Send { searchId, leadId, template | text }" }, { status: 400 });
   const lead = await savedLeads.get(b.searchId, b.leadId);

@@ -224,7 +224,7 @@ export interface Lead {
   emailInfo?: EmailInfo[];
   /** Social profiles: from a source, the business's website, or web search. Details only via Meta's official API. */
   social?: {
-    instagram?: { handle: string; url: string; name?: string; bio?: string; website?: string; followers?: number; posts?: number; lastPostAt?: string; checked: "api" | "link_only" | "not_business" };
+    instagram?: { handle: string; url: string; name?: string; bio?: string; website?: string; followers?: number; posts?: number; lastPostAt?: string; checked: "api" | "scraper" | "link_only" | "not_business" };
     facebook?: { page: string; url: string; fans?: number; website?: string };
   };
   brand?: string;

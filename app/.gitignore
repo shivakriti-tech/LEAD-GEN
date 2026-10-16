@@ -5,6 +5,7 @@ node_modules
 *.tsbuildinfo
 next-env.d.ts
 gmaps-scraper/gmapsdata
+waha/sessions
 bench/results
 bench/vadodara.cases.json
 bench/vadodara.labels.csv

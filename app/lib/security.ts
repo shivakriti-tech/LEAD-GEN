@@ -163,7 +163,7 @@ export const LIMITS: Array<{ name: string; method: string; match: RegExp; limit:
   { name: "send", method: "POST", match: /^\/api\/(outreach\/(whatsapp|email\/queue)|agent\/inbox\/[^/]+)$/, limit: 60, windowMs: 10 * 60_000 },
   { name: "unsubscribe", method: "*", match: /^\/api\/unsubscribe$/, limit: 30, windowMs: 60_000 },
   { name: "handoff", method: "*", match: /^\/api\/handoff\//, limit: 60, windowMs: 60_000 },
-  { name: "webhook", method: "*", match: /^\/api\/whatsapp\/webhook$/, limit: 600, windowMs: 60_000 },
+  { name: "webhook", method: "*", match: /^\/api\/whatsapp\/webhook(\/waha)?$/, limit: 600, windowMs: 60_000 },
   { name: "api", method: "*", match: /^\/api\//, limit: 900, windowMs: 60_000 },
 ];
 
