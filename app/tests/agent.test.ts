@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { cleanReply, readByRules, returnDate } from "@/lib/agent/intent";
-import { brainFacts, replyProblem, runAgent } from "@/lib/agent/agent";
+import { altContact, cleanReply, isAutoReply, readByRules, returnDate } from "@/lib/agent/intent";
+import { brainFacts, callTimes, replyProblem, runAgent } from "@/lib/agent/agent";
 import { handleEmailReply, memoryInboxStore, patchFor, sendEmailReply } from "@/lib/agent/inbox";
 import { enqueue, memoryQueueStore, tick, type LeadAccess, type SendDeps } from "@/lib/mail/queue";
 import { parseMailbox, type Mailbox } from "@/lib/mail/mailboxes";
@@ -33,6 +33,49 @@ describe("reading a reply by rules (no AI)", () => {
   });
 });
 
+const VALHALLA = "Hi ,\n\nThanks for reaching out. Our team are currently offline, and this inbox is not monitored while away. We will return during normal business hours.\n\nIf your enquiry is urgent and relates to an existing order, please call us on 07 3706 0817 - opt 1. We are available by phone 9-5 pm on Saturdays.\n\nOtherwise, a team member will review your ticket and get back to you as soon as possible once we're back online.";
+
+describe("auto-replies", () => {
+  it("catches helpdesk and 'inbox not monitored' replies, not just 'out of office'", () => {
+    expect(isAutoReply("Re: Valhalla Tactical & Outdoor store", VALHALLA)).toBe(true);
+    expect(isAutoReply("Re: idea", "Thank you for contacting us. We have received your enquiry and will get back to you within 24 hours.")).toBe(true);
+    expect(isAutoReply("Re: idea", "Hi", { "auto-submitted": "auto-replied" })).toBe(true);
+    expect(isAutoReply("Re: idea", "Hi", { "auto-submitted": "no" })).toBe(false);
+    // people write some of these words too: one alone is not enough
+    expect(isAutoReply("Re: idea", "Thanks for reaching out. We're not interested right now.")).toBe(false);
+    expect(isAutoReply("Re: idea", "Sounds good, can you call me during business hours?")).toBe(false);
+  });
+  it("keeps the other way to reach them", () => {
+    expect(altContact(VALHALLA)).toBe("call 07 3706 0817");
+    expect(readByRules("Re: x", VALHALLA)).toMatchObject({ intent: "out_of_office", sure: true, contact: "call 07 3706 0817" });
+  });
+  it("no reply and no AI call for an auto-reply; an AI that calls it out of office drafts nothing", async () => {
+    let calls = 0;
+    const f = (async () => (calls++, Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify({ intent: "out_of_office", summary: "Away", reply: "Thanks, talk soon.", needs_person: false, needs_person_why: null }) }] } }] }))) as unknown as typeof fetch;
+    const thread = [{ dir: "out" as const, text: "Hi", at: "" }, { dir: "in" as const, text: VALHALLA, at: "" }];
+    const r = await runAgent({ lead: lead(), brain, sender: {}, subject: "Re: store", thread, env: { GEMINI_API_KEY: "k" }, fetch: f, now: NOW });
+    expect(r).toMatchObject({ intent: "out_of_office", handoff: false, by: "rules", contact: "call 07 3706 0817" });
+    expect(r.reply).toBeUndefined();
+    expect(calls).toBe(0);
+    const ai = await runAgent({ lead: lead(), brain, sender: {}, subject: "Re: store", thread: [thread[0], { dir: "in", text: "We will get back to you.", at: "" }], env: { GEMINI_API_KEY: "k" }, fetch: f, now: NOW });
+    expect(ai).toMatchObject({ intent: "out_of_office", handoff: false });
+    expect(ai.reply).toBeUndefined();
+  });
+});
+
+describe("replies that book calls", () => {
+  it("offers two concrete times on the next working days", () => {
+    expect(callTimes(new Date("2026-10-09T06:00:00Z"))).toEqual(["Monday at 11am", "Tuesday at 3pm"]); // a Friday
+    expect(callTimes(NOW)).toEqual(["Tuesday at 11am", "Wednesday at 3pm"]); // a Monday
+  });
+  it("the ready reply to an interested lead offers both times, the link only as a fallback", async () => {
+    const f = (async () => new Response("{}", { status: 500 })) as unknown as typeof fetch;
+    const r = await runAgent({ lead: lead(), brain, sender: {}, subject: "Re", thread: [{ dir: "in", text: "Tell me more please", at: "" }], env: { GEMINI_API_KEY: "k" }, fetch: f, now: NOW });
+    expect(r.reply).toContain("Tuesday at 11am or Wednesday at 3pm");
+    expect(r.reply).toMatch(/If neither suits, you can pick any time here: cal\.com\/riya$/);
+  });
+});
+
 describe("guardrails on every draft", () => {
   it("blocks invented prices, banned phrases, placeholders and spam", () => {
     expect(replyProblem("Stores start from $2,500.", brain)).toBeUndefined();
@@ -61,7 +104,7 @@ describe("the agent", () => {
     expect(ooo.reply).toBeUndefined();
     const no = await runAgent({ lead: lead(), brain, sender: {}, subject: "Re", thread: thread("No thanks."), env, fetch: f, now: NOW });
     expect(no).toMatchObject({ intent: "not_interested", handoff: false, by: "rules" });
-    expect(no.reply).toMatch(/^Hi Jane, thanks for the quick reply/);
+    expect(no.reply).toMatch(/^Hi Jane,\n\nThanks for the quick reply/);
     expect(calls).toBe(0);
   });
   it("uses Gemini for a real conversation, with a small prompt and capped answer; interested goes to you", async () => {

@@ -115,7 +115,7 @@ export interface ReplyDeps {
 }
 
 /** A reply by email from someone we emailed: log it, read it, draft the answer, update the lead. */
-export async function handleEmailReply(deps: ReplyDeps, r: { mailbox: string; address: string; subject: string; text: string; messageId?: string; references?: string[]; at: string }): Promise<Conversation | undefined> {
+export async function handleEmailReply(deps: ReplyDeps, r: { mailbox: string; address: string; subject: string; text: string; messageId?: string; references?: string[]; at: string; headers?: Record<string, string> }): Promise<Conversation | undefined> {
   const now = deps.now?.() ?? new Date();
   const env = deps.env ?? process.env;
   const addr = r.address.toLowerCase();
@@ -131,7 +131,7 @@ export async function handleEmailReply(deps: ReplyDeps, r: { mailbox: string; ad
   const ours: Msg[] = lead ? sent.map((i) => ({ dir: "out" as const, at: i.sentAt!, text: messageForStep(lead, i.lang, i.sender, i.tone, i.step) })) : [];
   const thread: Msg[] = [...(existing?.messages ?? ours), { dir: "in", text: r.text, at: r.at }];
   const brain = await deps.brainFor(latest.clientId).catch(() => null);
-  const result = await (deps.agent ?? runAgent)({ lead: lead ?? { name: latest.leadName, category: "", whyNow: "" }, brain, sender: latest.sender, subject: r.subject || latest.threadSubject || "", thread, now, env });
+  const result = await (deps.agent ?? runAgent)({ lead: lead ?? { name: latest.leadName, category: "", whyNow: "" }, brain, sender: latest.sender, subject: r.subject || latest.threadSubject || "", thread, headers: r.headers, now, env });
 
   // the lead: replied, lost, opted out, or later
   const p = patchFor(result, now);
