@@ -1,4 +1,4 @@
-import { liveBuild } from "../security";
+import { testingToolsAllowed } from "../security";
 import { fetchWithTimeout } from "../util";
 import type { InstagramProfile } from "./meta";
 
@@ -8,15 +8,15 @@ import type { InstagramProfile } from "./meta";
  *
  * TESTING ONLY, until the official token (META_ACCESS_TOKEN + IG_BUSINESS_ACCOUNT_ID) is set up.
  * Reading Instagram's pages directly is against Instagram's terms, and Instagram sends most
- * servers (and busy home connections) to its login page instead. The app refuses to use it in a
- * live build, and the official API takes over as soon as its token is set.
+ * servers (and busy home connections) to its login page instead. A live build uses it only with
+ * ALLOW_TESTING_TOOLS=yes, and the official API takes over as soon as its token is set.
  *
  *   IG_SCRAPER=on   turn it on (local only)
  */
 
-/** Only when asked for AND not a live build. */
+/** Only when asked for AND not a live build (unless ALLOW_TESTING_TOOLS=yes). */
 export function igScraperOn(env: Record<string, string | undefined> = process.env): boolean {
-  return /^(on|true|1|yes)$/i.test(env.IG_SCRAPER?.trim() ?? "") && !liveBuild(env);
+  return /^(on|true|1|yes)$/i.test(env.IG_SCRAPER?.trim() ?? "") && testingToolsAllowed(env);
 }
 
 /** Instagram stopped answering (login page or rate limit): the rest of the search skips it. */

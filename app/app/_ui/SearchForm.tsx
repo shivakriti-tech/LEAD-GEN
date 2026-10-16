@@ -77,6 +77,8 @@ export type Config = {
   whatsappTesting?: boolean;
   /** Instagram from public pages (testing only, IG_SCRAPER=on). */
   igScraper?: boolean;
+  /** A hosted app with ALLOW_TESTING_TOOLS=yes. */
+  testingOnline?: boolean;
   /** Sending mailboxes set up (MAILBOX_n). */
   mailboxes?: number;
   store: "local" | "supabase";

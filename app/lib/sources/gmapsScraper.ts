@@ -1,5 +1,5 @@
 import type { OrderLink, RawPlace } from "../types";
-import { liveBuild } from "../security";
+import { testingToolsAllowed } from "../security";
 
 /**
  * Google Maps via the open-source gosom/google-maps-scraper, running in Docker on your own computer.
@@ -12,11 +12,11 @@ import { liveBuild } from "../security";
  * until Status is "ok" → GET /api/v1/jobs/{id}/download (CSV).
  */
 
-/** Only when configured AND not a production build. */
+/** Only when configured AND not a production build (unless ALLOW_TESTING_TOOLS=yes). */
 export function gmapsScraperUrl(env: Record<string, string | undefined> = process.env): string | undefined {
   const url = (env.GMAPS_SCRAPER_URL || "").trim();
   if (!url) return undefined;
-  if (liveBuild(env)) return undefined;
+  if (!testingToolsAllowed(env)) return undefined;
   return url.replace(/\/+$/, "");
 }
 

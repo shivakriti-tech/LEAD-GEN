@@ -19,6 +19,13 @@ describe("WhatsApp through WAHA (testing only)", () => {
     expect(waConfig({ ...WAHA, WHATSAPP_TOKEN: "t", WHATSAPP_PHONE_NUMBER_ID: "1" })?.provider).toBe("meta");
   });
 
+  it("runs on a hosted app only with ALLOW_TESTING_TOOLS=yes, reaching WAHA by Render's private host:port", () => {
+    const online = { WAHA_URL: "lead-autopilot-waha-ab12:3000", WAHA_API_KEY: "k", RENDER: "true", ALLOW_TESTING_TOOLS: "yes" };
+    expect(waConfig(online)).toMatchObject({ provider: "waha", url: "http://lead-autopilot-waha-ab12:3000" });
+    expect(waConfig({ ...online, ALLOW_TESTING_TOOLS: "" })).toBeUndefined();
+    expect(igScraperOn({ IG_SCRAPER: "on", RENDER: "true", ALLOW_TESTING_TOOLS: "yes" })).toBe(true);
+  });
+
   it("sends free text through /api/sendText, and refuses templates (those are Meta's)", async () => {
     const c = waConfig(WAHA)!;
     let sent: { url: string; body: Record<string, unknown>; key?: string } | undefined;

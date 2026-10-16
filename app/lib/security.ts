@@ -24,6 +24,13 @@ export const liveBuild = (env: Env = process.env) =>
 
 const yes = (v?: string) => /^(1|on|true|yes)$/i.test(v?.trim() ?? "");
 
+/**
+ * The testing-only stand-ins (Google Maps scraper, Instagram public pages, WhatsApp through WAHA) run
+ * on your own computer, and online only when ALLOW_TESTING_TOOLS=yes: for trying the hosted app
+ * before Meta's and Google's official keys arrive. Remove it once they do.
+ */
+export const testingToolsAllowed = (env: Env = process.env) => !liveBuild(env) || yes(env.ALLOW_TESTING_TOOLS);
+
 export const MIN_PASSWORD = 12;
 
 /** Why the app won't open, or undefined when the password setup is fine. */

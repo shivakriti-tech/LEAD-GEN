@@ -4,7 +4,7 @@ import { savedDoc } from "./saved";
 import type { Lead } from "./types";
 import { canContact } from "./outreach";
 import { touchKeys, type FollowUpPatch } from "./followups";
-import { liveBuild, sameSecret } from "./security";
+import { sameSecret, testingToolsAllowed } from "./security";
 
 /**
  * WhatsApp Business Platform (Meta's Cloud API, direct: no reseller markup).
@@ -23,10 +23,10 @@ import { liveBuild, sameSecret } from "./security";
  * TESTING ONLY, until Meta approves the API: WAHA (devlikeapro/waha, the WhatsApp connection
  * DeskcommCRM uses) runs in Docker on your own computer and sends from a normal WhatsApp number
  * linked by QR code. It isn't official, so WhatsApp can ban that number: use a spare one. The same
- * rules apply (only leads who replied or opted in, free text only within 24 hours). Ignored in a
- * live build, and as soon as WHATSAPP_TOKEN is set.
+ * rules apply (only leads who replied or opted in, free text only within 24 hours). A live build
+ * uses it only with ALLOW_TESTING_TOOLS=yes; ignored as soon as WHATSAPP_TOKEN is set.
  *
- *   WAHA_URL                  e.g. http://localhost:3030 (see waha/docker-compose.yml)
+ *   WAHA_URL                  e.g. http://localhost:3030 (see waha/docker-compose.yml), or WAHA's host:port on Render
  *   WAHA_API_KEY              the key WAHA was started with
  *   WAHA_SESSION              WAHA session name (default "default", the only one WAHA Core has)
  *   WAHA_WEBHOOK_SECRET       any long secret: WAHA's events must carry it (or be signed with it)
@@ -42,11 +42,12 @@ export function waConfig(env: Record<string, string | undefined> = process.env):
   return wahaConfig(env);
 }
 
-/** The WAHA testing connection: only when configured AND not a live build. */
+/** The WAHA testing connection: only when configured AND not a live build (unless ALLOW_TESTING_TOOLS=yes). */
 export function wahaConfig(env: Record<string, string | undefined> = process.env): Extract<WaConfig, { provider: "waha" }> | undefined {
   const url = env.WAHA_URL?.trim();
-  if (!url || liveBuild(env)) return undefined;
-  return { provider: "waha", url: url.replace(/\/+$/, ""), apiKey: env.WAHA_API_KEY?.trim() || undefined, session: env.WAHA_SESSION?.trim() || "default", webhookSecret: env.WAHA_WEBHOOK_SECRET?.trim() || undefined };
+  if (!url || !testingToolsAllowed(env)) return undefined;
+  // on Render the address comes from the WAHA service's private host:port, without http://
+  return { provider: "waha", url: (/^https?:\/\//i.test(url) ? url : `http://${url}`).replace(/\/+$/, ""), apiKey: env.WAHA_API_KEY?.trim() || undefined, session: env.WAHA_SESSION?.trim() || "default", webhookSecret: env.WAHA_WEBHOOK_SECRET?.trim() || undefined };
 }
 
 type MetaConfig = Extract<WaConfig, { provider: "meta" }>;

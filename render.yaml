@@ -40,3 +40,62 @@ services:
         sync: false
       - key: FEEDBACK_EMAIL
         sync: false
+      # TESTING ONLY, until Meta's official keys arrive (see app/README.md, "Testing before the official keys
+      # arrive"). Delete these five, and the lead-autopilot-waha service below, once they do.
+      - key: ALLOW_TESTING_TOOLS
+        value: "yes"
+      - key: IG_SCRAPER
+        value: "on"
+      - key: WAHA_URL
+        fromService:
+          type: web
+          name: lead-autopilot-waha
+          property: hostport
+      - key: WAHA_API_KEY
+        fromService:
+          type: web
+          name: lead-autopilot-waha
+          envVarKey: WAHA_API_KEY
+      # any long random text; the same text goes at the end of WHATSAPP_HOOK_URL on the WAHA service
+      - key: WAHA_WEBHOOK_SECRET
+        sync: false
+
+  # WhatsApp for TESTING ONLY (WAHA, the connection DeskcommCRM uses): links a SPARE WhatsApp number by
+  # QR code at https://lead-autopilot-waha.onrender.com/dashboard (user admin). Not official: the number
+  # can be banned. The app reaches it over Render's private network; it calls the app back on its webhook.
+  - type: web
+    name: lead-autopilot-waha
+    runtime: image
+    image:
+      url: docker.io/devlikeapro/waha:latest-2026.7.2
+    plan: starter
+    region: singapore
+    healthCheckPath: /ping
+    # keeps the phone linked across restarts and deploys
+    disk:
+      name: waha-sessions
+      mountPath: /app/.sessions
+      sizeGB: 1
+    envVars:
+      - key: PORT
+        value: "3000"
+      - key: WAHA_API_KEY
+        generateValue: true
+      - key: WAHA_DASHBOARD_ENABLED
+        value: "true"
+      - key: WAHA_DASHBOARD_USERNAME
+        value: admin
+      # the password you'll type to open the dashboard and scan the QR code
+      - key: WAHA_DASHBOARD_PASSWORD
+        sync: false
+      - key: WHATSAPP_SWAGGER_ENABLED
+        value: "false"
+      - key: WHATSAPP_DEFAULT_ENGINE
+        value: NOWEB
+      - key: WHATSAPP_RESTART_ALL_SESSIONS
+        value: "True"
+      # https://YOUR-APP.onrender.com/api/whatsapp/webhook/waha?token=THE-APP'S-WAHA_WEBHOOK_SECRET
+      - key: WHATSAPP_HOOK_URL
+        sync: false
+      - key: WHATSAPP_HOOK_EVENTS
+        value: message,message.ack

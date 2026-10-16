@@ -39,6 +39,7 @@ export function SetupPanel({ config, onClose }: { config: Config | null; onClose
         ? `Searches start from businesses already checked here, recheck the old ones and add new ones. Fill it ahead of time with: npm run prefill (Vadodara; free sources). ${config.directory.lastSaved ? `Last filled ${new Date(config.directory.lastSaved).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}.` : ""}`
         : "Turned off with LEAD_DIRECTORY=off.",
     },
+    ...(config?.testingOnline ? [{ name: "Testing tools online", ok: false, status: "On (ALLOW_TESTING_TOOLS)", how: "Unofficial stand-ins are allowed on this hosted app (Instagram public pages, WhatsApp through WAHA, the Google Maps scraper). Remove ALLOW_TESTING_TOOLS once the official keys are set: they take over by themselves anyway." }] : []),
     { name: "Saving searches", ok: true, status: config?.store === "supabase" ? "Supabase database" : "On this computer (.data folder)" },
   ];
 

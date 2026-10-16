@@ -351,7 +351,7 @@ Facebook: Page search through the official API needs Meta's "Page Public Metadat
 
 ## Testing before the official keys arrive (local only)
 
-Two stand-ins let you try Instagram details and WhatsApp replies on your own computer while Meta reviews your app. Both are **switched off in any live build** (like the Google Maps scraper), and each steps aside on its own once its official key is set, so there's nothing to remove later.
+Two stand-ins let you try Instagram details and WhatsApp replies while Meta reviews your app. Both are **switched off in any live build** (like the Google Maps scraper) unless `ALLOW_TESTING_TOOLS=yes` is set (the Render blueprint sets it for now: see DEPLOY.md, *Testing online*), and each steps aside on its own once its official key is set.
 
 **Instagram from public pages** (the way [Scout](https://github.com/kiryano/Scout) reads them, MIT licence)
 - Set `IG_SCRAPER=on` in `.env.local`. Searches then read each business's public Instagram page for followers, posts, bio, bio website and (when the page shows it) the last post, and score them like the official API does.
