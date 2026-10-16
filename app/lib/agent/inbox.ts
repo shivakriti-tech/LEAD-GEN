@@ -83,11 +83,15 @@ export function patchFor(r: AgentResult, now = new Date()): FollowUpPatch | unde
     case "unsubscribe":
       return { optOut: { via: "Email: asked to unsubscribe" } };
     case "not_interested":
-      return { status: "lost", note: `Said no: ${r.summary}`.slice(0, 300) };
+      return { status: "lost", note: `Said no: ${r.summary}`.slice(0, 300), replyKind: "negative" };
     case "not_now":
-      return { replied: true, followUpOn: addDays(now, 90), note: `Not now: ${r.summary}`.slice(0, 300) };
+      return { replied: true, followUpOn: addDays(now, 90), note: `Not now: ${r.summary}`.slice(0, 300), replyKind: "not_now" };
     case "referral":
-      return { replied: true, note: `Referred to ${r.referral ?? "someone else"}` };
+      return { replied: true, note: `Referred to ${r.referral ?? "someone else"}`, replyKind: "positive" };
+    case "interested":
+    case "meeting":
+    case "question":
+      return { replied: true, replyKind: "positive" };
     default:
       return { replied: true };
   }

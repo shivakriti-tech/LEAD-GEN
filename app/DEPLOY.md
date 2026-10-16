@@ -25,7 +25,7 @@ It keeps its data in Supabase when `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY
 
 **One deployment per customer.** All logins share one workspace (searches, clients, outreach). To give the app to several customers for feedback, deploy it once per customer, each with its own password and disk (or Supabase project), so nobody sees anyone else's leads.
 
-Things the live build does by itself: the Google Maps scraper is off, private and internal addresses are never fetched (even through redirects), security headers are set (no framing, no sniffing, no referrer, a content security policy), and changes must come from the app's own pages.
+Things the live build does by itself: the testing stand-ins (Google Maps scraper, Instagram public pages, WAHA) are off unless `ALLOW_TESTING_TOOLS=yes`, private and internal addresses are never fetched (even through redirects), security headers are set (no framing, no sniffing, no referrer, a content security policy), and changes must come from the app's own pages.
 
 ## Option A: Render (easiest, from GitHub)
 
@@ -36,6 +36,21 @@ Things the live build does by itself: the Google Maps scraper is off, private an
 5. Set `APP_BASE_URL` to that address (Environment tab) and save: it redeploys.
 
 The blueprint uses the `1c-2g` plan in Singapore and no disk (data is in Supabase; uncomment the disk in `render.yaml` if you don't use Supabase). Change `region` in `render.yaml` if your customers are elsewhere (`frankfurt`, `oregon`, `ohio`, `virginia`).
+
+### Testing online before Meta's keys arrive (Render)
+
+The blueprint turns on the testing stand-ins (`ALLOW_TESTING_TOOLS=yes`, `IG_SCRAPER=on`) and adds a second service, **lead-autopilot-waha** (WhatsApp through WAHA, Starter plan ≈ $7/month plus a 1 GB disk so the phone stays linked).
+
+1. **Blueprint → Sync** (or create it). Render asks for:
+   - `WAHA_WEBHOOK_SECRET` (on lead-autopilot): any long random text.
+   - `WAHA_DASHBOARD_PASSWORD` (on lead-autopilot-waha): the password for WAHA's dashboard.
+   - `WHATSAPP_HOOK_URL` (on lead-autopilot-waha): `https://YOUR-APP.onrender.com/api/whatsapp/webhook/waha?token=` followed by the same `WAHA_WEBHOOK_SECRET`.
+2. Open `https://lead-autopilot-waha.onrender.com/dashboard` (user `admin`), start the **default** session and scan the QR code with a **spare** WhatsApp number (phone → WhatsApp → Linked devices). It isn't official: that number can be banned.
+3. In the app, **Outreach → WhatsApp** says "WhatsApp linked". **Setup** shows *Testing tools online* while the stand-ins are on.
+
+Instagram from public pages: Instagram sends most server addresses (Render's included) to its login page, so online it usually stops with "Instagram asks this connection to log in". The search carries on without it.
+
+When the official keys arrive: set `WHATSAPP_TOKEN` / `META_ACCESS_TOKEN` (they take over by themselves), then delete `ALLOW_TESTING_TOOLS`, `IG_SCRAPER` and the `WAHA_*` lines from `render.yaml` and the lead-autopilot-waha service.
 
 ## Option B: Railway
 

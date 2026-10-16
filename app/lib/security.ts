@@ -24,6 +24,13 @@ export const liveBuild = (env: Env = process.env) =>
 
 const yes = (v?: string) => /^(1|on|true|yes)$/i.test(v?.trim() ?? "");
 
+/**
+ * The testing-only stand-ins (Google Maps scraper, Instagram public pages, WhatsApp through WAHA) run
+ * on your own computer, and online only when ALLOW_TESTING_TOOLS=yes: for trying the hosted app
+ * before Meta's and Google's official keys arrive. Remove it once they do.
+ */
+export const testingToolsAllowed = (env: Env = process.env) => !liveBuild(env) || yes(env.ALLOW_TESTING_TOOLS);
+
 export const MIN_PASSWORD = 12;
 
 /** Why the app won't open, or undefined when the password setup is fine. */
@@ -163,7 +170,7 @@ export const LIMITS: Array<{ name: string; method: string; match: RegExp; limit:
   { name: "send", method: "POST", match: /^\/api\/(outreach\/(whatsapp|email\/queue)|agent\/inbox\/[^/]+)$/, limit: 60, windowMs: 10 * 60_000 },
   { name: "unsubscribe", method: "*", match: /^\/api\/unsubscribe$/, limit: 30, windowMs: 60_000 },
   { name: "handoff", method: "*", match: /^\/api\/handoff\//, limit: 60, windowMs: 60_000 },
-  { name: "webhook", method: "*", match: /^\/api\/whatsapp\/webhook$/, limit: 600, windowMs: 60_000 },
+  { name: "webhook", method: "*", match: /^\/api\/whatsapp\/webhook(\/waha)?$/, limit: 600, windowMs: 60_000 },
   { name: "api", method: "*", match: /^\/api\//, limit: 900, windowMs: 60_000 },
 ];
 

@@ -4,6 +4,7 @@ import { savedDoc } from "./saved";
 import type { Lead } from "./types";
 import { canContact } from "./outreach";
 import { touchKeys, type FollowUpPatch } from "./followups";
+import { sameSecret, testingToolsAllowed } from "./security";
 
 /**
  * WhatsApp Business Platform (Meta's Cloud API, direct: no reseller markup).
@@ -18,23 +19,39 @@ import { touchKeys, type FollowUpPatch } from "./followups";
  *   WHATSAPP_WABA_ID          WhatsApp Business Account id (to list templates)
  *   WHATSAPP_VERIFY_TOKEN     any secret you choose, typed again in Meta's webhook settings
  *   WHATSAPP_APP_SECRET       the Meta app's secret: incoming events must be signed with it
+ *
+ * TESTING ONLY, until Meta approves the API: WAHA (devlikeapro/waha, the WhatsApp connection
+ * DeskcommCRM uses) runs in Docker on your own computer and sends from a normal WhatsApp number
+ * linked by QR code. It isn't official, so WhatsApp can ban that number: use a spare one. The same
+ * rules apply (only leads who replied or opted in, free text only within 24 hours). A live build
+ * uses it only with ALLOW_TESTING_TOOLS=yes; ignored as soon as WHATSAPP_TOKEN is set.
+ *
+ *   WAHA_URL                  e.g. http://localhost:3030 (see waha/docker-compose.yml), or WAHA's host:port on Render
+ *   WAHA_API_KEY              the key WAHA was started with
+ *   WAHA_SESSION              WAHA session name (default "default", the only one WAHA Core has)
+ *   WAHA_WEBHOOK_SECRET       any long secret: WAHA's events must carry it (or be signed with it)
  */
 
-export interface WaConfig {
-  token: string;
-  phoneNumberId: string;
-  wabaId?: string;
-  verifyToken?: string;
-  appSecret?: string;
-  version: string;
-}
+export type WaConfig =
+  | { provider: "meta"; token: string; phoneNumberId: string; wabaId?: string; verifyToken?: string; appSecret?: string; version: string }
+  | { provider: "waha"; url: string; apiKey?: string; session: string; webhookSecret?: string };
+
 export function waConfig(env: Record<string, string | undefined> = process.env): WaConfig | undefined {
   const token = env.WHATSAPP_TOKEN?.trim(), phoneNumberId = env.WHATSAPP_PHONE_NUMBER_ID?.trim();
-  if (!token || !phoneNumberId) return undefined;
-  return { token, phoneNumberId, wabaId: env.WHATSAPP_WABA_ID?.trim() || undefined, verifyToken: env.WHATSAPP_VERIFY_TOKEN?.trim() || undefined, appSecret: env.WHATSAPP_APP_SECRET?.trim() || undefined, version: env.WHATSAPP_API_VERSION?.trim() || "v23.0" };
+  if (token && phoneNumberId) return { provider: "meta", token, phoneNumberId, wabaId: env.WHATSAPP_WABA_ID?.trim() || undefined, verifyToken: env.WHATSAPP_VERIFY_TOKEN?.trim() || undefined, appSecret: env.WHATSAPP_APP_SECRET?.trim() || undefined, version: env.WHATSAPP_API_VERSION?.trim() || "v23.0" };
+  return wahaConfig(env);
 }
 
-const graph = (c: WaConfig, p: string) => `https://graph.facebook.com/${c.version}/${p}`;
+/** The WAHA testing connection: only when configured AND not a live build (unless ALLOW_TESTING_TOOLS=yes). */
+export function wahaConfig(env: Record<string, string | undefined> = process.env): Extract<WaConfig, { provider: "waha" }> | undefined {
+  const url = env.WAHA_URL?.trim();
+  if (!url || !testingToolsAllowed(env)) return undefined;
+  // on Render the address comes from the WAHA service's private host:port, without http://
+  return { provider: "waha", url: (/^https?:\/\//i.test(url) ? url : `http://${url}`).replace(/\/+$/, ""), apiKey: env.WAHA_API_KEY?.trim() || undefined, session: env.WAHA_SESSION?.trim() || "default", webhookSecret: env.WAHA_WEBHOOK_SECRET?.trim() || undefined };
+}
+
+type MetaConfig = Extract<WaConfig, { provider: "meta" }>;
+const graph = (c: MetaConfig, p: string) => `https://graph.facebook.com/${c.version}/${p}`;
 /** "+919825012345" → "919825012345" (the API wants digits with the country code). */
 export const waNumber = (phone: string) => phone.replace(/\D/g, "").replace(/^0+/, "");
 
@@ -49,7 +66,7 @@ export interface WaTemplate {
 }
 
 export async function listTemplates(c: WaConfig, f: typeof fetch = fetch): Promise<WaTemplate[]> {
-  if (!c.wabaId) return [];
+  if (c.provider !== "meta" || !c.wabaId) return [];
   const r = await f(`${graph(c, `${c.wabaId}/message_templates`)}?fields=name,status,language,category,components&limit=100`, { headers: { Authorization: `Bearer ${c.token}` } });
   const j = (await r.json().catch(() => ({}))) as { data?: Array<{ name: string; status: string; language: string; category: string; components?: Array<{ type: string; text?: string }> }>; error?: { message?: string } };
   if (!r.ok) throw new Error(`WhatsApp: ${j.error?.message ?? `HTTP ${r.status}`}`);
@@ -62,6 +79,7 @@ export async function listTemplates(c: WaConfig, f: typeof fetch = fetch): Promi
 export type WaSend = { kind: "template"; name: string; language: string; params: string[] } | { kind: "text"; text: string };
 
 export async function sendWhatsApp(c: WaConfig, to: string, msg: WaSend, f: typeof fetch = fetch): Promise<{ id: string }> {
+  if (c.provider === "waha") return sendWaha(c, to, msg, f);
   const body =
     msg.kind === "template"
       ? { messaging_product: "whatsapp", to: waNumber(to), type: "template", template: { name: msg.name, language: { code: msg.language }, components: msg.params.length ? [{ type: "body", parameters: msg.params.map((text) => ({ type: "text", text })) }] : undefined } }
@@ -73,6 +91,37 @@ export async function sendWhatsApp(c: WaConfig, to: string, msg: WaSend, f: type
     throw new Error(j.error?.code === 131047 || /24 hours|re-engagement/i.test(m) ? "More than 24 hours since their last message: send an approved template instead" : `WhatsApp: ${m}`);
   }
   return { id: j.messages[0].id };
+}
+
+/** WAHA: POST /api/sendText. It has no templates (those are Meta's), so only free text goes. */
+async function sendWaha(c: Extract<WaConfig, { provider: "waha" }>, to: string, msg: WaSend, f: typeof fetch): Promise<{ id: string }> {
+  if (msg.kind !== "text") throw new Error("The WAHA testing connection can't send WhatsApp templates (they're Meta's): wait for them to write again, or use Meta's API");
+  const r = await f(`${c.url}/api/sendText`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(c.apiKey ? { "X-Api-Key": c.apiKey } : {}) },
+    body: JSON.stringify({ session: c.session, chatId: `${waNumber(to)}@c.us`, text: msg.text }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const j = (await r.json().catch(() => ({}))) as { id?: string | { _serialized?: string; id?: string }; key?: { id?: string }; message?: string; error?: string };
+  if (!r.ok) {
+    const m = j.message ?? j.error ?? `HTTP ${r.status}`;
+    throw new Error(r.status === 401 ? "WAHA: wrong WAHA_API_KEY" : /session|STOPPED|SCAN_QR|FAILED/i.test(m) ? `WAHA: the WhatsApp session isn't connected (${m}). Open the WAHA dashboard and scan the QR code` : `WAHA: ${m}`);
+  }
+  const id = typeof j.id === "string" ? j.id : j.id?._serialized ?? j.id?.id ?? j.key?.id;
+  return { id: id || `waha-${randomUUID()}` };
+}
+
+/** Is WAHA's WhatsApp session linked? "WORKING" means yes; "SCAN_QR_CODE" means scan it in WAHA's dashboard. */
+export async function wahaStatus(c: Extract<WaConfig, { provider: "waha" }>, f: typeof fetch = fetch): Promise<{ status: string; error?: string }> {
+  try {
+    const r = await f(`${c.url}/api/sessions/${encodeURIComponent(c.session)}`, { headers: c.apiKey ? { "X-Api-Key": c.apiKey } : {}, signal: AbortSignal.timeout(5_000) });
+    if (r.status === 404) return { status: "STOPPED", error: `No session "${c.session}" yet: start it in WAHA's dashboard` };
+    if (r.status === 401) return { status: "UNKNOWN", error: "WAHA refused WAHA_API_KEY" };
+    const j = (await r.json().catch(() => ({}))) as { status?: string };
+    return { status: j.status ?? "UNKNOWN" };
+  } catch {
+    return { status: "UNKNOWN", error: `WAHA isn't answering at ${c.url}: is its Docker container running?` };
+  }
 }
 
 /* ---------- log: what was sent and received, and each number's last message (for the 24-hour window) ---------- */
@@ -155,6 +204,52 @@ export function parseWebhook(body: unknown): WaEvent[] {
         out.push({ kind: "status", number: s.recipient_id, id: s.id, at: new Date(Number(s.timestamp) * 1000).toISOString(), status: s.status });
     }
   return out;
+}
+
+/* ---------- WAHA's events (testing connection) ---------- */
+
+/**
+ * WAHA calls WHATSAPP_HOOK_URL for each event. It must carry the secret: as ?token= in that URL, or
+ * as an HMAC-SHA512 of the body in X-Webhook-Hmac (WHATSAPP_HOOK_HMAC_KEY). A wrong signature is
+ * always refused, even when the token is right.
+ */
+export function wahaRequestOk(raw: string, url: string, hmacHeader: string | null, secret: string): boolean {
+  if (hmacHeader) {
+    const want = Buffer.from(createHmac("sha512", secret).update(raw, "utf8").digest("hex"));
+    const got = Buffer.from(hmacHeader.replace(/^sha512=/i, "").trim());
+    return want.length === got.length && timingSafeEqual(want, got);
+  }
+  const token = new URL(url).searchParams.get("token") ?? "";
+  return token.length > 0 && sameSecret(token, secret);
+}
+
+/** "919825012345@c.us" → "919825012345". Newer WhatsApp hides the number behind an @lid id and sends it in _data.key.remoteJidAlt. */
+function wahaPhone(p: { from?: unknown; to?: unknown; fromMe?: unknown; _data?: { key?: { remoteJidAlt?: unknown } } }): string | undefined {
+  const chat = String((p.fromMe ? p.to : p.from) ?? "");
+  if (/@(c\.us|s\.whatsapp\.net)$/.test(chat)) return waNumber(chat.split("@")[0]);
+  const alt = p._data?.key?.remoteJidAlt;
+  if (/@lid$/.test(chat) && typeof alt === "string" && /@(c\.us|s\.whatsapp\.net)$/.test(alt)) return waNumber(alt.split("@")[0]);
+  return undefined; // a group, a status update, a channel: not a lead
+}
+
+const ACK: Record<string, string> = { PENDING: "sent", SERVER: "sent", DEVICE: "delivered", READ: "read", PLAYED: "read", ERROR: "failed" };
+
+/** WAHA's event → the same events Meta's webhook gives. Only people writing to you ("message", not your own) and delivery updates. */
+export function parseWahaWebhook(body: unknown): WaEvent[] {
+  const e = body as { event?: string; payload?: Record<string, any> } | null;
+  const p = e?.payload;
+  if (!p || typeof p !== "object") return [];
+  const at = new Date(typeof p.timestamp === "number" ? (p.timestamp > 1e12 ? p.timestamp : p.timestamp * 1000) : Date.now()).toISOString();
+  const id = typeof p.id === "string" ? p.id : String(p.id?._serialized ?? "");
+  if (e!.event === "message" && !p.fromMe) {
+    const number = wahaPhone(p);
+    return number && id ? [{ kind: "message", number, id, at, text: typeof p.body === "string" && p.body ? p.body : undefined }] : [];
+  }
+  if (e!.event === "message.ack" && p.fromMe) {
+    const number = wahaPhone(p), status = ACK[String(p.ackName ?? "").toUpperCase()];
+    return number && id && status ? [{ kind: "status", number, id, at, status }] : [];
+  }
+  return [];
 }
 
 /** "STOP", "unsubscribe", "don't message", Hindi/Hinglish too. */

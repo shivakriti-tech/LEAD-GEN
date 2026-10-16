@@ -139,7 +139,7 @@ export const NICHES: Record<NicheKey, Niche> = {
         if (a?.pageSpeed && a.pageSpeed.score < 50) add("slow", `Slow on mobile (${a.pageSpeed.score}/100)`, 5, "website");
       }
       const ig = igHandle(l);
-      const api = l.social?.instagram?.checked === "api" ? l.social.instagram : undefined;
+      const api = l.social?.instagram?.checked === "api" || l.social?.instagram?.checked === "scraper" ? l.social.instagram : undefined;
       if (!ig && !l.pending) add("no_instagram", "No Instagram found", 10, "social");
       else if (api) {
         const quiet = daysSince(api.lastPostAt, now);

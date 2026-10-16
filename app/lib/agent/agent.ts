@@ -3,7 +3,7 @@ import type { ClientBrain } from "../brain";
 import type { Lead } from "../types";
 import type { Sender } from "../outreach";
 import { GEMINI_DEFAULT_MODEL, openaiChat } from "../brainAnalyze";
-import { checkContent } from "../mail/guard";
+import { aiTells, checkContent } from "../mail/guard";
 import { INTENT_LABEL, readByRules, type Intent } from "./intent";
 
 /**
@@ -67,6 +67,7 @@ Reply rules: write it as a short, professional business email that a person type
 - Plain text only: no HTML, markdown, bold, bullet lists or emojis.
 - Courteous and factual, not salesy: no exclamation marks, no ALL CAPS, no hype or pressure words (free, guaranteed, limited time, act now, urgent, best price, cheap, click here, special offer, 100%), no "Dear Sir/Madam". These read as promotional and send the email to spam.
 - At most one link, written out in full (never a link shortener).
+- Sound like a person typing, not AI: no em dashes, no "I hope this finds you well", "just wanted to", "reaching out", "I'd love to chat", "happy to help further", and none of these words: delve, leverage, seamless, robust, elevate, empower, unlock, game-changer, cutting-edge.
 Use ONLY the company facts given. Never invent prices, timelines, guarantees, clients or features. If they ask something the facts don't answer, say you'll confirm and set needs_person true.
 If they are interested or want a call, suggest a short call and ask for a time that suits them (or give the booking link if there is one), and set needs_person true.
 If they say not now: thank them and say you'll check back later. If not interested: thank them briefly, no pitch. If they point to someone else: thank them.
@@ -86,6 +87,8 @@ export function replyProblem(reply: string, brain?: Pick<ClientBrain, "services"
   if (unknown.length) return `Names a price that isn't in the Business Brain (${unknown[0]})`;
   const spam = checkContent("Re: reply", reply).block[0];
   if (spam) return `Spam check: ${spam}`;
+  const tells = aiTells(reply);
+  if (tells.length) return `Reads like AI (${tells.join(", ")}): edit it so it sounds like you`;
   if (reply.length > 1500) return "Too long for a reply";
   return undefined;
 }

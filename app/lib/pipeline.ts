@@ -15,13 +15,15 @@ import { apolloEnrichDomain } from "./sources/apollo";
 import { googleTextSearch } from "./sources/googlePlaces";
 import { geocodeBBox, osmSearch, type BBox } from "./sources/osm";
 import { facebookPageSearch, firstRealLink, instagramBusinessDiscovery, MetaError } from "./sources/meta";
+import { igScraperOn, InstagramBlocked, instagramPublicProfile } from "./sources/igPublic";
+import { linkInBioIn, readLinkInBio } from "./enrich/linkInBio";
 import { socialSearch } from "./sources/social";
 import { webLeadSearch } from "./sources/webSearch";
 import { gmapsScrapeBatch, gmapsScraperUrl } from "./sources/gmapsScraper";
 import { mergeBySocial, rememberSocial } from "./dedupe";
 import { cached, cacheMode, DAY, type CacheStats } from "./cache";
 import { forDirectory, getDirectory, RECHECK_AFTER, whatChanged, type Directory, type DirectoryEntry } from "./directory";
-import { classifyEmail, isDisposable, looksLikeEmail, rankEmails, usable } from "./enrich/email";
+import { classifyEmail, emailGuesses, isDisposable, looksLikeEmail, rankEmails, usable, type EmailInfo } from "./enrich/email";
 import { domainRegisteredOn, registrableDomain } from "./enrich/domainAge";
 import { cappedVerifier, verifierFromEnv, type EmailVerifier, type MailboxCheck, type VerifyStats } from "./enrich/verifyEmail";
 import { domainAcceptsMail } from "./enrich/mx";
@@ -40,6 +42,10 @@ export interface Deps {
   web: typeof webLeadSearch;
   gmaps: typeof gmapsScrapeBatch;
   igLookup: typeof instagramBusinessDiscovery;
+  /** Read a Linktree-style page from an Instagram bio for the website, WhatsApp and email on it. */
+  linkInBio?: typeof readLinkInBio;
+  /** Testing only (Scout's way): public Instagram pages, when there's no official token. */
+  igPublic?: typeof instagramPublicProfile;
   fbSearch: typeof facebookPageSearch;
   checkCandidate: typeof verifyCandidate;
   webSearch?: (q: string) => Promise<SearchHit[]>;
@@ -81,7 +87,7 @@ export interface Deps {
   leadTimeoutMs?: number;
   /** After Stop, how long work already in flight may still finish and be kept (default 5s). */
   stopGraceMs?: number;
-  keys: { gmapsScraper?: string; google?: string; pageSpeed?: string; apollo?: string; brave?: string; metaToken?: string; igUserId?: string; fbPageSearch?: boolean; phoneSearch?: "auto" | "on" | "off" };
+  keys: { gmapsScraper?: string; google?: string; pageSpeed?: string; apollo?: string; brave?: string; metaToken?: string; igUserId?: string; igScraper?: boolean; fbPageSearch?: boolean; phoneSearch?: "auto" | "on" | "off" };
   store: Store;
   now?: () => Date;
 }
@@ -633,21 +639,25 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     leads = mergeBySocial(leads);
     if (leads.length < before) log(`${before - leads.length} Instagram/Facebook results were the same businesses as map results. Merged.`);
 
-    // 3c. Instagram profiles via Meta's official API
+    // 3c. Instagram profiles via Meta's official API (or, testing only, their public pages)
     const withIg = leads.filter((l) => l.social?.instagram);
-    if (withIg.length && deps.keys.metaToken && deps.keys.igUserId && !stopped()) {
-      const cap = withIg.slice(0, 150); // stay well inside Meta's hourly limit
-      log(`Reading ${cap.length} Instagram profile${cap.length > 1 ? "s" : ""} through Meta's official API.`);
+    const igApi = !!deps.keys.metaToken && !!deps.keys.igUserId;
+    const igScrape = !igApi && !!deps.keys.igScraper && !!deps.igPublic;
+    if (withIg.length && (igApi || igScrape) && !stopped()) {
+      // stay well inside Meta's hourly limit; public pages slowly and fewer, or Instagram blocks the connection
+      const cap = withIg.slice(0, igApi ? 150 : 40);
+      log(igApi ? `Reading ${cap.length} Instagram profile${cap.length > 1 ? "s" : ""} through Meta's official API.` : `Reading ${cap.length} Instagram profile${cap.length > 1 ? "s" : ""} from their public pages (testing only, IG_SCRAPER=on; the official token replaces this).`);
       let n = 0, stop = "";
       emit({ type: "stage", stage: "social", done: 0, total: cap.length });
-      await mapLimit(cap, 3, async (l) => {
+      await mapLimit(cap, igApi ? 3 : 1, async (l) => {
         const ig = l.social!.instagram!;
         if (!stop && !stopped()) {
           try {
-            const p = await deps.igLookup({ token: deps.keys.metaToken!, igUserId: deps.keys.igUserId!, handle: ig.handle });
-            if (!p) ig.checked = "not_business";
+            if (igScrape && n > 0) await new Promise((r) => setTimeout(r, 1500)); // one at a time, slowly, like Scout
+            const p = igApi ? await deps.igLookup({ token: deps.keys.metaToken!, igUserId: deps.keys.igUserId!, handle: ig.handle }) : await deps.igPublic!(ig.handle);
+            if (!p) ig.checked = igApi ? "not_business" : "link_only";
             else {
-              Object.assign(ig, { name: p.name, bio: p.bio, website: p.website, followers: p.followers, posts: p.posts, lastPostAt: p.lastPostAt, checked: "api" as const });
+              Object.assign(ig, { name: p.name, bio: p.bio, website: p.website, followers: p.followers, posts: p.posts, lastPostAt: p.lastPostAt, checked: igApi ? ("api" as const) : ("scraper" as const) });
               if (l.sources.length === 1 && l.sources[0] === "instagram" && p.name) l.name = p.name;
               for (const m of currentCountry() === "IN" ? (p.bio ?? "").match(/(?:\+91[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5}/g) ?? [] : phonesInText(p.bio ?? "", currentCountry())) {
                 const ph = normalizePhone(m, currentCountry());
@@ -655,7 +665,24 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
               }
               l.phone ??= l.phones[0];
               // Their own bio links a website? Check it's really theirs, then use it.
-              const link = firstRealLink(p.website, p.bio);
+              let link = firstRealLink(p.website, p.bio);
+              // A Linktree (or similar) instead: it lists their website, WhatsApp and email (Scout's way)
+              const bioPage = !link && deps.linkInBio ? linkInBioIn(p.website, p.bio) : undefined;
+              if (bioPage) {
+                const r = await deps.linkInBio!(bioPage).catch(() => undefined);
+                if (r) {
+                  const before = l.emails.length;
+                  for (const e of r.emails) if (!l.emails.includes(e)) l.emails.push(e);
+                  for (const d of r.phones) {
+                    const ph = normalizePhone(d.length > 10 ? `+${d}` : d, currentCountry());
+                    if (ph && !l.phones.includes(ph)) l.phones.push(ph);
+                  }
+                  l.phone ??= l.phones[0];
+                  l.websiteCheck?.tried.push(`link-in-bio page ${bioPage}: ${r.website ? `lists ${r.website}` : "no website listed"}${r.emails.length ? `, ${r.emails.length} email${r.emails.length > 1 ? "s" : ""}` : ""}${r.phones.length ? ", WhatsApp/phone" : ""}`);
+                  if (l.emails.length > before) await checkEmails([l], deps.mx, verifyEmail);
+                  link = r.website;
+                }
+              }
               const noWorkingSite = !l.audit || l.audit.status !== "ok";
               if (link && noWorkingSite) {
                 const v = await deps.checkCandidate(link, l, params.area);
@@ -673,7 +700,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
               } else if (!link && noWorkingSite) l.websiteCheck?.tried.push("Instagram profile has no website link");
             }
           } catch (e) {
-            if (e instanceof MetaError && (e.kind === "auth" || e.kind === "limit")) stop = e.message;
+            if ((e instanceof MetaError && (e.kind === "auth" || e.kind === "limit")) || e instanceof InstagramBlocked) stop = e.message;
             else log(`Instagram @${ig.handle}: ${msg(e)}`, "warn");
           }
         }
@@ -681,7 +708,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
       });
       if (stop) log(`Instagram check stopped: ${stop}`, "warn");
     } else if (withIg.length && (params.sources.instagram || withIg.length)) {
-      if (!deps.keys.metaToken || !deps.keys.igUserId) log(`${withIg.length} businesses have an Instagram profile. Add META_ACCESS_TOKEN and IG_BUSINESS_ACCOUNT_ID to read their followers, last post and bio website.`);
+      if (!igApi) log(`${withIg.length} businesses have an Instagram profile. Add META_ACCESS_TOKEN and IG_BUSINESS_ACCOUNT_ID to read their followers, last post and bio website (or IG_SCRAPER=on to test with their public pages).`);
     }
 
     if (params.pageSpeed && !stopped()) {
@@ -892,9 +919,31 @@ function saver(save: () => Promise<void>, everyMs = 4000) {
 }
 
 /**
+ * The owner's own address on the business's domain, found by checking likely ones (first@, first.last@)
+ * with the mailbox check, when the website gave none. Only a mailbox the check says exists is kept:
+ * "accepts any address" or "can't confirm" isn't proof. At most 2 checks a lead.
+ */
+async function guessOwnerEmail(l: Lead, site: string | undefined, infos: EmailInfo[], verify: (email: string) => Promise<MailboxCheck | undefined>, mx?: typeof domainAcceptsMail): Promise<EmailInfo | undefined> {
+  const name = l.owner?.name;
+  if (/^(off|0|false|no)$/i.test(process.env.EMAIL_GUESS || "")) return undefined;
+  if (!name || !site || isSocialHost(site) || l.audit?.status !== "ok" || l.audit.freeSubdomain || l.chain) return undefined;
+  const mine = infos.filter((i) => i.email.endsWith(`@${site}`));
+  if (mine.some((i) => i.kind === "own_named" && usable(i))) return undefined; // already have a person there
+  if (mine.some((i) => i.mailbox === "catch_all")) return undefined; // the server says yes to anything: a guess can't be confirmed
+  if (mx && (await mx(site)) === false) return undefined;
+  for (const email of emailGuesses(name, site).filter((e) => !infos.some((i) => i.email === e)).slice(0, 2)) {
+    const r = await verify(email);
+    if (!r || r.status === "catch_all") return undefined;
+    if (r.status === "valid") return { email, kind: "own_named", deliverable: true, mailbox: "valid", mailboxBy: r.by, guessed: true };
+  }
+  return undefined;
+}
+
+/**
  * Rank each lead's emails (owner's own first), drop junk matches, flag throwaway inboxes and, when
  * `mx` is given, domains that can't receive mail. With `verify`, the best address is checked with a
  * verification service; if its mailbox doesn't exist, the next best one is checked (at most 2 a lead).
+ * With `verify` and the owner's name, their own address on the business's domain is looked for too.
  */
 export async function checkEmails(leads: Lead[], mx?: typeof domainAcceptsMail, verify?: (email: string) => Promise<MailboxCheck | undefined>): Promise<void> {
   for (const l of leads) l.emails = l.emails.filter(looksLikeEmail);
@@ -902,17 +951,19 @@ export async function checkEmails(leads: Lead[], mx?: typeof domainAcceptsMail, 
   const ok = new Map<string, boolean | undefined>();
   if (mx) await mapLimit(domains, 10, async (d) => void ok.set(d, await mx(d)));
   for (const l of leads) {
+    const site = domainOf(l.audit?.finalUrl ?? l.website);
     if (!l.emails.length) {
-      l.email = undefined;
-      l.emailInfo = undefined;
+      const guess = verify ? await guessOwnerEmail(l, site, [], verify, mx) : undefined;
+      l.emails = guess ? [guess.email] : [];
+      l.emailInfo = guess ? [guess] : undefined;
+      l.email = guess?.email;
       continue;
     }
-    const site = domainOf(l.audit?.finalUrl ?? l.website);
     const prev = new Map((l.emailInfo ?? []).map((i) => [i.email, i]));
     let infos = rankEmails(
       l.emails.map((email) => {
         const was = prev.get(email);
-        return { email, kind: classifyEmail(email, site), deliverable: ok.get(email.split("@")[1]?.toLowerCase()), disposable: isDisposable(email) || undefined, mailbox: was?.mailbox, mailboxBy: was?.mailboxBy };
+        return { email, kind: classifyEmail(email, site), deliverable: ok.get(email.split("@")[1]?.toLowerCase()), disposable: isDisposable(email) || undefined, mailbox: was?.mailbox, mailboxBy: was?.mailboxBy, guessed: was?.guessed };
       }),
     );
     if (verify) {
@@ -925,6 +976,11 @@ export async function checkEmails(leads: Lead[], mx?: typeof domainAcceptsMail, 
         next.mailboxBy = r.by;
         infos = rankEmails(infos);
         if (r.status !== "invalid") break;
+      }
+      const guess = await guessOwnerEmail(l, site, infos, verify, mx);
+      if (guess) {
+        l.emails.push(guess.email);
+        infos = rankEmails([...infos, guess]);
       }
     }
     l.emailInfo = infos;
@@ -994,6 +1050,8 @@ export function defaultDeps(store: Store): Deps {
     web: webLeadSearch,
     gmaps: gmapsScrapeBatch,
     igLookup: instagramBusinessDiscovery,
+    igPublic: instagramPublicProfile,
+    linkInBio: readLinkInBio,
     fbSearch: facebookPageSearch,
     checkCandidate: verifyCandidate,
     audit: c?.audit ?? auditWebsite,
@@ -1020,6 +1078,7 @@ export function defaultDeps(store: Store): Deps {
       gmapsScraper: gmapsScraperUrl(),
       metaToken: process.env.META_ACCESS_TOKEN || undefined,
       igUserId: process.env.IG_BUSINESS_ACCOUNT_ID || undefined,
+      igScraper: igScraperOn(),
       fbPageSearch: /^(on|true|1|yes)$/i.test(process.env.FB_PAGE_SEARCH || ""),
       // Off unless asked: even through Serper (Google), 69 phone searches found 1 site in the Vadodara benchmark.
       phoneSearch: /^(on|true|1|yes)$/i.test(process.env.PHONE_SEARCH || "") ? "on" : /^auto$/i.test(process.env.PHONE_SEARCH || "") ? "auto" : "off",

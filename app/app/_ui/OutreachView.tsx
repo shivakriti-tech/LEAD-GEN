@@ -292,7 +292,7 @@ function EmailTab() {
 
 /* ---------- WhatsApp ---------- */
 
-type WaData = { configured: boolean; webhook?: { verifyToken: boolean; appSecret: boolean }; templates?: Array<{ name: string; language: string; category: string; body?: string; params: number }>; templateError?: string; entries?: Array<{ id: string; at: string; dir: "in" | "out"; number: string; leadName?: string; text?: string; template?: string; status?: string }> };
+type WaData = { configured: boolean; provider?: "meta" | "waha"; webhook?: { ready: boolean }; session?: { status: string; error?: string }; templates?: Array<{ name: string; language: string; category: string; body?: string; params: number }>; templateError?: string; entries?: Array<{ id: string; at: string; dir: "in" | "out"; number: string; leadName?: string; text?: string; template?: string; status?: string }> };
 
 function WhatsAppTab() {
   const [d, setD] = useState<WaData | null>(null);
@@ -313,22 +313,32 @@ function WhatsAppTab() {
           <li>For replies: set the webhook in the Meta app to <code>https://your-app-address/api/whatsapp/webhook</code> with the same verify token, and subscribe to <i>messages</i>. The app must be reachable on the internet for this (a hosted app, or a tunnel like Cloudflare Tunnel while testing).</li>
           <li>Create message templates in WhatsApp Manager and wait for approval: they're needed after 24 hours of silence.</li>
         </ol>
+        <h3>Testing before Meta approves: WAHA</h3>
+        <p className="sub">On your own computer only (switched off in the live app, and as soon as <code>WHATSAPP_TOKEN</code> is set). It links a normal WhatsApp number by QR code, which WhatsApp doesn't allow for business messages: <b>use a spare number</b>, as it can be banned.</p>
+        <ol className="steps">
+          <li>Add to <code>.env.local</code>: <code>WAHA_URL=http://localhost:3030</code>, <code>WAHA_API_KEY</code> and <code>WAHA_WEBHOOK_SECRET</code> (two long random texts).</li>
+          <li>With Docker Desktop running, open a terminal in <code>app/waha</code> and run <code>docker compose --env-file ../.env.local up -d</code>.</li>
+          <li>Open <code>http://localhost:3030/dashboard</code> (user <code>admin</code>, password: your <code>WAHA_API_KEY</code>), start the <i>default</i> session and scan the QR code with the spare phone (WhatsApp → Linked devices).</li>
+          <li>Restart <code>npm run dev</code>. Replies then arrive here and in the Inbox.</li>
+        </ol>
       </div>
     );
   return (
     <div className="otab">
       {rules}
       <div className="row gap">
-        <span className={`tag ${d.webhook?.appSecret && d.webhook.verifyToken ? "good" : "warn"}`}>{d.webhook?.appSecret && d.webhook.verifyToken ? "Webhook ready" : "Webhook not set up: replies won't be seen"}</span>
+        <span className={`tag ${d.webhook?.ready ? "good" : "warn"}`}>{d.webhook?.ready ? "Webhook ready" : d.provider === "waha" ? "Set WAHA_WEBHOOK_SECRET: replies won't be seen" : "Webhook not set up: replies won't be seen"}</span>
+        {d.provider === "waha" && <span className={`tag ${d.session?.status === "WORKING" ? "good" : "warn"}`}>{d.session?.status === "WORKING" ? "WhatsApp linked" : d.session?.error ?? `WhatsApp session: ${d.session?.status ?? "unknown"} (scan the QR code in WAHA's dashboard)`}</span>}
         <span className="sub">Send from a lead's panel once they've replied or opted in.</span>
       </div>
-      <section className="panel bsec">
+      {d.provider === "waha" && <p className="note">Testing connection (WAHA): messages go from the WhatsApp number you linked by QR code, not the official API. Use a spare number. It's switched off in the live app and once <code>WHATSAPP_TOKEN</code> is set. It has no templates, so after 24 hours of silence wait for them to write again.</p>}
+      {d.provider !== "waha" && <section className="panel bsec">
         <h2>Approved templates <span className="count">{d.templates?.length ?? 0}</span></h2>
         {d.templateError && <p className="note">{d.templateError}</p>}
         {!d.templates?.length ? <p className="sub">No approved templates yet (WhatsApp Manager → Message templates).</p> : (
           <div className="qlist">{d.templates.map((t) => <div className="qrow" key={`${t.name}-${t.language}`}><div><b>{t.name}</b><span className="sub">{t.language} · {t.category.toLowerCase()} · {t.params} variable{t.params === 1 ? "" : "s"}</span></div><span className="sub tpl-body">{t.body}</span></div>)}</div>
         )}
-      </section>
+      </section>}
       <section className="panel bsec">
         <h2>Messages</h2>
         {!d.entries?.length ? <p className="sub">No messages yet.</p> : (

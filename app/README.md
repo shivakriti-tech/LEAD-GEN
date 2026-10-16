@@ -349,6 +349,36 @@ Your app can stay in development mode while only you use it. When clients connec
 
 Facebook: Page search through the official API needs Meta's "Page Public Metadata Access" feature (App Review + business verification). Until then the app finds Facebook Pages through web search and keeps the link. It doesn't read Facebook pages.
 
+## Ideas from open-source outbound tools
+
+Small features taken from repos that do one thing well (each file names its source; all MIT):
+
+- **Messages that sound typed, not generated** ([oneshot-gtm](https://github.com/oneshot-agent/oneshot-gtm)). Your edited emails are checked for AI and template tells ("Hope this finds you well", "just wanted to", "leverage", "seamless", em dashes…) and soft spam phrases ("free consultation", "don't miss out"…, from [coldoutboundskills](https://github.com/growthenginenowoslawski/coldoutboundskills)). They still go; the toast after *Email* names the first one. The Inbox agent is told to avoid them, and a draft that has them waits for you instead of going out. A message that uses a failed inspection, a violation or a lapsed licence as leverage is held.
+- **The owner's own email, guessed and verified** ([Scout](https://github.com/kiryano/Scout), [yc-outreach](https://github.com/adityajha2005/yc-outreach)). When a lead has the owner's name and its own website but no personal address there, the mailbox check (`EMAIL_VERIFY`) tries `first@domain`, then `first.last@domain`. A guess is kept only if the check says the mailbox exists (never on servers that accept any address), is marked *from owner's name*, and is written to first. Without `EMAIL_VERIFY` nothing is guessed. It uses up to 2 of the search's mailbox checks per lead; `EMAIL_GUESS=off` turns it off.
+- **Positive reply rate** (coldoutboundskills). Home shows, under *Reply rate*, the share of messaged leads whose reply wanted to talk (interested, a question, a call, a referral, or a meeting/won later), as read by the Inbox agent. Any reply counts in the big number; this one says whether the message works.
+- **A grade for each email batch** (coldoutboundskills' list-quality-scorecard). After *Email*, the toast grades the queued addresses A–F with the worst problem: not checked at mailbox level, servers that accept any address, shared inboxes (info@…), more than 2 emails to one company.
+- **Link-in-bio pages** (Scout). An Instagram bio with a Linktree, bio.link, Beacons… page is read for the business's website (verified like any other), WhatsApp and email.
+
+## Testing before the official keys arrive
+
+Two stand-ins let you try Instagram details and WhatsApp replies while Meta reviews your app. Both are **switched off in any live build** (like the Google Maps scraper) unless `ALLOW_TESTING_TOOLS=yes` is set (the Render blueprint sets it for now: see DEPLOY.md, *Testing online*), and each steps aside on its own once its official key is set.
+
+**Instagram from public pages** (the way [Scout](https://github.com/kiryano/Scout) reads them, MIT licence)
+- Set `IG_SCRAPER=on` in `.env.local`. Searches then read each business's public Instagram page for followers, posts, bio, bio website and (when the page shows it) the last post, and score them like the official API does.
+- One profile at a time with a pause, at most 40 a search. Reading Instagram's pages is against its terms, and Instagram often sends a connection to its login page instead: the search then says so and carries on without it.
+- Once `META_ACCESS_TOKEN` and `IG_BUSINESS_ACCOUNT_ID` are set, the official API is used and `IG_SCRAPER` is ignored.
+
+**WhatsApp through WAHA** (the WhatsApp connection [DeskcommCRM](https://github.com/melgarafael/DeskcommCRM) uses; WAHA is Apache-2.0)
+- WAHA runs in Docker and links a normal WhatsApp number by QR code. WhatsApp doesn't allow that for business messages, so **use a spare number**: it can be banned.
+- The rules stay the same as the official API: only leads who replied or opted in, free text only within 24 hours of their last message (WAHA has no templates), and a first hello still goes from your own phone.
+- Setup:
+  1. Add to `.env.local`: `WAHA_URL=http://localhost:3030`, `WAHA_API_KEY=` and `WAHA_WEBHOOK_SECRET=` (two long random texts).
+  2. With Docker Desktop running, open a terminal in `app/waha` and run `docker compose --env-file ../.env.local up -d`.
+  3. Open http://localhost:3030/dashboard (user `admin`, password: your `WAHA_API_KEY`), start the *default* session and scan the QR code (phone → WhatsApp → Linked devices).
+  4. Restart `npm run dev`. *Outreach → WhatsApp* shows "WhatsApp linked". Replies mark the lead Replied, "STOP" opts them out, and the Inbox agent drafts answers, exactly as with Meta's webhook.
+- WAHA sends its events to `/api/whatsapp/webhook/waha` with your `WAHA_WEBHOOK_SECRET` (and signs them with it); events without it are refused.
+- Once `WHATSAPP_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` are set, Meta's API is used and WAHA is ignored. `docker compose --env-file ../.env.local down` stops it; deleting `app/waha/sessions` unlinks the phone.
+
 ## Speed
 
 - All sources are searched at the same time, and **each business is checked the moment its source returns it**, not after every source has finished. The full check afterwards reuses that work, so nothing is checked twice.

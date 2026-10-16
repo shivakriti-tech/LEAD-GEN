@@ -66,7 +66,8 @@ describe("Home numbers", () => {
     expect(d.waiting.map((l) => l.name)).toEqual(["Fresh", "Other"]);
     expect(d.waiting[0].search).toBe("Alkapuri, Vadodara");
     expect(d.recent.map((r) => r.lead.name)).toEqual(["Smile", "Aum"]);
-    expect(d.byCategory).toEqual({ Dentist: { messaged: 1, replied: 1 }, "Salon & spa": { messaged: 1, replied: 1 } });
+    // the salon went on to a meeting and was won: a positive reply; the dentist only replied
+    expect(d.byCategory).toEqual({ Dentist: { messaged: 1, replied: 1, positive: 0 }, "Salon & spa": { messaged: 1, replied: 1, positive: 1 } });
     expect(d.latest).toMatchObject({ id: "s1", search: "Alkapuri, Vadodara" });
     expect(d.searches).toBe(2);
   });

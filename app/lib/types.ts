@@ -24,6 +24,8 @@ export interface FollowUp {
   optedIn?: { at: string; via: string };
   /** They asked not to be contacted (STOP, unsubscribe, "not interested, don't message"): every channel stops. */
   optedOut?: { at: string; via: string };
+  /** What their last reply meant, as the Inbox agent read it: positive (interested, a question, a call, a referral), not now, or no. */
+  replyKind?: "positive" | "not_now" | "negative";
 }
 
 export type TouchChannel = "whatsapp" | "email" | "call" | "linkedin";
@@ -224,7 +226,7 @@ export interface Lead {
   emailInfo?: EmailInfo[];
   /** Social profiles: from a source, the business's website, or web search. Details only via Meta's official API. */
   social?: {
-    instagram?: { handle: string; url: string; name?: string; bio?: string; website?: string; followers?: number; posts?: number; lastPostAt?: string; checked: "api" | "link_only" | "not_business" };
+    instagram?: { handle: string; url: string; name?: string; bio?: string; website?: string; followers?: number; posts?: number; lastPostAt?: string; checked: "api" | "scraper" | "link_only" | "not_business" };
     facebook?: { page: string; url: string; fans?: number; website?: string };
   };
   brand?: string;

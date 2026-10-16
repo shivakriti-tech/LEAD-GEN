@@ -6,6 +6,8 @@ import { gmapsScraperUrl } from "@/lib/sources/gmapsScraper";
 import { verifierName } from "@/lib/enrich/verifyEmail";
 import { aiName } from "@/lib/brainAnalyze";
 import { waConfig } from "@/lib/whatsapp";
+import { igScraperOn } from "@/lib/sources/igPublic";
+import { liveBuild, testingToolsAllowed } from "@/lib/security";
 import { mailboxesFromEnv } from "@/lib/mail/mailboxes";
 
 export const runtime = "nodejs";
@@ -23,6 +25,7 @@ export async function GET() {
     // which AI reads client websites for the Business Brain ("Gemini" / "Claude"), or null for the basic reader
     ai: aiName() ?? null,
     whatsapp: !!waConfig(),
+    whatsappTesting: waConfig()?.provider === "waha", // WAHA, testing only
     mailboxes: mailboxesFromEnv().mailboxes.length,
     emailVerify: verifierName() ?? null, // "ZeroBounce" / "MillionVerifier" when a key is set
     store: getStore().kind,
@@ -32,6 +35,8 @@ export async function GET() {
     searchUsage: searchUsage(), // per provider: searches today / this month and its free limit (no keys)
     gmapsScraper: !!gmapsScraperUrl(),
     meta: !!process.env.META_ACCESS_TOKEN && !!process.env.IG_BUSINESS_ACCOUNT_ID,
+    igScraper: igScraperOn(), // public Instagram pages, testing only
+    testingOnline: liveBuild() && testingToolsAllowed(), // ALLOW_TESTING_TOOLS=yes on a hosted app
     fbPageSearch: /^(on|true|1|yes)$/i.test(process.env.FB_PAGE_SEARCH || "") && !!process.env.META_ACCESS_TOKEN,
     // the Feedback button in the header (beta testers): an address, nothing else
     feedback: /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(process.env.FEEDBACK_EMAIL?.trim() ?? "") ? process.env.FEEDBACK_EMAIL!.trim() : null,

@@ -15,6 +15,8 @@ export interface EmailInfo {
   /** Mailbox-level check by a verification service (EMAIL_VERIFY_KEY), if one was made. */
   mailbox?: "valid" | "invalid" | "catch_all" | "unknown";
   mailboxBy?: string;
+  /** Built from the owner's name (first@domain…) and kept only because the mailbox check said it exists. */
+  guessed?: boolean;
 }
 
 /** Throwaway-inbox services: an address there belongs to nobody you can sell to. */
@@ -52,6 +54,30 @@ export function classifyEmail(email: string, siteDomain?: string): EmailKind {
   if (own) return generic ? "own_generic" : "own_named";
   if (FREE_MAIL.test(e)) return generic ? "generic" : "personal";
   return generic ? "generic" : "other";
+}
+
+/** "Dr. Mehul R. Shah" → ["mehul", "shah"]: plain letters, no titles or initials. */
+function nameParts(full: string): string[] {
+  return full
+    .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\b(dr|mr|mrs|ms|miss|shri|smt|er|ca|adv|prof|sir)\.?\s+/g, "")
+    .split(/[\s.\-']+/)
+    .map((p) => p.replace(/[^a-z]/g, ""))
+    .filter((p) => p.length > 1);
+}
+
+/**
+ * Likely addresses for a person at their company's domain, most likely first (yc-outreach measured
+ * first@ right 80% of the time, and the right one among these four 93%; Scout uses the same patterns).
+ * Never emailed unless a mailbox check confirms one.
+ */
+export function emailGuesses(fullName: string, domain: string): string[] {
+  const p = nameParts(fullName);
+  if (!p.length || !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(domain)) return [];
+  const [first, last] = [p[0], p.length > 1 ? p[p.length - 1] : ""];
+  const d = domain.toLowerCase().replace(/^www\./, "");
+  return [...new Set([`${first}@${d}`, ...(last ? [`${first}.${last}@${d}`, `${first[0]}${last}@${d}`, `${first}${last}@${d}`] : [])])];
 }
 
 const RANK: Record<EmailKind, number> = { own_named: 5, personal: 4, own_generic: 3, other: 2, generic: 1 };
