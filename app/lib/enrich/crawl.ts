@@ -5,6 +5,7 @@ import { mergeFacts, siteFacts } from "./facts";
 import { fetchPublic } from "../safeFetch";
 import { domainOf, isMobile, isSocialHost, normalizePhone, phonesInText } from "../util";
 import { currentCountry } from "../marketContext";
+import { ownerFromText } from "./names";
 
 const FREE_BUILDERS: Array<[RegExp, string]> = [
   [/\.wixsite\.com$/, "Wix free site"],
@@ -121,6 +122,12 @@ export function parsePage(html: string, pageUrl: string) {
       }
     } catch {}
   });
+  // the owner named in the text ("Founder: Rahul Shah", the one doctor on a clinic's site), when JSON-LD didn't say.
+  // Read piece by piece with spaces between elements: .text() glues "<h1>Shree</h1><p>Founder: …" into "ShreeFounder: …"
+  if (!ownerName) {
+    const pieces = $("body").find("*").addBack().not("script, style, noscript, template").contents().toArray().filter((n) => n.type === "text").map((n) => $(n).text());
+    ownerName = ownerFromText(pieces.join(" ").replace(/\s+/g, " "));
+  }
   // 4. Emails from meta tags
   const ogEmail = $('meta[property="og:email"]').attr("content") || $('meta[name="email"]').attr("content") || "";
   if (ogEmail && !BAD_EMAIL.test(ogEmail)) emails.add(ogEmail.trim().toLowerCase());

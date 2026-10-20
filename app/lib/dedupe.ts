@@ -2,6 +2,10 @@ import { currentCountry } from "./marketContext";
 import type { Lead, RawPlace } from "./types";
 import { facebookPage, instagramHandle, socialKey } from "./sources/social";
 import { domainOf, isSocialHost, metres, normalizePhone, simplifyName, uid } from "./util";
+import { parsePersonName } from "./enrich/names";
+
+/** Google Maps often lists the business itself as its "owner": only a person's name counts. */
+const ownerOf = (r: RawPlace) => (r.owner && parsePersonName(r.owner, r.name) ? r.owner : undefined);
 
 /**
  * Merge raw places from every source into unique leads.
@@ -60,7 +64,7 @@ export function mergePlaces(raw: RawPlace[]): Lead[] {
         reviews: r.reviews,
         businessStatus: r.businessStatus,
         brand: r.brand,
-        owner: r.owner ? { name: r.owner, via: "google_maps" } : undefined,
+        owner: ownerOf(r) ? { name: ownerOf(r)!, via: "google_maps" } : undefined,
         priceRange: r.priceRange,
         orderLinks: r.orderLinks,
         photos: r.photos,
@@ -109,7 +113,7 @@ function mergeInto(l: Lead, r: RawPlace, phone?: string) {
   if (r.reviews != null) l.reviews = r.reviews;
   if (r.businessStatus) l.businessStatus = r.businessStatus;
   l.brand ??= r.brand;
-  if (r.owner && !l.owner) l.owner = { name: r.owner, via: "google_maps" };
+  if (ownerOf(r) && !l.owner) l.owner = { name: ownerOf(r)!, via: "google_maps" };
   l.priceRange ??= r.priceRange;
   l.photos ??= r.photos;
   l.openHours ??= r.openHours;

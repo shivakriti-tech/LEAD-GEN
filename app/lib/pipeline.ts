@@ -25,6 +25,8 @@ import { classifyEmail, isDisposable, looksLikeEmail, rankEmails, usable } from 
 import { domainRegisteredOn, registrableDomain } from "./enrich/domainAge";
 import { cappedVerifier, verifierFromEnv, type EmailVerifier, type MailboxCheck, type VerifyStats } from "./enrich/verifyEmail";
 import { domainAcceptsMail } from "./enrich/mx";
+import { parsePersonName } from "./enrich/names";
+import { findOwnerEmail } from "./enrich/emailFinder";
 import type { WebsiteAudit } from "./types";
 import type { Store } from "./store";
 import type { Lead, Offer, ProgressEvent, RawPlace, SearchParams, SearchRecord } from "./types";
@@ -64,6 +66,8 @@ export interface Deps {
   /** Mailbox-level email check through a service (EMAIL_VERIFY_KEY); at most `emailVerifyCap` a search (default 50). */
   emailVerify?: EmailVerifier;
   emailVerifyCap?: number;
+  /** Work out the owner's address from their name and the domain (default on; EMAIL_GUESS=off). Confirmed with the checks above when they're set up. */
+  emailGuess?: boolean;
   /** When a website's domain was registered (public RDAP records); a young domain hints at a new business. */
   domainAge?: (host: string) => Promise<string | null | undefined>;
   cacheStats?: CacheStats;
@@ -188,7 +192,7 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     const saved = new Map<string, DirectoryEntry>();
     if (deps.directory && !params.fresh && !resume)
       for (const c of cats) {
-        const e = await deps.directory.get(params.city, params.area, c.key).catch(() => undefined);
+        const e = await deps.directory.get(params.city, params.area, c.key, deps.now?.()).catch(() => undefined);
         if (e) saved.set(c.key, e);
       }
     const liveCats = resume ? [] : cats.filter((c) => !saved.has(c.key));
@@ -628,6 +632,9 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
     const found = leads.filter((l) => l.websiteCheck?.via === "domain_guess" || l.websiteCheck?.via === "web_search").length;
     if (verifyStats.checked) log(`Mailbox check (your email verification service): ${verifyStats.checked} checked, ${verifyStats.valid} verified, ${verifyStats.invalid} don't exist (skipped for the next address), ${verifyStats.catchAll} accept any address.${verifyStats.skipped ? ` ${verifyStats.skipped} not checked (limit of ${deps.emailVerifyCap ?? 50} a search; EMAIL_VERIFY_MAX to change).` : ""}`);
     if (verifyStats.stopped) log(`Email check stopped: ${verifyStats.stopped}`, "warn");
+    const ownerFound = leads.filter((l) => l.emailInfo?.some((i) => i.source === "guessed")).length;
+    const ownerLikely = leads.filter((l) => l.emailGuess).length;
+    if (ownerFound || ownerLikely) log(`Owner emails worked out from the owner's name and the website's domain: ${ownerFound ? `${ownerFound} confirmed by a mailbox check (ready to email)` : "none confirmed yet"}${ownerLikely ? `, ${ownerLikely} likely but not confirmed (shown on the lead, never emailed${deps.emailVerify ? "" : "; set EMAIL_VERIFY to confirm them"})` : ""}.`);
     if (needSite) log(`Found and verified ${found} website${found === 1 ? "" : "s"} the map data didn't list.${state.searchBroken ? " Web search stopped partway (every search option failed). Set up SearXNG (free, see README) or a free Tavily key." : ""}`);
     const before = leads.length;
     leads = mergeBySocial(leads);
@@ -801,7 +808,7 @@ const logTo = (emit: Emit) => (message: string, level: "info" | "warn" | "error"
 export async function qualifyLead(
   l: Lead,
   opts: { area?: string; verify: boolean; search?: (q: string) => Promise<SearchHit[]>; numberSearch?: (q: string) => Promise<SearchHit[]>; state?: { searchBroken: boolean }; verifyEmail?: (email: string) => Promise<MailboxCheck | undefined> },
-  deps: Pick<Deps, "discover" | "audit" | "mx" | "domainAge">,
+  deps: Pick<Deps, "discover" | "audit" | "mx" | "domainAge" | "emailGuess">,
 ): Promise<void> {
   const state = opts.state ?? { searchBroken: false };
   l.websiteCheck ??= { via: l.website && !isSocialHost(domainOf(l.website)) ? "source" : "none_found", tried: [l.sources.map((x) => SOURCE_LABEL[x]).join(" + ")] };
@@ -825,10 +832,13 @@ export async function qualifyLead(
   for (const e of l.audit.emails) if (!l.emails.includes(e)) l.emails.push(e);
   for (const p of l.audit.phones) if (!l.phones.includes(p)) l.phones.push(p);
   if (l.audit.whatsapp && !l.phones.includes(l.audit.whatsapp)) l.phones.push(l.audit.whatsapp);
-  if (l.audit.ownerName && !l.owner) l.owner = { name: l.audit.ownerName, via: "website" };
+  // a "founder" that is really the business's own name isn't a person to greet
+  if (l.audit.ownerName && !l.owner && parsePersonName(l.audit.ownerName, l.name)) l.owner = { name: l.audit.ownerName, via: "website" };
   l.phone ??= l.phones[0];
   for (const u of Object.values(l.audit.socials ?? {})) rememberSocial(l, u);
   await checkEmails([l], deps.mx, opts.verifyEmail);
+  // the owner's own address, from their name and the domain's pattern (a chain's head office decides, so not for them)
+  if (deps.emailGuess !== false && !l.chain) await findOwnerEmail(l, { verify: opts.verifyEmail, mx: deps.mx });
 }
 
 /**
@@ -912,7 +922,8 @@ export async function checkEmails(leads: Lead[], mx?: typeof domainAcceptsMail, 
     let infos = rankEmails(
       l.emails.map((email) => {
         const was = prev.get(email);
-        return { email, kind: classifyEmail(email, site), deliverable: ok.get(email.split("@")[1]?.toLowerCase()), disposable: isDisposable(email) || undefined, mailbox: was?.mailbox, mailboxBy: was?.mailboxBy };
+        const source = was?.source ?? (l.audit?.emails?.includes(email) ? "website" : "listing");
+        return { email, kind: classifyEmail(email, site), deliverable: ok.get(email.split("@")[1]?.toLowerCase()), disposable: isDisposable(email) || undefined, mailbox: was?.mailbox, mailboxBy: was?.mailboxBy, source, pattern: was?.pattern };
       }),
     );
     if (verify) {
@@ -1004,6 +1015,7 @@ export function defaultDeps(store: Store): Deps {
     // DOMAIN_AGE=off skips the registration-date lookup
     domainAge: /^(off|0|false|no)$/i.test(process.env.DOMAIN_AGE || "") ? undefined : withDomainCache(domainRegisteredOn),
     emailVerifyCap: Math.max(0, Number(process.env.EMAIL_VERIFY_MAX) || 50),
+    emailGuess: !/^(off|0|false|no)$/i.test(process.env.EMAIL_GUESS || ""),
     concurrency: envCount(process.env.LEAD_CONCURRENCY, 8, 64),
     timeBudgetMs: envCount(process.env.LEAD_TIME_BUDGET, 240, 3600) * 1000,
     searchConcurrency: envCount(process.env.SEARCH_CONCURRENCY, 3, 20),

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Lead } from "@/lib/types";
 import { phoneKind, PHONE_KIND_LABEL, safeHref } from "@/lib/util";
-import { EMAIL_KIND_LABEL } from "@/lib/enrich/email";
+import { EMAIL_KIND_LABEL, emailScore } from "@/lib/enrich/email";
 import { MAILBOX_LABEL } from "@/lib/enrich/mailboxLabel";
 import { canContact, emailLink, linkedinOf, localDate, mapsLink, STEP_LABEL, scoreSummary, shortAddress, statusOf, telLink, whatsappNumber } from "@/lib/outreach";
 import type { FollowUpPatch, Touched } from "@/lib/followups";
@@ -238,12 +238,23 @@ export function LeadPanel({
                     <span className="email">{e.email}</span>
                     <span className={`tag ${e.deliverable === false ? "bad" : e.kind === "own_named" || e.kind === "personal" ? "good" : ""}`}>{e.deliverable === false ? "can't receive mail" : EMAIL_KIND_LABEL[e.kind]}</span>
                     {e.disposable ? <span className="tag bad">throwaway inbox</span> : e.mailbox && e.mailbox !== "unknown" && <span className={`tag ${e.mailbox === "valid" ? "good" : e.mailbox === "invalid" ? "bad" : "warn"}`} title={e.mailboxBy ? `Checked with ${e.mailboxBy}` : undefined}>{MAILBOX_LABEL[e.mailbox]}</span>}
+                    {e.source === "guessed" && <span className="tag" title={e.pattern ? `Pattern: ${e.pattern}` : undefined}>from the owner&apos;s name</span>}
+                    <span className="tag" title="How sure we are that this address reaches a real inbox">{emailScore(e)}% sure</span>
                     <span className="grow" />
                     <button className="act icon-only" onClick={() => copy(e.email, () => flash(e.email))} aria-label={`Copy ${e.email}`} title="Copy">{copied === e.email ? <IconCheck /> : <IconCopy />}</button>
                   </div>
                 ))
               : l.emails.map((e) => <div className="reach-row" key={e}><span className="email">{e}</span></div>)}
             {!l.emails.length && <div className="sub">No email found.</div>}
+            {l.emailGuess && (
+              <div className="reach-row" title={l.emailGuess.basis}>
+                <span className="email">{l.emailGuess.email}</span>
+                <span className="tag warn">{l.emailGuess.status === "catch_all" ? "likely owner email: domain accepts any address, can't confirm" : "likely owner email, not confirmed"}</span>
+                <span className="grow" />
+                <button className="act icon-only" onClick={() => copy(l.emailGuess!.email, () => flash(l.emailGuess!.email))} aria-label={`Copy ${l.emailGuess.email}`} title="Copy">{copied === l.emailGuess.email ? <IconCheck /> : <IconCopy />}</button>
+              </div>
+            )}
+            {l.emailGuess && <div className="sub">Worked out from {l.emailGuess.basis}. Not emailed by the app until a mailbox check confirms it{l.emailGuess.tried?.length ? ` (checked and not found: ${l.emailGuess.tried.join(", ")})` : ""}.</div>}
             {l.owner && <div className="reach-row"><span>Owner: <b>{l.owner.name}</b></span><span className="sub">from {l.owner.via === "google_maps" ? "Google Maps" : "their website"}</span></div>}
             <div className="links">
               {l.website && safeHref(l.website) && <a href={safeHref(l.website)} target="_blank" rel="noreferrer">{l.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")}</a>}

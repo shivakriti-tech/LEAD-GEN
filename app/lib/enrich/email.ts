@@ -15,6 +15,10 @@ export interface EmailInfo {
   /** Mailbox-level check by a verification service (EMAIL_VERIFY_KEY), if one was made. */
   mailbox?: "valid" | "invalid" | "catch_all" | "unknown";
   mailboxBy?: string;
+  /** Where the address came from: published on the business's website, on a listing, or worked out from the owner's name (lib/enrich/emailFinder.ts). */
+  source?: "website" | "listing" | "guessed";
+  /** For a guessed address: the pattern it follows ("first.last"). */
+  pattern?: string;
 }
 
 /** Throwaway-inbox services: an address there belongs to nobody you can sell to. */
@@ -68,4 +72,25 @@ export const EMAIL_KIND_LABEL: Record<EmailKind, string> = {
   own_generic: "shared inbox, own domain",
   generic: "shared inbox",
   other: "other",
+};
+
+/**
+ * How sure we are, 0–100, that mail to this address reaches a real inbox (like Hunter's confidence
+ * score). Published addresses start higher than guessed ones; a mailbox check outweighs both; a
+ * domain that accepts any address caps it, since its bad addresses bounce later instead of now.
+ */
+export function emailScore(i: Pick<EmailInfo, "source" | "deliverable" | "disposable" | "mailbox">): number {
+  if (i.disposable || i.deliverable === false || i.mailbox === "invalid") return 0;
+  const guessed = i.source === "guessed";
+  if (i.mailbox === "valid") return guessed ? 90 : 97;
+  let s = guessed ? 35 : i.source === "listing" ? 60 : 65;
+  if (i.deliverable) s += 10;
+  if (i.mailbox === "catch_all") s = Math.min(s, guessed ? 30 : 55);
+  return s;
+}
+
+export const EMAIL_SOURCE_LABEL: Record<NonNullable<EmailInfo["source"]>, string> = {
+  website: "on their website",
+  listing: "on a listing",
+  guessed: "worked out from the owner's name",
 };

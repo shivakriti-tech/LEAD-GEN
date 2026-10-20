@@ -1,4 +1,4 @@
-import { EMAIL_KIND_LABEL } from "./enrich/email";
+import { EMAIL_KIND_LABEL, emailScore, EMAIL_SOURCE_LABEL } from "./enrich/email";
 import { MAILBOX_LABEL } from "./enrich/mailboxLabel";
 import { followUpLabel, linkedinOf } from "./outreach";
 import type { Lead } from "./types";
@@ -21,6 +21,9 @@ const COLS: Array<[string, (l: Lead) => unknown]> = [
   ["Email", (l) => l.email],
   ["Email type", (l) => (l.emailInfo?.[0] && l.email ? EMAIL_KIND_LABEL[l.emailInfo[0].kind] : undefined)],
   ["Email check", (l) => { const i = l.email ? l.emailInfo?.find((x) => x.email === l.email) : undefined; return !i ? undefined : i.mailbox && i.mailbox !== "unknown" ? MAILBOX_LABEL[i.mailbox] : i.deliverable ? "domain accepts mail" : "not checked"; }],
+  ["Email found", (l) => { const i = l.email ? l.emailInfo?.find((x) => x.email === l.email) : undefined; return i?.source && EMAIL_SOURCE_LABEL[i.source]; }],
+  ["Email sure (%)", (l) => { const i = l.email ? l.emailInfo?.find((x) => x.email === l.email) : undefined; return i && emailScore(i); }],
+  ["Likely owner email (not confirmed)", (l) => l.emailGuess?.email],
   ["Contact confidence", (l) => l.confidence && `${l.confidence.level} (${l.confidence.score})`],
   ["Owner", (l) => l.owner?.name],
   ["Website", (l) => l.website],

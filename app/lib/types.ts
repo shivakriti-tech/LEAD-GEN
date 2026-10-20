@@ -222,6 +222,12 @@ export interface Lead {
   about?: string;
   /** Every email we have, most useful first, with whether its domain can receive mail. */
   emailInfo?: EmailInfo[];
+  /**
+   * The owner's likely address, worked out from their name and the domain's pattern but not
+   * confirmed by a mailbox check (lib/enrich/emailFinder.ts). Shown, never emailed: a confirmed
+   * guess joins `emails` instead.
+   */
+  emailGuess?: { email: string; pattern: string; basis: string; status: "unchecked" | "catch_all"; tried?: string[] };
   /** Social profiles: from a source, the business's website, or web search. Details only via Meta's official API. */
   social?: {
     instagram?: { handle: string; url: string; name?: string; bio?: string; website?: string; followers?: number; posts?: number; lastPostAt?: string; checked: "api" | "link_only" | "not_business" };

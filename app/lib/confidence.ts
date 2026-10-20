@@ -41,7 +41,7 @@ export function contactConfidence(l: Lead, now = new Date()): Confidence {
   if (l.email) {
     const site = domainOf(a?.finalUrl ?? l.website);
     const ownDomain = !!site && l.email.toLowerCase().endsWith(`@${site}`);
-    if (best?.mailbox === "valid") plus(30, "Email mailbox verified");
+    if (best?.mailbox === "valid") plus(30, best.source === "guessed" ? "Owner's email worked out from their name, and the mailbox check says it exists" : "Email mailbox verified");
     else if (best?.mailbox === "invalid" || best?.deliverable === false) plus(-20, "Email can't receive mail");
     else if (best?.mailbox === "catch_all") plus(10, "Email domain accepts any address (can't confirm the mailbox)");
     else if (best?.deliverable) plus(15, ownDomain ? "Email on the business's own domain, which receives mail" : "Email domain receives mail");
