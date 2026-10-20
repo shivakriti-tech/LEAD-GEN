@@ -29,10 +29,13 @@ export interface DirectoryEntry {
 }
 
 export interface Directory {
-  get(city: string, area: string | undefined, category: string): Promise<DirectoryEntry | undefined>;
+  /** Saved businesses for this place and type, unless older than DIRECTORY_MAX_AGE at `now` (default: the clock). */
+  get(city: string, area: string | undefined, category: string, now?: Date): Promise<DirectoryEntry | undefined>;
   put(entry: DirectoryEntry): Promise<void>;
   list(city?: string): Promise<Array<Omit<DirectoryEntry, "leads"> & { count: number }>>;
 }
+
+const fresh = (e: DirectoryEntry, now = new Date()) => now.getTime() - Date.parse(e.savedAt) < DIRECTORY_MAX_AGE;
 
 const slug = (s?: string) => (s ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "_all";
 
@@ -46,10 +49,10 @@ export function forDirectory(l: Lead, now = new Date()): Lead {
 export function localDirectory(root = () => path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", "directory")): Directory {
   const file = (city: string, area: string | undefined, category: string) => path.join(root(), slug(city), slug(area), `${slug(category)}.json`);
   return {
-    async get(city, area, category) {
+    async get(city, area, category, now) {
       try {
         const e = JSON.parse(await fs.readFile(/*turbopackIgnore: true*/ file(city, area, category), "utf8")) as DirectoryEntry;
-        return Date.now() - Date.parse(e.savedAt) < DIRECTORY_MAX_AGE && e.leads.length ? e : undefined;
+        return fresh(e, now) && e.leads.length ? e : undefined;
       } catch {
         return undefined;
       }
@@ -82,11 +85,11 @@ export function localDirectory(root = () => path.join(/*turbopackIgnore: true*/ 
 export function supabaseDirectory(db: SupabaseClient): Directory {
   const key = (c: string, a: string | undefined, cat: string) => `${slug(c)}/${slug(a)}/${slug(cat)}`;
   return {
-    async get(city, area, category) {
+    async get(city, area, category, now) {
       const { data, error } = await db.from("directory").select("data").eq("key", key(city, area, category)).maybeSingle();
       if (error) throw new Error(`Supabase: ${error.message}`);
       const e = (data as { data: DirectoryEntry } | null)?.data;
-      return e && Date.now() - Date.parse(e.savedAt) < DIRECTORY_MAX_AGE && e.leads.length ? e : undefined;
+      return e && fresh(e, now) && e.leads.length ? e : undefined;
     },
     async put(e) {
       const { error } = await db.from("directory").upsert({
@@ -116,9 +119,9 @@ export function memoryDirectory(): Directory & { entries: Map<string, DirectoryE
   const k = (c: string, a: string | undefined, cat: string) => `${slug(c)}/${slug(a)}/${slug(cat)}`;
   return {
     entries,
-    async get(c, a, cat) {
+    async get(c, a, cat, now) {
       const e = entries.get(k(c, a, cat));
-      return e && Date.now() - Date.parse(e.savedAt) < DIRECTORY_MAX_AGE ? structuredClone(e) : undefined;
+      return e && fresh(e, now) ? structuredClone(e) : undefined;
     },
     async put(e) {
       entries.set(k(e.city, e.area, e.category), structuredClone(e));

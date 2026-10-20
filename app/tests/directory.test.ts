@@ -47,7 +47,7 @@ describe("the saved lead directory", () => {
     const first = await runSearch(params(), { ...deps("2026-09-20T10:00:00Z", c1), directory }, () => {});
     expect(first.leads).toHaveLength(2);
     expect(c1.google).toBe(1);
-    const entry = await directory.get("Vadodara", "Alkapuri", "dentist");
+    const entry = await directory.get("Vadodara", "Alkapuri", "dentist", new Date("2026-09-20T10:00:00Z"));
     expect(entry?.leads.map((l) => l.name).sort()).toEqual(["Aum Dental Care", "Smile Studio"]);
     expect(entry?.sources).toEqual(["google", "osm"]);
     expect(entry?.leads[0].followUp).toBeUndefined();
@@ -79,7 +79,7 @@ describe("the saved lead directory", () => {
     expect(c.google).toBe(0);
     expect(r.leads.find((l) => l.name === "Aum Dental Care")!.changes).toEqual(["Now has a website"]);
     expect(r.leads.find((l) => l.name === "Smile Studio")!.changes).toEqual(["Website stopped working"]);
-    expect((await directory.get("Vadodara", "Alkapuri", "dentist"))!.leads.every((l) => l.checkedAt === "2026-09-22T10:00:00.000Z" && !l.changes)).toBe(true);
+    expect((await directory.get("Vadodara", "Alkapuri", "dentist", new Date("2026-09-22T10:00:00Z")))!.leads.every((l) => l.checkedAt === "2026-09-22T10:00:00.000Z" && !l.changes)).toBe(true);
   });
 
   it("can be skipped for a fully live search, and a search with more sources still runs the missing ones", async () => {
