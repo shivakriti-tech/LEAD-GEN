@@ -39,6 +39,7 @@ With no keys at all it already works: leads come from OpenStreetMap (free) and e
 | `ANTHROPIC_API_KEY` | Claude reads a client's website when you add them under *Clients* and drafts their profile (services, prices, rules). About ₹10–20 per client (one Claude Opus 5.5 call). Without it a basic reader drafts it | https://console.anthropic.com → API keys |
 | `APP_PASSWORD` | Password-protects the whole app (the browser asks; any user name). **Required online**: a live build refuses to open without one (or with one shorter than 12 characters), because saved searches hold phone numbers and emails and every search spends your API quota. Ten wrong tries lock that address out for 15 minutes | Any long password |
 | `FEEDBACK_EMAIL` | A **Feedback** button in the header that emails you what the user was doing. For beta testers (docs/BETA.md) | Your address |
+| `EMAIL_GUESS` | `off` stops working out owners' emails from their name and the website's domain (see *How a search works*, step 6). On by default; a guess is only emailed once `EMAIL_VERIFY` confirms it | – |
 | `LEARN_FROM_RESULTS` | `off` stops scores learning from your replies (see *Scoring*) | – |
 | `MAX_RUNNING_SEARCHES` | Searches one server runs at once (default 3) | – |
 | `TRUST_PROXY_HOPS`, `APP_OPEN`, `APP_ALLOWED_HOSTS` | Hosting details: proxies in front of the app (default 1); `APP_OPEN=yes` to run online with no password (not recommended); extra host names for a password-less app | See DEPLOY.md |
@@ -270,7 +271,8 @@ In a search, tick leads and press **Email** or **LinkedIn** in the bar at the bo
 4. **Shows businesses as they're found:** while the sources are still searching, the list fills in every few seconds with what's been found so far (step 1 shows "N found so far · 5 of 12 searches"). Then it **shows every business,** marked "checking…", then checks them 8 at a time and updates each one on screen as soon as it's done. The search keeps running and saves as it goes if you close the tab; open it again from *Recent searches* to watch its progress and log. **Stop** ends it early and keeps everything checked so far. Every search, finished or not, can be exported to CSV (unchecked businesses are marked in a "Checked" column). A search cut off by closing the app shows as *stopped*.
 5. **Doesn't trust "no website" from the map.** For every business without a website it tries likely web addresses (teapost.com, teapost.in…), a web search for the name (and its phone number, with `PHONE_SEARCH=on`), and only accepts a page that shows the business name plus its phone number or its area. Each lead shows what was checked.
 6. Opens each website (plus up to 2 contact/about pages): emails, phones, WhatsApp, Instagram/Facebook/LinkedIn, owner name, year founded, the agency that built it, HTTPS, mobile-ready, copyright year, site builder, parked/broken pages, and growth clues (hiring, newly opened, expanding). LinkedIn pages come only from the business's own website or Apollo: LinkedIn itself is never scraped. Phone numbers are marked Mobile · WhatsApp, Landline, Toll-free or Foreign.
-   Emails are ranked (an owner's own address before info@) and checked for a mail server, so a dead address is never the one shown first. Things that only look like emails (logo@2x.png, name@domain.com) are dropped and throwaway inboxes flagged; with `EMAIL_VERIFY_KEY` the best address is also checked at mailbox level, and if that mailbox doesn't exist the next address is checked.
+   Emails are ranked (an owner's own address before info@) and checked for a mail server, so a dead address is never the one shown first. Things that only look like emails (logo@2x.png, name@domain.com) are dropped and throwaway inboxes flagged; with `EMAIL_VERIFY_KEY` the best address is also checked at mailbox level, and if that mailbox doesn't exist the next address is checked. Each address shows where it was found and how sure we are it reaches an inbox (0–100%).
+   **The owner's own email**, the way Apollo and Hunter find it: the owner's name comes from Google Maps, the site's structured data, or the page text ("Founder: Rahul Shah", "Rahul Shah, Managing Director", or the one doctor named on a clinic's site; anything doubtful is skipped, since the name goes into the greeting). With the name and the business's own domain, the app lists the likely addresses (rahul@, rahul.shah@, rshah@…), first in the pattern the domain's other addresses already use (priya.mehta@ → rahul.shah@), and checks up to 2 with your `EMAIL_VERIFY` service, inside the same 50-a-search limit. A confirmed address becomes the lead's email. An unconfirmed one is shown on the lead as "likely owner email, not confirmed" and is **never emailed** by the app (an unchecked guess risks a bounce, and bounces pause your mailbox). Never for Gmail-style addresses, chains or domains without a mail server. `EMAIL_GUESS=off` turns it off.
 7. Instagram: with a Meta token, reads each business profile (followers, last post, bio website). A website in the bio is verified like any other; an active account with no website becomes a stronger lead.
 8. Optional: Google PageSpeed mobile score.
 9. Optional: Apollo company data (your key).
@@ -392,7 +394,12 @@ Facebook: Page search through the official API needs Meta's "Page Public Metadat
 
 Hot ≥ 65 · Warm 40–64 · Cold < 40. Tune it in `lib/score/websiteDev.ts`; the why-now signals are in `lib/score/growth.ts`; the niches' scoring in `lib/niches.ts`.
 
-**Learning from your replies.** Once 30 leads of one kind (website, logistics, a niche…) have been messaged, each reason's reply rate is compared with your average, and new leads move by up to ±15 points, with the evidence on the lead: "Your results: leads with no website replied 2.1× as often (9 of 30)". A reason needs 8 messaged leads of its own, rates are pulled towards your average so a lucky streak doesn't swing scores, and competitors are never lifted. `LEARN_FROM_RESULTS=off` turns it off (`lib/learn.ts`).
+**Learning from your replies.** Once 30 leads of one kind (website, logistics, a niche…) have been messaged, a small model is trained on them (a logistic regression, like the "AI scores" in Apollo that learn from a team's own deals): did each lead reply, given its reasons (no website, few reviews, exporter…) and its business type. New leads move by up to ±15 points, with the evidence on the lead: "Your results: leads with no website replied 2.1× as often (9 of 30)" or "Your results: dentist leads replied 2.4× as often (12 of 40)".
+- Two reasons that usually come together aren't counted twice: the one that actually goes with replies gets the credit.
+- A reason or business type needs 8 messaged leads with it and 8 without; every weight starts at "no effect" and needs evidence to move, so a lucky streak doesn't swing scores.
+- Recent results count more (half weight after 6 months). A lead messaged in the last 3 days that hasn't answered yet isn't counted as "no reply".
+- With enough results, the model is first trained on your older leads and tested on your newest quarter. If it can't tell who replies better than a coin flip would, it changes nothing. The search log says how it did: "Tested on your 40 newest: they put a lead that replied above one that didn't 68% of the time (written scores alone: 55%)".
+- Competitors are never lifted. `LEARN_FROM_RESULTS=off` turns it off (`lib/learn.ts`).
 
 **Contact confidence** (high / medium / low, in the lead panel under *Reach them* and in the CSV) says how sure we are the contact details are right, separately from how good the lead is: the phone matches the map listing and the website, the mailbox was verified, the email is on the business's own domain, the website was matched by name and phone, it's in several sources, Google says it's open, and it was checked recently (`lib/confidence.ts`).
 
@@ -409,7 +416,9 @@ lib/sources/                 googlePlaces.ts, osm.ts, apollo.ts, gmapsScraper.ts
 lib/enrich/                  crawl.ts (website check), discover.ts (find missing websites), searchProviders.ts (SearXNG / Tavily / Brave / DuckDuckGo), pagespeed.ts
 lib/score/websiteDev.ts      opportunity score for this niche
 lib/dedupe.ts                merging duplicates across sources
-lib/enrich/email.ts, mx.ts   email ranking (owner vs shared inbox) and mail-server check
+lib/enrich/email.ts, mx.ts   email ranking (owner vs shared inbox), how sure we are of each address, and mail-server check
+lib/enrich/names.ts          is this a person's name, and the owner named on a website
+lib/enrich/emailFinder.ts    the owner's address from their name and the domain's pattern, confirmed by a mailbox check
 lib/brain.ts, brainAnalyze.ts  client profiles (Business Brain) and reading a client's website (Claude or basic reader)
 lib/cache.ts                 disk cache for repeat searches
 lib/directory.ts             saved lead directory (per city/area/type); lib/prefill.ts + scripts/prefill.ts fill it ahead of time
@@ -421,7 +430,7 @@ lib/enrich/facts.ts          facts from websites: booking, certificates, staff s
 lib/safeFetch.ts             blocks private/internal addresses when checking websites in a live build
 lib/security.ts, proxy.ts    password, lockout, cross-site and rate limits, request size, security headers
 Dockerfile, DEPLOY.md        putting it online (Render blueprint in ../render.yaml, Railway, any VPS)
-docs/                        ACCURACY-ROADMAP.md (research and what to build next), BETA.md (customer beta)
+docs/                        ACCURACY-ROADMAP.md (research and what to build next), PAID-TOOLS-RESEARCH.md (how Apollo, Hunter, ZoomInfo and Clay work, and what we took), BETA.md (customer beta)
 lib/categories.ts            business types and their search terms
 supabase/schema.sql          database tables (re-run after updates: it only adds what's missing)
 searxng/                     free self-hosted web search (docker compose up -d)
