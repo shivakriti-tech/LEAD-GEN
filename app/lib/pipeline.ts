@@ -10,7 +10,7 @@ import { scoreLogistics } from "./score/logistics";
 import { scoreAgency } from "./score/agency";
 import { isNiche, scoreNiche } from "./niches";
 import { contactConfidence } from "./confidence";
-import { learnFromStore, withLearned, type Learned } from "./learn";
+import { learnedSummary, learnFromStore, withLearned, type Learned } from "./learn";
 import { apolloEnrichDomain } from "./sources/apollo";
 import { googleTextSearch } from "./sources/googlePlaces";
 import { geocodeBBox, osmSearch, type BBox } from "./sources/osm";
@@ -171,9 +171,11 @@ async function runSearchIn(params: SearchParams, deps: Deps, emit: (e: ProgressE
   /** What your own replies say about these reasons (nothing until enough leads were messaged). */
   let learned: Learned | undefined;
   /** The score (nudged by your results), and how sure we are of the contact details. */
-  const score = (l: Lead) => ({ ...withLearned(rate(l), params.sells, learned), confidence: contactConfidence(l, deps.now?.()) });
+  const score = (l: Lead) => ({ ...withLearned(rate(l), params.sells, learned, l.category), confidence: contactConfidence(l, deps.now?.()) });
   await deps.store.saveSearch(search);
   learned = await deps.learned?.(params.sells).catch(() => undefined);
+  const taught = learnedSummary(learned);
+  if (taught && !resumeFrom) log(taught);
 
   try {
     const place = params.area ? `${params.area}, ${params.city}` : params.city;
