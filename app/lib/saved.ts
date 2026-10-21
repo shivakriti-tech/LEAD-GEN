@@ -13,18 +13,33 @@ export interface SavedDoc<T> {
   write(d: T): Promise<void>;
 }
 
+/**
+ * The last copy read from or written to Supabase, per document. The app is the only writer, so a
+ * recent copy is as good as a fresh one, and the email worker (every 30 seconds) doesn't download
+ * the whole queue each time: that was most of the Supabase egress.
+ */
+const g = globalThis as unknown as { __savedDocs?: Map<string, { at: number; value: unknown }> };
+const docCache = (g.__savedDocs ??= new Map());
+const DOC_CACHE_MS = 2 * 60_000;
+
 export function savedDoc<T>(name: string, empty: () => T): SavedDoc<T> {
   const db = supabase();
   if (!db) return fileDoc(() => path.join(/*turbopackIgnore: true*/ process.cwd(), ".data", `${name}.json`), empty);
   return {
     async read() {
+      const hit = docCache.get(name);
+      if (hit && Date.now() - hit.at < DOC_CACHE_MS) return structuredClone(hit.value as T);
       const { data, error } = await db.from("app_state").select("value").eq("key", name).maybeSingle();
       if (error) throw new Error(`Supabase: ${error.message}`);
-      return data ? ((data as { value: T }).value) : empty();
+      const value = data ? ((data as { value: T }).value) : empty();
+      docCache.set(name, { at: Date.now(), value: structuredClone(value) });
+      return value;
     },
     async write(d) {
+      docCache.delete(name);
       const { error } = await db.from("app_state").upsert({ key: name, value: d, updated_at: new Date().toISOString() });
       if (error) throw new Error(`Supabase: ${error.message}`);
+      docCache.set(name, { at: Date.now(), value: structuredClone(d) });
     },
   };
 }

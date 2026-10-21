@@ -294,13 +294,6 @@ export async function tick(deps: SendDeps): Promise<{ did: "sent" | "skipped" | 
       });
       return { did: status === "skipped" || status === "cancelled" ? ("skipped" as const) : ("failed" as const), detail: reason, itemId: item.id };
     };
-    const lead = await deps.leads.get(item.searchId, item.leadId);
-    if (!lead) return finish("skipped", "The lead was deleted");
-    const can = canContact(lead, "email");
-    if (!can.ok) return finish("skipped", can.why!);
-    if (item.step > 0 && ["replied", "meeting", "interested", "won", "lost"].includes(statusOf(lead))) return finish("skipped", "They replied, so no follow-up");
-    const bad = recipientProblem(item.to, lead.emailInfo?.find((e) => e.email.toLowerCase() === item.to.toLowerCase()), d.suppressed);
-    if (bad) return finish("skipped", bad);
     // a few emails a day to one company at most: several at once looks like a blast to its mail server
     const co = companyKey(item.to);
     if (d.items.filter((i) => i.status === "sent" && i.sentAt && companyKey(i.to) === co && istParts(new Date(i.sentAt)).date === today).length >= PER_COMPANY_DAY) continue;
@@ -308,6 +301,14 @@ export async function tick(deps: SendDeps): Promise<{ did: "sent" | "skipped" | 
     const mbox = item.mailbox ? deps.mailboxes.find((m) => m.email === item.mailbox) : deps.mailboxes.filter(room).sort((a, b) => (d.mailboxes[a.email].sent[today] ?? 0) - (d.mailboxes[b.email].sent[today] ?? 0))[0];
     if (item.mailbox && !mbox) return finish("skipped", `The mailbox ${item.mailbox} isn't set up any more`);
     if (!mbox || !room(mbox)) continue; // this one waits for its mailbox; try the next due email
+    // only now load the lead: an email still waiting for its mailbox costs no database read
+    const lead = await deps.leads.get(item.searchId, item.leadId);
+    if (!lead) return finish("skipped", "The lead was deleted");
+    const can = canContact(lead, "email");
+    if (!can.ok) return finish("skipped", can.why!);
+    if (item.step > 0 && ["replied", "meeting", "interested", "won", "lost"].includes(statusOf(lead))) return finish("skipped", "They replied, so no follow-up");
+    const bad = recipientProblem(item.to, lead.emailInfo?.find((e) => e.email.toLowerCase() === item.to.toLowerCase()), d.suppressed);
+    if (bad) return finish("skipped", bad);
     if (item.step > 0 && deps.replied) {
       const first = d.items.filter((i) => i.searchId === item.searchId && i.leadId === item.leadId && i.status === "sent").sort((a, b) => (a.sentAt ?? "").localeCompare(b.sentAt ?? ""))[0];
       const from = Math.max(Date.parse(first?.sentAt ?? item.createdAt), item.replyCheckFrom ? Date.parse(item.replyCheckFrom) : 0);
