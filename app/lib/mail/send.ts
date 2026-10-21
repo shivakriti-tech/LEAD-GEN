@@ -3,6 +3,7 @@ import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import nodemailer, { type Transporter } from "nodemailer";
 import { ImapFlow } from "imapflow";
 import { getStore } from "../store";
+import type { Lead } from "../types";
 import { mergeFollowUp } from "../followups";
 import { live } from "../live";
 import { mailboxesFromEnv, type Mailbox } from "./mailboxes";
@@ -19,7 +20,7 @@ dns.setDefaultResultOrder("ipv4first");
 
 /** The real connections for the email queue: SMTP (nodemailer), IMAP reply checks, saved leads. */
 
-interface MailState { transports: Map<string, Transporter>; timer?: ReturnType<typeof setInterval>; busy: boolean; last?: { at: string; did: string; detail?: string } }
+interface MailState { transports: Map<string, Transporter>; timer?: ReturnType<typeof setInterval>; busy: boolean; scannedAt?: number; last?: { at: string; did: string; detail?: string } }
 const g = globalThis as unknown as { __mail?: MailState };
 const state: MailState = (g.__mail ??= { transports: new Map(), busy: false });
 
@@ -152,16 +153,23 @@ export async function domainProblem(m: Mailbox): Promise<string | undefined> {
   return why;
 }
 
+/** One saved lead: a single row when the store can do that, instead of downloading the whole search. */
+async function findLead(searchId: string, leadId: string): Promise<Lead | null> {
+  const store = getStore();
+  if (store.getLead) return store.getLead(searchId, leadId);
+  return (await store.getSearch(searchId))?.leads.find((l) => l.id === leadId) ?? null;
+}
+
 /** Leads in saved searches (and the running search's own copy, so a status set now isn't lost). */
 export const savedLeads: LeadAccess = {
   async get(searchId, leadId) {
     const running = live.get(searchId)?.leads?.find((l) => l.id === leadId);
     if (running) return running;
-    return (await getStore().getSearch(searchId))?.leads.find((l) => l.id === leadId);
+    return (await findLead(searchId, leadId)) ?? undefined;
   },
   async patch(searchId, leadId, p) {
     const running = live.get(searchId)?.leads?.find((l) => l.id === leadId);
-    const lead = running ?? (await getStore().getSearch(searchId))?.leads.find((l) => l.id === leadId);
+    const lead = running ?? (await findLead(searchId, leadId));
     if (!lead) return;
     const followUp = mergeFollowUp(lead.followUp, p);
     if (running) running.followUp = followUp;
@@ -181,7 +189,11 @@ export function startEmailWorker(): void {
     state.busy = true;
     try {
       const deps = emailDeps();
-      await scanInboxes(deps).catch((e) => console.error("[email] inbox check:", e instanceof Error ? e.message : e));
+      // each mailbox is only scanned every 30 minutes, so there's no need to look every 30 seconds
+      if (Date.now() - (state.scannedAt ?? 0) > 5 * 60_000) {
+        state.scannedAt = Date.now();
+        await scanInboxes(deps).catch((e) => console.error("[email] inbox check:", e instanceof Error ? e.message : e));
+      }
       const r = await tick(deps);
       state.last = { at: new Date().toISOString(), did: r.did, detail: r.detail };
       if (r.did !== "idle") console.log(`[email] ${r.did}: ${r.detail ?? ""}`);

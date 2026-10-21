@@ -15,6 +15,10 @@ export interface Store {
   saveLeads(searchId: string, leads: Lead[]): Promise<void>;
   listSearches(): Promise<SearchRecord[]>;
   getSearch(id: string): Promise<{ search: SearchRecord; leads: Lead[] } | null>;
+  /** Just the search record, without its leads (cheap: doesn't download every lead). */
+  getSearchRecord?(id: string): Promise<SearchRecord | null>;
+  /** One lead of a search, without downloading the rest. */
+  getLead?(searchId: string, leadId: string): Promise<Lead | null>;
   /** Save follow-up status/note/date on some leads of a search. Returns the leads that were updated. */
   updateFollowUps(searchId: string, updates: Array<{ id: string; followUp: FollowUp }>): Promise<Lead[]>;
   /** Remove leads from a search. Returns how many were removed. */
@@ -113,6 +117,8 @@ export function localStore(dir = path.join(/*turbopackIgnore: true*/ process.cwd
       }
     },
     getSearch: read,
+    getSearchRecord: async (id) => (await read(id))?.search ?? null,
+    getLead: async (searchId, leadId) => (await read(searchId))?.leads.find((l) => l.id === leadId) ?? null,
     updateFollowUps: (searchId, updates) =>
       oneAtATime(file(searchId), async () => {
         const cur = await read(searchId);
@@ -190,6 +196,18 @@ function supabaseStore(db: SupabaseClient): Store {
       const { data: rows, error } = await db.from("leads").select("data").eq("search_id", id).order("score", { ascending: false });
       if (error) throw new Error(`Supabase: ${error.message}`);
       return { search: fromSearch(s), leads: (rows ?? []).map((r: any) => r.data as Lead) };
+    },
+    async getSearchRecord(id) {
+      if (!UUID.test(id)) return null;
+      const { data: s, error } = await db.from("searches").select("*").eq("id", id).maybeSingle();
+      if (error) throw new Error(`Supabase: ${error.message}`);
+      return s ? fromSearch(s) : null;
+    },
+    async getLead(searchId, leadId) {
+      if (!UUID.test(searchId)) return null;
+      const { data: row, error } = await db.from("leads").select("data").eq("search_id", searchId).eq("id", leadId).maybeSingle();
+      if (error) throw new Error(`Supabase: ${error.message}`);
+      return row ? ((row as any).data as Lead) : null;
     },
     async updateFollowUps(searchId, updates) {
       const out: Lead[] = [];
